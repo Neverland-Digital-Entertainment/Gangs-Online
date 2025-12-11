@@ -5,9 +5,8 @@ services:
     runtime: node
     region: singapore
     plan: free
-    rootDir: packages/server
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    buildCommand: cd packages/shared && npm install && npm run build && cd ../server && npm install
+    startCommand: cd packages/server && npm start
     envVars:
       - key: NODE_ENV
         value: production

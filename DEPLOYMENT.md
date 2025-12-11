@@ -48,10 +48,10 @@ VITE_SERVER_URL=wss://your-server-name.onrender.com
 - **Name**: `gangs-online-server` （可自定義）
 - **Region**: Singapore（新加坡，速度較快）
 - **Branch**: `claude/phase-5-development-0132L6eh8SDDuwTumKtBtwBi`
-- **Root Directory**: `packages/server`
+- **Root Directory**: 留空（使用項目根目錄）
 - **Runtime**: Node
-- **Build Command**: `npm install && npm run build`
-- **Start Command**: `npm start`
+- **Build Command**: `cd packages/shared && npm install && npm run build && cd ../server && npm install`
+- **Start Command**: `cd packages/server && npm start`
 
 **環境變量**
 - `NODE_ENV` = `production`
