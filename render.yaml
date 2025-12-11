@@ -5,7 +5,7 @@ services:
     runtime: node
     region: singapore
     plan: free
-    buildCommand: cd packages/shared && npm install && npm run build && cd ../server && npm install
+    buildCommand: npm install && npm run build --workspace=@gangs-online/shared
     startCommand: cd packages/server && npm start
     envVars:
       - key: NODE_ENV

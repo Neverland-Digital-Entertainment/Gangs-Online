@@ -50,7 +50,7 @@ VITE_SERVER_URL=wss://your-server-name.onrender.com
 - **Branch**: `claude/phase-5-development-0132L6eh8SDDuwTumKtBtwBi`
 - **Root Directory**: 留空（使用項目根目錄）
 - **Runtime**: Node
-- **Build Command**: `cd packages/shared && npm install && npm run build && cd ../server && npm install`
+- **Build Command**: `npm install && npm run build --workspace=@gangs-online/shared`
 - **Start Command**: `cd packages/server && npm start`
 
 **環境變量**
