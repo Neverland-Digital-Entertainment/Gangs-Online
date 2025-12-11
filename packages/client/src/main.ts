@@ -14,6 +14,91 @@ const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 const engine = new BABYLON.Engine(canvas, true);
 const client = new Client.Client(SERVER_URL);
 
+// --- WEAPON ATTACHMENT ---
+const attachWeapon = (mesh: BABYLON.AbstractMesh, scene: BABYLON.Scene) => {
+    // 1. Create a simple Bat (Cylinder)
+    const bat = BABYLON.MeshBuilder.CreateCylinder("bat", { height: 0.8, diameter: 0.05 }, scene);
+    const mat = new BABYLON.StandardMaterial("batMat", scene);
+    mat.diffuseColor = BABYLON.Color3.FromHexString("#8B4513"); // Brown wood
+    bat.material = mat;
+
+    // 2. Find the Right Hand Bone
+    const skeleton = mesh.skeleton;
+    if (skeleton) {
+        // Try standard bone names
+        const handBone = skeleton.bones.find(b => b.name.includes("RightHand") || b.name.includes("RightHandMiddle1"));
+        if (handBone) {
+            bat.attachToBone(handBone, mesh);
+            // Adjust position/rotation to fit in hand
+            bat.position = new BABYLON.Vector3(0, 0, 0);
+            bat.rotation = new BABYLON.Vector3(0, 0, Math.PI / 2);
+        } else {
+            bat.dispose(); // No bone found
+        }
+    } else {
+        // Fallback: Just parent to mesh (won't animate with arm)
+        bat.parent = mesh;
+        bat.position.x = 0.3;
+        bat.position.y = 1;
+    }
+};
+
+// --- CHAT BUBBLE ---
+const createChatBubble = (mesh: BABYLON.AbstractMesh, text: string, uiTexture: GUI.AdvancedDynamicTexture) => {
+    const rect = new GUI.Rectangle();
+    rect.width = "150px";
+    rect.height = "40px";
+    rect.cornerRadius = 10;
+    rect.color = "black";
+    rect.thickness = 1;
+    rect.background = "white";
+    uiTexture.addControl(rect);
+    rect.linkWithMesh(mesh);
+    rect.linkOffsetY = -180; // Higher than name tag
+
+    const label = new GUI.TextBlock();
+    label.text = text;
+    label.fontSize = 12;
+    label.textWrapping = true;
+    label.color = "black";
+    rect.addControl(label);
+
+    // Fade out and destroy
+    setTimeout(() => {
+        rect.dispose();
+    }, 4000);
+};
+
+// --- CHAT UI ---
+const createChatUI = (room: Client.Room, scene: BABYLON.Scene) => {
+    const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("ChatUI");
+
+    // Chat Input Box (Bottom Left)
+    const input = new GUI.InputText();
+    input.width = "300px";
+    input.height = "40px";
+    input.text = "";
+    input.color = "white";
+    input.background = "rgba(0,0,0,0.5)";
+    input.placeholderText = "Press Enter to Chat...";
+    input.focusedBackground = "rgba(0,0,0,0.8)";
+    input.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    input.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+    input.left = "20px";
+    input.top = "-20px";
+
+    // Send on Enter
+    input.onKeyboardEventProcessedObservable.add((kbEvent) => {
+        if (kbEvent.keyboardEvent.key === "Enter" && input.text) {
+            room.send("chat", input.text);
+            input.text = "";
+        }
+    });
+
+    advancedTexture.addControl(input);
+    return advancedTexture;
+};
+
 // --- City Generator (Procedural Greybox) ---
 const createCity = (scene: BABYLON.Scene) => {
     // 1. Asphalt Road
@@ -161,6 +246,16 @@ const createScene = async () => {
         mySessionId = room.sessionId;
         console.log("Connected! My ID:", mySessionId);
 
+        // Create Chat Input
+        createChatUI(room, scene);
+
+        // Listen for Chat Broadcasts
+        room.onMessage("chat", (msg: { sessionId: string, text: string }) => {
+            if (playerEntities[msg.sessionId]) {
+                createChatBubble(playerEntities[msg.sessionId].mesh, msg.text, uiTexture);
+            }
+        });
+
         // Add Player
         room.state.players.onAdd(async (player: PlayerData, sessionId: string) => {
             const isSelf = sessionId === room.sessionId;
@@ -184,6 +279,9 @@ const createScene = async () => {
 
             // Store SessionId on the mesh for Raycasting (IMPORTANT for attack detection)
             root.metadata = { sessionId };
+
+            // ATTACH WEAPON
+            attachWeapon(result.meshes[1], scene); // meshes[1] is usually the skinned mesh in HVGirl
 
             // --- ANIMATIONS ---
             const idle = result.animationGroups.find(a => a.name === "Idle");
