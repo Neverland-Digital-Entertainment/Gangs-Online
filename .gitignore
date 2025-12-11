@@ -3,3 +3,6 @@ dist/
 *.log
 .DS_Store
 packages/*/dist/
+.env
+.env.local
+.env.production

@@ -7,7 +7,7 @@ import { GameState } from "../../server/src/rooms/schema/GameState";
 import "@babylonjs/loaders"; // Important for loading .glb/.gltf
 
 // --- Configuration ---
-const SERVER_URL = "ws://21.0.0.138:2567";
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://21.0.0.138:2567";
 
 // --- Setup ---
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
