@@ -1,0 +1,119 @@
+<!--------------------------------------------------------->
+<!--  Game          : 0101A-Bewitch Generation 古惑世紀  -->
+<!--  Game Type     : PC online game                     -->
+<!--  Date          : 18-January-2001.                   -->
+<!--  Copyright GameCyber, 2001.                         -->
+<!--------------------------------------------------------->
+<HTML>
+  
+<HEAD>
+<TITLE>0101A-Bewitch Generation 古惑世紀遊戲設計書</TITLE>
+<link rel="stylesheet" href="fonts.css" type="text/css">
+</HEAD>
+
+
+
+  <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=big5">
+  
+<STYLE TYPE="text/css">
+  <!--
+  -->
+  </STYLE>
+
+  <BODY BGCOLOR="#FFFFFF">
+<TABLE BORDER="0" WIDTH="100%">
+  <TR> 
+    <TD VALIGN="top" colspan="3"> <IMG SRC="Image/CGList.gif" ALT="美術圖案表" BORDER="2"><BR>
+      <BR>
+      遊戲中使用了 SQL Database 作為儲存進度資料的工具。以下是各個資料名稱及所需空間： <BR>
+      <BR>
+      <FONT SIZE="1">＊所有欄位是以 Byte 為單位<br>
+      </FONT></TD>
+  </TR>
+  <tr bgcolor="#FDA700"> 
+    <td width="100"><font color="#ffffff"><b>資料名稱</b></font></td>
+    <td width="100"><font color="#ffffff"><b>所需空間</b></font></td>
+    <td><font color="#ffffff"><b>解說</b></font></td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>UniqueID </b></font></td>
+    <td>16 Bytes</td>
+    <td>獨立編號，用來檢查有多少下線</td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>UpLine </b></font></td>
+    <td>16 Bytes</td>
+    <td>老大的獨立編號</td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>District </b></font></td>
+    <td>20 Bytes</td>
+    <td>玩家居住地區，可自由輸入地區名稱</td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>Name </b></font></td>
+    <td>16 Bytes</td>
+    <td>角色姓名</td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>Level </b></font></td>
+    <td> 2 Bytes</td>
+    <td>等級</td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>HP </b></font></td>
+    <td> 4 Bytes</td>
+    <td>生命值，當到達零時便會死亡</td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>MaxHP </b></font></td>
+    <td> 4 Bytes</td>
+    <td>生命值上限</td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>Exp </b></font></td>
+    <td> 4 Bytes</td>
+    <td>經驗值</td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>MaxExp </b></font></td>
+    <td> 4 Bytes</td>
+    <td>經驗值上限，當滿檔時便會上升一級</td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>Money </b></font></td>
+    <td> 4 Bytes</td>
+    <td>金錢</td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>Killed </b></font></td>
+    <td> 2 Bytes</td>
+    <td>殺人數目</td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>Died </b></font></td>
+    <td> 2 Bytes</td>
+    <td>死亡次數</td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>Weapon </b></font></td>
+    <td> 2 Bytes</td>
+    <td>裝備了的武器</td>
+  </tr>
+  <tr> 
+    <td width="100" bgcolor="#FDA700"><font color="#ffffff"><b>Inventory</b></font></td>
+    <td>32 Bytes</td>
+    <td>物品欄</td>
+  </tr>
+  <TR> 
+    <TD VALIGN="bottom" colspan="3"> 
+      <CENTER>
+        <BR>
+        <HR>
+        Copyrights GameCyber, 2001. All rights reserved. 
+      </CENTER>
+    </TD>
+  </TR>
+</TABLE>
+</BODY>
+</HTML>

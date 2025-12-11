@@ -1,0 +1,12 @@
+{
+  "name": "gangs-online",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=@gangs-online/server",
+    "dev:client": "npm run dev --workspace=@gangs-online/client",
+    "build": "npm run build --workspaces"
+  }
+}
