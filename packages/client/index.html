@@ -62,6 +62,61 @@
                 pointer-events: none;
             }
         }
+
+        /* Debug Console for Mobile */
+        #debugConsole {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-height: 200px;
+            background: rgba(0, 0, 0, 0.95);
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 11px;
+            padding: 10px;
+            overflow-y: auto;
+            z-index: 10000;
+            border-top: 2px solid #00ff00;
+            display: none;
+        }
+
+        #debugConsole.show {
+            display: block;
+        }
+
+        #debugConsole .log-entry {
+            margin: 2px 0;
+            word-wrap: break-word;
+        }
+
+        #debugConsole .error {
+            color: #ff0000;
+        }
+
+        #debugConsole .success {
+            color: #00ff00;
+        }
+
+        #debugConsole .info {
+            color: #00aaff;
+        }
+
+        #debugToggle {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            z-index: 10001;
+            background: #00ff00;
+            color: black;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
     </style>
   </head>
   <body>
@@ -73,6 +128,48 @@
     </div>
 
     <canvas id="renderCanvas"></canvas>
+
+    <!-- Debug Console for Mobile -->
+    <div id="debugConsole"></div>
+    <button id="debugToggle" onclick="document.getElementById('debugConsole').classList.toggle('show')">🐛</button>
+
+    <script>
+        // Intercept console.log for mobile debugging
+        (function() {
+            const debugConsole = document.getElementById('debugConsole');
+            const originalLog = console.log;
+            const originalError = console.error;
+
+            function addLogEntry(message, type = 'info') {
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                entry.textContent = message;
+                debugConsole.appendChild(entry);
+                debugConsole.scrollTop = debugConsole.scrollHeight;
+
+                // Keep only last 50 entries
+                while (debugConsole.children.length > 50) {
+                    debugConsole.removeChild(debugConsole.firstChild);
+                }
+            }
+
+            console.log = function(...args) {
+                originalLog.apply(console, args);
+                addLogEntry(args.join(' '), 'info');
+            };
+
+            console.error = function(...args) {
+                originalError.apply(console, args);
+                addLogEntry('ERROR: ' + args.join(' '), 'error');
+            };
+
+            // Show debug console automatically
+            setTimeout(() => {
+                debugConsole.classList.add('show');
+            }, 1000);
+        })();
+    </script>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
