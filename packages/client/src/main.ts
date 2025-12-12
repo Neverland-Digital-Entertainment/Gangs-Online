@@ -8,8 +8,27 @@ import "@babylonjs/loaders"; // Important for loading .glb/.gltf
 // --- Configuration ---
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:2567";
 
+// --- Loading Screen Helper ---
+const updateLoadingText = (text: string) => {
+    const loadingText = document.getElementById("loadingText");
+    if (loadingText) {
+        loadingText.textContent = text;
+    }
+    console.log("📦", text);
+};
+
+const hideLoadingScreen = () => {
+    const loadingScreen = document.getElementById("loadingScreen");
+    if (loadingScreen) {
+        loadingScreen.classList.add("fade-out");
+        setTimeout(() => loadingScreen.remove(), 500);
+    }
+};
+
 // --- Setup ---
 console.log("🎮 Initializing Gangs Online...");
+updateLoadingText("正在初始化引擎...");
+
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 if (!canvas) {
     console.error("❌ Canvas element not found!");
@@ -17,9 +36,23 @@ if (!canvas) {
 }
 console.log("✅ Canvas found:", canvas);
 
-const engine = new BABYLON.Engine(canvas, true);
+// Create engine with performance optimizations
+const engine = new BABYLON.Engine(canvas, true, {
+    preserveDrawingBuffer: true,
+    stencil: true,
+    disableWebGL2Support: false, // Use WebGL2 if available for better performance
+    powerPreference: "high-performance" // Request high-performance GPU
+});
+
+// Optimize for mobile devices
+if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+    console.log("📱 Mobile device detected, applying optimizations...");
+    engine.setHardwareScalingLevel(1.5); // Reduce resolution on mobile for better performance
+}
+
 console.log("✅ BabylonJS Engine created");
 
+updateLoadingText("正在连接服务器...");
 const client = new Client.Client(SERVER_URL);
 console.log("✅ Colyseus Client created, server:", SERVER_URL);
 
@@ -210,6 +243,7 @@ const createPlayerUI = (mesh: BABYLON.AbstractMesh, name: string, uiTexture: GUI
 
 const createScene = async () => {
     console.log("🌍 Creating scene...");
+    updateLoadingText("正在创建游戏世界...");
     const scene = new BABYLON.Scene(engine);
 
     // --- ENABLE GLOBAL COLLISIONS ---
@@ -258,10 +292,12 @@ const createScene = async () => {
     let mySessionId: string | null = null;
 
     try {
+        updateLoadingText("正在连接游戏房间...");
         const room = await client.joinOrCreate("game_room");
         mySessionId = room.sessionId;
         console.log("Connected! My ID:", mySessionId);
 
+        updateLoadingText("正在准备游戏界面...");
         // Create Chat Input
         createChatUI(room, scene);
 
@@ -278,6 +314,9 @@ const createScene = async () => {
 
             // --- LOAD 3D MODEL ---
             // Using Babylon's HVGirl model from CDN
+            if (isSelf) {
+                updateLoadingText("正在加载角色模型...");
+            }
             const result = await SceneLoader.ImportMeshAsync("", "https://models.babylonjs.com/", "HVGirl.glb", scene);
 
             const root = result.meshes[0];
@@ -467,6 +506,13 @@ const createScene = async () => {
 console.log("🚀 Starting application...");
 createScene().then((scene) => {
     console.log("✅ Scene created successfully!");
+    updateLoadingText("即将进入游戏...");
+
+    // Hide loading screen after a short delay to ensure everything is ready
+    setTimeout(() => {
+        hideLoadingScreen();
+    }, 1000);
+
     engine.runRenderLoop(() => {
         scene.render();
     });
