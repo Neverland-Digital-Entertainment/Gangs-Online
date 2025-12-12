@@ -6,12 +6,22 @@ import { PlayerData, GAME_CONSTANTS } from "@gangs-online/shared";
 import "@babylonjs/loaders"; // Important for loading .glb/.gltf
 
 // --- Configuration ---
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://21.0.0.138:2567";
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:2567";
 
 // --- Setup ---
+console.log("🎮 Initializing Gangs Online...");
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
+if (!canvas) {
+    console.error("❌ Canvas element not found!");
+    throw new Error("Canvas element 'renderCanvas' not found");
+}
+console.log("✅ Canvas found:", canvas);
+
 const engine = new BABYLON.Engine(canvas, true);
+console.log("✅ BabylonJS Engine created");
+
 const client = new Client.Client(SERVER_URL);
+console.log("✅ Colyseus Client created, server:", SERVER_URL);
 
 // --- WEAPON ATTACHMENT ---
 const attachWeapon = (rootMesh: BABYLON.AbstractMesh, skinnedMesh: BABYLON.AbstractMesh, scene: BABYLON.Scene) => {
@@ -199,6 +209,7 @@ const createPlayerUI = (mesh: BABYLON.AbstractMesh, name: string, uiTexture: GUI
 }
 
 const createScene = async () => {
+    console.log("🌍 Creating scene...");
     const scene = new BABYLON.Scene(engine);
 
     // --- ENABLE GLOBAL COLLISIONS ---
@@ -453,10 +464,22 @@ const createScene = async () => {
     return scene;
 };
 
+console.log("🚀 Starting application...");
 createScene().then((scene) => {
+    console.log("✅ Scene created successfully!");
     engine.runRenderLoop(() => {
         scene.render();
     });
+    console.log("✅ Render loop started!");
+}).catch((error) => {
+    console.error("❌ Failed to create scene:", error);
+    console.error("Stack trace:", error.stack);
+    // Display error on page
+    document.body.innerHTML = `<div style="color: white; background: red; padding: 20px; font-family: monospace;">
+        <h1>Error Loading Game</h1>
+        <p>${error.message}</p>
+        <pre>${error.stack}</pre>
+    </div>`;
 });
 
 window.addEventListener("resize", () => {
