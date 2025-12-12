@@ -31,13 +31,17 @@ export class PlayerManager {
         sessionId: string,
         isSelf: boolean
     ): Promise<PlayerEntity> {
+        console.log(`🎭 Creating player: ${sessionId}, isSelf: ${isSelf}`);
+
         // --- LOAD 3D MODEL ---
+        console.log(`📦 Loading 3D model from ${modelConfig.baseUrl}${modelConfig.characterModel}`);
         const result = await SceneLoader.ImportMeshAsync(
             "",
             modelConfig.baseUrl,
             modelConfig.characterModel,
             this.scene
         );
+        console.log(`✅ Model loaded, meshes count: ${result.meshes.length}`);
 
         const root = result.meshes[0];
         // Start slightly above ground to prevent getting stuck immediately
@@ -75,6 +79,10 @@ export class PlayerManager {
 
         this.playerEntities[sessionId] = entity;
         this.playerTargets[sessionId] = { x: player.x, z: player.z };
+
+        console.log(`✅ Player created successfully: ${sessionId}`);
+        console.log(`   Position: (${player.x}, ${player.z})`);
+        console.log(`   Total players: ${Object.keys(this.playerEntities).length}`);
 
         return entity;
     }
