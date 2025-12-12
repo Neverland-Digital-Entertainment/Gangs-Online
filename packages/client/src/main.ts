@@ -256,7 +256,7 @@ const createScene = async () => {
         });
 
         // Add Player
-        room.state.players.onAdd(async (player: PlayerData, sessionId: string) => {
+        (room.state as any).players.onAdd(async (player: PlayerData, sessionId: string) => {
             const isSelf = sessionId === room.sessionId;
 
             // --- LOAD 3D MODEL ---
@@ -333,7 +333,7 @@ const createScene = async () => {
         });
 
         // Remove Player
-        room.state.players.onRemove((player: PlayerData, sessionId: string) => {
+        (room.state as any).players.onRemove((player: PlayerData, sessionId: string) => {
             if (playerEntities[sessionId]) {
                 playerEntities[sessionId].mesh.dispose();
                 playerEntities[sessionId].ui.container.dispose();
