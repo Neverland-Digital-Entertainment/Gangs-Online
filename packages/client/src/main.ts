@@ -3,7 +3,6 @@ import { SceneLoader } from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import * as Client from "colyseus.js";
 import { PlayerData, GAME_CONSTANTS } from "@gangs-online/shared";
-import { GameState } from "../../server/src/rooms/schema/GameState";
 import "@babylonjs/loaders"; // Important for loading .glb/.gltf
 
 // --- Configuration ---
@@ -88,8 +87,8 @@ const createChatUI = (room: Client.Room, scene: BABYLON.Scene) => {
     input.top = "-20px";
 
     // Send on Enter
-    input.onKeyboardEventProcessedObservable.add((kbEvent) => {
-        if (kbEvent.keyboardEvent.key === "Enter" && input.text) {
+    input.onKeyboardEventProcessedObservable.add((ev) => {
+        if (ev.key === "Enter" && input.text) {
             room.send("chat", input.text);
             input.text = "";
         }
@@ -242,7 +241,7 @@ const createScene = async () => {
     let mySessionId: string | null = null;
 
     try {
-        const room = await client.joinOrCreate<GameState>("game_room");
+        const room = await client.joinOrCreate("game_room");
         mySessionId = room.sessionId;
         console.log("Connected! My ID:", mySessionId);
 
