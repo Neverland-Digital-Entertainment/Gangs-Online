@@ -12,15 +12,18 @@ export class GameRoom extends Room<GameState> {
         // Setup AI Loop (Tick 20 times per second = 50ms)
         this.setSimulationInterval((deltaTime) => this.update(deltaTime));
 
-        // Spawn Initial Enemies
+        // Spawn Initial Enemies (Near spawn area: -10 to 10)
+        console.log(`[NPC] Spawning ${GAME_CONSTANTS.ENEMY_SPAWN_COUNT} enemies...`);
         for(let i=0; i<GAME_CONSTANTS.ENEMY_SPAWN_COUNT; i++) {
             const enemy = new Enemy();
             enemy.id = `mob_${i}`;
-            enemy.x = Math.random() * 40 - 20;
-            enemy.z = Math.random() * 40 - 20;
+            enemy.x = Math.random() * 20 - 10; // Closer to player spawn (-10 to 10)
+            enemy.z = Math.random() * 20 - 10;
             enemy.name = "Street Thug";
             this.state.enemies.set(enemy.id, enemy);
+            console.log(`[NPC] Spawned ${enemy.name} [${enemy.id}] at (${enemy.x.toFixed(2)}, ${enemy.z.toFixed(2)})`);
         }
+        console.log(`[NPC] ✓ All ${GAME_CONSTANTS.ENEMY_SPAWN_COUNT} enemies spawned`);
 
         this.onMessage("move", (client, input: IPlayerInput) => {
             const player = this.state.players.get(client.sessionId);
@@ -129,10 +132,11 @@ export class GameRoom extends Room<GameState> {
     spawnEnemy() {
         const enemy = new Enemy();
         enemy.id = `mob_${Math.random().toString(36).substr(2, 5)}`;
-        enemy.x = Math.random() * 40 - 20;
-        enemy.z = Math.random() * 40 - 20;
+        enemy.x = Math.random() * 20 - 10; // Closer to player spawn (-10 to 10)
+        enemy.z = Math.random() * 20 - 10;
         enemy.name = "Street Thug";
         this.state.enemies.set(enemy.id, enemy);
+        console.log(`[NPC] Respawned ${enemy.name} [${enemy.id}] at (${enemy.x.toFixed(2)}, ${enemy.z.toFixed(2)})`);
     }
 
     onJoin(client: Client, options: any) {

@@ -307,9 +307,11 @@ const createScene = async () => {
 
         // --- ENEMIES ---
         (room.state as any).enemies.onAdd((enemy: any, enemyId: string) => {
+            console.log(`[CLIENT] Enemy spawned: ${enemy.name} [${enemyId}] at (${enemy.x.toFixed(2)}, ${enemy.z.toFixed(2)})`);
             spawnEntityVisuals(enemy, enemyId, 'enemy');
         });
         (room.state as any).enemies.onRemove((enemy: any, enemyId: string) => {
+            console.log(`[CLIENT] Enemy removed: [${enemyId}]`);
             if (entities[enemyId]) {
                 entities[enemyId].mesh.dispose();
                 entities[enemyId].ui.container.dispose();
