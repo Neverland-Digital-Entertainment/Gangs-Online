@@ -3,16 +3,90 @@ import { SceneLoader } from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import * as Client from "colyseus.js";
 import { PlayerData, GAME_CONSTANTS } from "@gangs-online/shared";
-import { GameState } from "../../server/src/rooms/schema/GameState";
 import "@babylonjs/loaders"; // Important for loading .glb/.gltf
 
 // --- Configuration ---
-const SERVER_URL = "ws://localhost:2567";
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://21.0.0.138:2567";
 
 // --- Setup ---
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 const engine = new BABYLON.Engine(canvas, true);
 const client = new Client.Client(SERVER_URL);
+
+// --- WEAPON ATTACHMENT ---
+const attachWeapon = (mesh: BABYLON.AbstractMesh, scene: BABYLON.Scene) => {
+    // Create HUGE RED GLOWING BOX floating above character's head for testing!
+    const bat = BABYLON.MeshBuilder.CreateBox("bat", { size: 2 }, scene);
+    const mat = new BABYLON.StandardMaterial("batMat", scene);
+    mat.diffuseColor = BABYLON.Color3.Red(); // Bright red for visibility!
+    mat.emissiveColor = BABYLON.Color3.Red(); // Make it glow!
+    bat.material = mat;
+
+    // Simply parent to the root mesh and place ABOVE the character's head
+    bat.parent = mesh;
+    bat.position = new BABYLON.Vector3(0, 3, 0); // 3 units above character
+
+    console.log("🔴 RED BOX created above character at position:", bat.position);
+    console.log("🔴 Box absolute position:", bat.getAbsolutePosition());
+    console.log("🔴 Box is visible:", bat.isVisible);
+    console.log("🔴 Box is enabled:", bat.isEnabled());
+};
+
+// --- CHAT BUBBLE ---
+const createChatBubble = (mesh: BABYLON.AbstractMesh, text: string, uiTexture: GUI.AdvancedDynamicTexture) => {
+    const rect = new GUI.Rectangle();
+    rect.width = "150px";
+    rect.height = "40px";
+    rect.cornerRadius = 10;
+    rect.color = "black";
+    rect.thickness = 1;
+    rect.background = "white";
+    uiTexture.addControl(rect);
+    rect.linkWithMesh(mesh);
+    rect.linkOffsetY = -180; // Higher than name tag
+
+    const label = new GUI.TextBlock();
+    label.text = text;
+    label.fontSize = 12;
+    label.textWrapping = true;
+    label.color = "black";
+    rect.addControl(label);
+
+    // Fade out and destroy
+    setTimeout(() => {
+        rect.dispose();
+    }, 4000);
+};
+
+// --- CHAT UI ---
+const createChatUI = (room: Client.Room, scene: BABYLON.Scene) => {
+    const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("ChatUI");
+
+    // Chat Input Box (Bottom Left)
+    const input = new GUI.InputText();
+    input.width = "300px";
+    input.height = "40px";
+    input.text = "";
+    input.color = "white";
+    input.background = "rgba(0,0,0,0.5)";
+    input.placeholderText = "Press Enter to Chat...";
+    input.focusedBackground = "rgba(0,0,0,0.8)";
+    input.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    input.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+    input.left = "20px";
+    input.top = "-20px";
+
+    // Send on Enter
+    input.onKeyboardEventProcessedObservable.add((ev) => {
+        if (ev.key === "Enter" && input.text) {
+            room.send("chat", input.text);
+            input.text = "";
+        }
+    });
+
+    advancedTexture.addControl(input);
+    return advancedTexture;
+};
 
 // --- City Generator (Procedural Greybox) ---
 const createCity = (scene: BABYLON.Scene) => {
@@ -157,12 +231,22 @@ const createScene = async () => {
     let mySessionId: string | null = null;
 
     try {
-        const room = await client.joinOrCreate<GameState>("game_room");
+        const room = await client.joinOrCreate("game_room");
         mySessionId = room.sessionId;
         console.log("Connected! My ID:", mySessionId);
 
+        // Create Chat Input
+        createChatUI(room, scene);
+
+        // Listen for Chat Broadcasts
+        room.onMessage("chat", (msg: { sessionId: string, text: string }) => {
+            if (playerEntities[msg.sessionId]) {
+                createChatBubble(playerEntities[msg.sessionId].mesh, msg.text, uiTexture);
+            }
+        });
+
         // Add Player
-        room.state.players.onAdd(async (player: PlayerData, sessionId: string) => {
+        (room.state as any).players.onAdd(async (player: PlayerData, sessionId: string) => {
             const isSelf = sessionId === room.sessionId;
 
             // --- LOAD 3D MODEL ---
@@ -184,6 +268,9 @@ const createScene = async () => {
 
             // Store SessionId on the mesh for Raycasting (IMPORTANT for attack detection)
             root.metadata = { sessionId };
+
+            // ATTACH WEAPON
+            attachWeapon(result.meshes[1], scene); // meshes[1] is usually the skinned mesh in HVGirl
 
             // --- ANIMATIONS ---
             const idle = result.animationGroups.find(a => a.name === "Idle");
@@ -236,7 +323,7 @@ const createScene = async () => {
         });
 
         // Remove Player
-        room.state.players.onRemove((player: PlayerData, sessionId: string) => {
+        (room.state as any).players.onRemove((player: PlayerData, sessionId: string) => {
             if (playerEntities[sessionId]) {
                 playerEntities[sessionId].mesh.dispose();
                 playerEntities[sessionId].ui.container.dispose();

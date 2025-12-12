@@ -50,6 +50,15 @@ export class GameRoom extends Room<GameState> {
             }
         });
 
+        // --- NEW: CHAT HANDLER ---
+        this.onMessage("chat", (client, message: string) => {
+            const player = this.state.players.get(client.sessionId);
+            if (player) {
+                // Broadcast to everyone including sender
+                this.broadcast("chat", { sessionId: client.sessionId, text: message });
+            }
+        });
+
         // Auto-Combat Loop (runs every ATTACK_INTERVAL)
         this.clock.setInterval(() => {
             this.state.players.forEach((player) => {

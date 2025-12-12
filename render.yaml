@@ -1,0 +1,14 @@
+services:
+  # Game Server
+  - type: web
+    name: gangs-online-server
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: npm install && npm run build --workspace=@gangs-online/shared
+    startCommand: cd packages/server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 2567
