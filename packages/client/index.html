@@ -163,10 +163,8 @@
                 addLogEntry('ERROR: ' + args.join(' '), 'error');
             };
 
-            // Show debug console automatically
-            setTimeout(() => {
-                debugConsole.classList.add('show');
-            }, 1000);
+            // Debug console is hidden by default
+            // Click the 🐛 button to show/hide it
         })();
     </script>
 

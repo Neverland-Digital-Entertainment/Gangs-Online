@@ -2,8 +2,8 @@ import * as BABYLON from "@babylonjs/core";
 import { weaponConfig } from "../config";
 
 /**
- * 武器系统
- * 负责武器的创建和附加到角色
+ * 武器系統
+ * 負責武器的創建和附加到角色
  */
 export class WeaponSystem {
     /**

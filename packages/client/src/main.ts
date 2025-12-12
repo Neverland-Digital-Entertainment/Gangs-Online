@@ -15,15 +15,15 @@ import { PlayerManager } from "./entities/PlayerManager";
 import { createEngine, createIsometricCamera, setupScene, updateCameraFollow } from "./utils/BabylonUtils";
 
 /**
- * 主入口 - 游戏初始化和场景创建
+ * 主入口 - 遊戲初始化和場景創建
  */
 
-// --- 初始化加载屏幕 ---
+// --- 初始化載入螢幕 ---
 console.log("🎮 Initializing Gangs Online...");
 const loadingScreen = new LoadingScreen();
 loadingScreen.updateText("正在初始化引擎...");
 
-// --- 获取 Canvas ---
+// --- 獲取 Canvas ---
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 if (!canvas) {
     console.error("❌ Canvas element not found!");
@@ -31,38 +31,38 @@ if (!canvas) {
 }
 console.log("✅ Canvas found:", canvas);
 
-// --- 创建引擎 ---
+// --- 創建引擎 ---
 const engine = createEngine(canvas);
 console.log("✅ BabylonJS Engine created");
 
-// --- 创建 Colyseus 客户端 ---
-loadingScreen.updateText("正在连接服务器...");
+// --- 創建 Colyseus 客戶端 ---
+loadingScreen.updateText("正在連接伺服器...");
 const client = new Client.Client(config.serverUrl);
 console.log("✅ Colyseus Client created, server:", config.serverUrl);
 
 /**
- * 创建游戏场景
+ * 創建遊戲場景
  */
 const createScene = async (): Promise<BABYLON.Scene> => {
     console.log("🌍 Creating scene...");
-    loadingScreen.updateText("正在创建游戏世界...");
+    loadingScreen.updateText("正在創建遊戲世界...");
 
     const scene = new BABYLON.Scene(engine);
 
-    // 设置场景（光照、碰撞等）
+    // 設置場景（光照、碰撞等）
     setupScene(scene);
 
-    // 创建相机
+    // 創建相機
     const camera = createIsometricCamera(scene, engine);
 
-    // 创建城市环境
+    // 創建城市環境
     const cityGenerator = new CityGenerator(scene);
     cityGenerator.generate();
 
     // --- UI Layer ---
     const uiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
 
-    // --- 初始化系统 ---
+    // --- 初始化系統 ---
     const uiSystem = new UISystem(uiTexture);
     const weaponSystem = new WeaponSystem();
     const playerManager = new PlayerManager(scene, uiSystem, weaponSystem);
@@ -70,18 +70,18 @@ const createScene = async (): Promise<BABYLON.Scene> => {
     let mySessionId: string | null = null;
 
     try {
-        // 连接游戏房间
-        loadingScreen.updateText("正在连接游戏房间...");
+        // 連接遊戲房間
+        loadingScreen.updateText("正在連接遊戲房間...");
         const room = await client.joinOrCreate("game_room");
         mySessionId = room.sessionId;
         console.log("Connected! My ID:", mySessionId);
 
-        // 初始化聊天系统
-        loadingScreen.updateText("正在准备游戏界面...");
+        // 初始化聊天系統
+        loadingScreen.updateText("正在準備遊戲介面...");
         const chatSystem = new ChatSystem(room, scene, uiTexture);
         chatSystem.createChatInput();
 
-        // 监听聊天消息
+        // 監聽聊天訊息
         room.onMessage("chat", (msg: { sessionId: string; text: string }) => {
             const entity = playerManager.getEntity(msg.sessionId);
             if (entity) {
@@ -94,7 +94,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
             const isSelf = sessionId === room.sessionId;
 
             if (isSelf) {
-                loadingScreen.updateText("正在加载角色模型...");
+                loadingScreen.updateText("正在載入角色模型...");
             }
 
             const entity = await playerManager.createPlayer(player, sessionId, isSelf);
@@ -109,7 +109,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 playerManager.updateHealth(sessionId, currentHp, player.maxHp);
             });
 
-            // 同步战斗状态
+            // 同步戰鬥狀態
             player.listen("inCombatWith", (targetId: string) => {
                 playerManager.updateCombatState(sessionId, !!(targetId && targetId !== ""));
             });
@@ -120,10 +120,10 @@ const createScene = async (): Promise<BABYLON.Scene> => {
             playerManager.removePlayer(sessionId);
         });
 
-        // --- 输入处理：点击攻击或移动 ---
+        // --- 輸入處理：點擊攻擊或移動 ---
         scene.onPointerDown = (evt, pickResult) => {
             if (pickResult.hit && pickResult.pickedMesh) {
-                // 检查是否点击了玩家
+                // 檢查是否點擊了玩家
                 let clickedMesh: BABYLON.Node = pickResult.pickedMesh;
                 while (clickedMesh.parent) {
                     clickedMesh = clickedMesh.parent;
@@ -134,7 +134,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                     clickedMesh.metadata &&
                     clickedMesh.metadata.sessionId
                 ) {
-                    // 点击玩家 -> 攻击
+                    // 點擊玩家 -> 攻擊
                     const targetId = clickedMesh.metadata.sessionId;
                     if (targetId !== mySessionId) {
                         console.log("Attacking:", targetId);
@@ -143,7 +143,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                     }
                 }
 
-                // 点击地面 -> 移动
+                // 點擊地面 -> 移動
                 if (pickResult.pickedPoint && !pickResult.pickedMesh.name.startsWith("b_")) {
                     room.send("move", {
                         x: pickResult.pickedPoint.x,
@@ -156,12 +156,12 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         console.error("Connection Failed:", e);
     }
 
-    // --- 游戏循环（动画 & 移动）---
+    // --- 遊戲迴圈（動畫 & 移動）---
     scene.registerBeforeRender(() => {
         // 更新所有玩家
         playerManager.updateAll();
 
-        // 相机跟随
+        // 相機跟隨
         if (mySessionId) {
             const myEntity = playerManager.getEntity(mySessionId);
             if (myEntity) {
@@ -173,14 +173,14 @@ const createScene = async (): Promise<BABYLON.Scene> => {
     return scene;
 };
 
-// --- 启动应用 ---
+// --- 啟動應用 ---
 console.log("🚀 Starting application...");
 createScene()
     .then((scene) => {
         console.log("✅ Scene created successfully!");
-        loadingScreen.updateText("即将进入游戏...");
+        loadingScreen.updateText("即將進入遊戲...");
 
-        // 延迟隐藏加载屏幕，确保一切就绪
+        // 延遲隱藏載入螢幕，確保一切就緒
         setTimeout(() => {
             loadingScreen.hide();
         }, 1000);
@@ -196,7 +196,7 @@ createScene()
         loadingScreen.showError(error);
     });
 
-// --- 窗口大小调整 ---
+// --- 視窗大小調整 ---
 window.addEventListener("resize", () => {
     engine.resize();
 });

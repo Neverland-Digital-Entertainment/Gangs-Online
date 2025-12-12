@@ -6,7 +6,7 @@ import { cameraConfig } from "../config";
  */
 
 /**
- * 创建引擎（带性能优化）
+ * 創建引擎（帶性能優化）
  */
 export function createEngine(canvas: HTMLCanvasElement): BABYLON.Engine {
     const engine = new BABYLON.Engine(canvas, true, {
@@ -26,7 +26,7 @@ export function createEngine(canvas: HTMLCanvasElement): BABYLON.Engine {
 }
 
 /**
- * 创建等轴测相机
+ * 創建等軸測相機
  */
 export function createIsometricCamera(scene: BABYLON.Scene, engine: BABYLON.Engine): BABYLON.FreeCamera {
     const camera = new BABYLON.FreeCamera(
@@ -52,7 +52,7 @@ export function createIsometricCamera(scene: BABYLON.Scene, engine: BABYLON.Engi
 }
 
 /**
- * 更新相机跟随玩家
+ * 更新相機跟隨玩家
  */
 export function updateCameraFollow(
     camera: BABYLON.FreeCamera,
@@ -76,7 +76,7 @@ export function updateCameraFollow(
 }
 
 /**
- * 创建基础场景设置（光照、碰撞等）
+ * 創建基礎場景設置（光照、碰撞等）
  */
 export function setupScene(scene: BABYLON.Scene): void {
     // --- ENABLE GLOBAL COLLISIONS ---

@@ -3,8 +3,8 @@ import * as GUI from "@babylonjs/gui";
 import * as Client from "colyseus.js";
 
 /**
- * 聊天系统
- * 负责聊天输入框和聊天气泡的显示
+ * 聊天系統
+ * 負責聊天輸入框和聊天氣泡的顯示
  */
 export class ChatSystem {
     private room: Client.Room;
@@ -18,7 +18,7 @@ export class ChatSystem {
     }
 
     /**
-     * 创建聊天输入框
+     * 創建聊天輸入框
      */
     createChatInput(): void {
         const input = new GUI.InputText();
@@ -46,7 +46,7 @@ export class ChatSystem {
     }
 
     /**
-     * 创建聊天气泡
+     * 創建聊天氣泡
      */
     createChatBubble(mesh: BABYLON.AbstractMesh, text: string): void {
         const rect = new GUI.Rectangle();

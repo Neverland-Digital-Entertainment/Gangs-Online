@@ -1,6 +1,6 @@
 /**
- * 加载屏幕系统
- * 负责显示加载进度和状态
+ * 加載螢幕系統
+ * 負責顯示加載進度和狀態
  */
 export class LoadingScreen {
     private loadingText: HTMLElement | null;
@@ -12,7 +12,7 @@ export class LoadingScreen {
     }
 
     /**
-     * 更新加载文本
+     * 更新加載文本
      */
     updateText(text: string): void {
         if (this.loadingText) {
@@ -22,7 +22,7 @@ export class LoadingScreen {
     }
 
     /**
-     * 隐藏加载屏幕（带淡出动画）
+     * 隱藏加載螢幕（帶淡出動畫）
      */
     hide(): void {
         if (this.loadingScreen) {
@@ -34,7 +34,7 @@ export class LoadingScreen {
     }
 
     /**
-     * 显示错误消息
+     * 顯示錯誤訊息
      */
     showError(error: Error): void {
         document.body.innerHTML = `

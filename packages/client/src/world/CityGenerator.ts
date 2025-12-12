@@ -2,7 +2,7 @@ import * as BABYLON from "@babylonjs/core";
 
 /**
  * 城市生成器
- * 负责生成程序化的城市环境（道路、人行道、建筑物）
+ * 負責生成程序化的城市環境（道路、人行道、建築物）
  */
 export class CityGenerator {
     private scene: BABYLON.Scene;
@@ -12,7 +12,7 @@ export class CityGenerator {
     }
 
     /**
-     * 创建整个城市
+     * 創建整個城市
      */
     generate(): void {
         this.createRoad();
@@ -20,7 +20,7 @@ export class CityGenerator {
     }
 
     /**
-     * 创建沥青道路
+     * 創建瀝青道路
      */
     private createRoad(): void {
         const ground = BABYLON.MeshBuilder.CreateGround(
@@ -37,7 +37,7 @@ export class CityGenerator {
     }
 
     /**
-     * 创建建筑物和人行道
+     * 創建建築物和人行道
      */
     private createBuildings(): void {
         // Sidewalk material (Lighter Grey)

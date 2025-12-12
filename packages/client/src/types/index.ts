@@ -3,7 +3,7 @@ import * as GUI from "@babylonjs/gui";
 import { PlayerData } from "@gangs-online/shared";
 
 /**
- * 玩家实体数据结构
+ * 玩家實體資料結構
  */
 export interface PlayerEntity {
     mesh: BABYLON.AbstractMesh;
@@ -24,7 +24,7 @@ export interface PlayerUIElements {
 }
 
 /**
- * 玩家目标位置
+ * 玩家目標位置
  */
 export interface PlayerTarget {
     x: number;
@@ -32,7 +32,7 @@ export interface PlayerTarget {
 }
 
 /**
- * 游戏配置
+ * 遊戲配置
  */
 export interface GameConfig {
     serverUrl: string;
@@ -40,7 +40,7 @@ export interface GameConfig {
 }
 
 /**
- * 聊天消息
+ * 聊天訊息
  */
 export interface ChatMessage {
     sessionId: string;

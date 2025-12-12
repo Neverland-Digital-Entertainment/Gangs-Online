@@ -3,8 +3,8 @@ import * as GUI from "@babylonjs/gui";
 import { PlayerUIElements } from "../types";
 
 /**
- * UI系统
- * 负责玩家UI元素的创建和更新（名字标签、血条、战斗指示器）
+ * UI系統
+ * 負責玩家UI元素的創建和更新（名字標籤、血條、戰鬥指示器）
  */
 export class UISystem {
     private uiTexture: GUI.AdvancedDynamicTexture;
@@ -14,7 +14,7 @@ export class UISystem {
     }
 
     /**
-     * 为玩家创建UI元素（名字标签 + 血条 + 战斗指示器）
+     * 為玩家創建UI元素（名字標籤 + 血條 + 戰鬥指示器）
      */
     createPlayerUI(mesh: BABYLON.AbstractMesh, name: string): PlayerUIElements {
         const container = new GUI.Rectangle();
@@ -66,7 +66,7 @@ export class UISystem {
     }
 
     /**
-     * 更新血条
+     * 更新血條
      */
     updateHealthBar(ui: PlayerUIElements, currentHp: number, maxHp: number): void {
         const percent = Math.max(0, currentHp / maxHp);
@@ -74,7 +74,7 @@ export class UISystem {
     }
 
     /**
-     * 设置战斗指示器可见性
+     * 設置戰鬥指示器可見性
      */
     setCombatIndicator(ui: PlayerUIElements, visible: boolean): void {
         ui.combatIndicator.isVisible = visible;

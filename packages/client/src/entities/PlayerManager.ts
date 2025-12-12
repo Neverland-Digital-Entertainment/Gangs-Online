@@ -8,7 +8,7 @@ import { modelConfig, config } from "../config";
 
 /**
  * 玩家管理器
- * 负责创建、更新和管理所有玩家实体
+ * 負責創建、更新和管理所有玩家實體
  */
 export class PlayerManager {
     private scene: BABYLON.Scene;
@@ -24,7 +24,7 @@ export class PlayerManager {
     }
 
     /**
-     * 创建玩家实体
+     * 創建玩家實體
      */
     async createPlayer(
         player: PlayerData,
@@ -106,7 +106,7 @@ export class PlayerManager {
     }
 
     /**
-     * 更新玩家目标位置
+     * 更新玩家目標位置
      */
     updateTarget(sessionId: string, x: number, z: number): void {
         if (this.playerTargets[sessionId]) {
@@ -116,7 +116,7 @@ export class PlayerManager {
     }
 
     /**
-     * 更新玩家血量显示
+     * 更新玩家血量顯示
      */
     updateHealth(sessionId: string, currentHp: number, maxHp: number): void {
         const entity = this.playerEntities[sessionId];
@@ -134,7 +134,7 @@ export class PlayerManager {
     }
 
     /**
-     * 更新战斗状态
+     * 更新戰鬥狀態
      */
     updateCombatState(sessionId: string, inCombat: boolean): void {
         const entity = this.playerEntities[sessionId];
@@ -144,7 +144,7 @@ export class PlayerManager {
     }
 
     /**
-     * 更新所有玩家的移动和动画
+     * 更新所有玩家的移動和動畫
      */
     updateAll(): void {
         for (const sessionId in this.playerEntities) {
@@ -198,14 +198,14 @@ export class PlayerManager {
     }
 
     /**
-     * 获取玩家实体
+     * 獲取玩家實體
      */
     getEntity(sessionId: string): PlayerEntity | undefined {
         return this.playerEntities[sessionId];
     }
 
     /**
-     * 获取所有玩家实体
+     * 獲取所有玩家實體
      */
     getAllEntities(): { [sessionId: string]: PlayerEntity } {
         return this.playerEntities;

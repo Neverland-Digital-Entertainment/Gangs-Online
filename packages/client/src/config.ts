@@ -1,7 +1,7 @@
 import { GameConfig } from "./types";
 
 /**
- * 游戏配置
+ * 遊戲配置
  */
 export const config: GameConfig = {
     serverUrl: import.meta.env.VITE_SERVER_URL || "ws://localhost:2567",
@@ -18,7 +18,7 @@ export const modelConfig = {
 };
 
 /**
- * 相机配置
+ * 相機配置
  */
 export const cameraConfig = {
     zoom: 14,
