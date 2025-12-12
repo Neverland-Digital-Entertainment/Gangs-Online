@@ -6,6 +6,9 @@
     "scripts": {
         "build": "tsc"
     },
+    "dependencies": {
+        "@colyseus/schema": "^2.0.0"
+    },
     "devDependencies": {
         "typescript": "^5.0.0"
     }
