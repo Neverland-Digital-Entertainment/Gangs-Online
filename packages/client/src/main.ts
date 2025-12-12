@@ -15,48 +15,21 @@ const client = new Client.Client(SERVER_URL);
 
 // --- WEAPON ATTACHMENT ---
 const attachWeapon = (mesh: BABYLON.AbstractMesh, scene: BABYLON.Scene) => {
-    // 1. Create a VERY visible bat for testing - HUGE and BRIGHT RED!
-    const bat = BABYLON.MeshBuilder.CreateCylinder("bat", { height: 3, diameter: 0.3 }, scene);
+    // Create HUGE RED GLOWING BOX floating above character's head for testing!
+    const bat = BABYLON.MeshBuilder.CreateBox("bat", { size: 2 }, scene);
     const mat = new BABYLON.StandardMaterial("batMat", scene);
     mat.diffuseColor = BABYLON.Color3.Red(); // Bright red for visibility!
     mat.emissiveColor = BABYLON.Color3.Red(); // Make it glow!
     bat.material = mat;
 
-    // 2. Find the Right Hand Bone
-    const skeleton = mesh.skeleton;
-    console.log("Attaching weapon. Skeleton exists:", !!skeleton);
+    // Simply parent to the root mesh and place ABOVE the character's head
+    bat.parent = mesh;
+    bat.position = new BABYLON.Vector3(0, 3, 0); // 3 units above character
 
-    if (skeleton) {
-        // Debug: Print all bone names
-        console.log("Available bones:", skeleton.bones.map(b => b.name).join(", "));
-
-        // Try multiple possible bone names for the right hand
-        const handBone = skeleton.bones.find(b =>
-            b.name.includes("RightHand") ||
-            b.name.includes("RightHandMiddle") ||
-            b.name.includes("R_Hand") ||
-            b.name.toLowerCase().includes("hand_r")
-        );
-
-        if (handBone) {
-            console.log("Found hand bone:", handBone.name);
-            bat.attachToBone(handBone, mesh);
-            // Position the bat extending outward from the hand
-            bat.position = new BABYLON.Vector3(0, 1.5, 0); // Extend 1.5 units from hand
-            bat.rotation = new BABYLON.Vector3(0, 0, 0); // Vertical orientation
-            console.log("✅ Weapon attached to hand bone!");
-        } else {
-            console.warn("No hand bone found! Using fallback attachment");
-            // Fallback: Just parent to mesh (won't animate with arm but will be visible)
-            bat.parent = mesh;
-            bat.position = new BABYLON.Vector3(0.5, 1.5, 0);
-        }
-    } else {
-        console.warn("No skeleton found! Using simple attachment");
-        // Fallback: Just parent to mesh
-        bat.parent = mesh;
-        bat.position = new BABYLON.Vector3(0.5, 1.5, 0);
-    }
+    console.log("🔴 RED BOX created above character at position:", bat.position);
+    console.log("🔴 Box absolute position:", bat.getAbsolutePosition());
+    console.log("🔴 Box is visible:", bat.isVisible);
+    console.log("🔴 Box is enabled:", bat.isEnabled());
 };
 
 // --- CHAT BUBBLE ---
