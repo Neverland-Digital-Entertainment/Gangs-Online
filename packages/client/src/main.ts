@@ -15,30 +15,49 @@ const client = new Client.Client(SERVER_URL);
 
 // --- WEAPON ATTACHMENT ---
 const attachWeapon = (mesh: BABYLON.AbstractMesh, scene: BABYLON.Scene) => {
-    // 1. Create a simple Bat (Cylinder)
-    const bat = BABYLON.MeshBuilder.CreateCylinder("bat", { height: 0.8, diameter: 0.05 }, scene);
+    // 1. Create a simple Bat (Cylinder) - Make it bigger and more visible
+    const bat = BABYLON.MeshBuilder.CreateCylinder("bat", { height: 1.2, diameter: 0.08 }, scene);
     const mat = new BABYLON.StandardMaterial("batMat", scene);
     mat.diffuseColor = BABYLON.Color3.FromHexString("#8B4513"); // Brown wood
     bat.material = mat;
 
     // 2. Find the Right Hand Bone
     const skeleton = mesh.skeleton;
+    console.log("Attaching weapon. Skeleton exists:", !!skeleton);
+
     if (skeleton) {
-        // Try standard bone names
-        const handBone = skeleton.bones.find(b => b.name.includes("RightHand") || b.name.includes("RightHandMiddle1"));
+        // Debug: Print all bone names
+        console.log("Available bones:", skeleton.bones.map(b => b.name).join(", "));
+
+        // Try multiple possible bone names for the right hand
+        const handBone = skeleton.bones.find(b =>
+            b.name.includes("RightHand") ||
+            b.name.includes("RightHandMiddle") ||
+            b.name.includes("R_Hand") ||
+            b.name.toLowerCase().includes("hand_r")
+        );
+
         if (handBone) {
+            console.log("Found hand bone:", handBone.name);
             bat.attachToBone(handBone, mesh);
             // Adjust position/rotation to fit in hand
-            bat.position = new BABYLON.Vector3(0, 0, 0);
+            bat.position = new BABYLON.Vector3(0, 0.1, 0);
             bat.rotation = new BABYLON.Vector3(0, 0, Math.PI / 2);
         } else {
-            bat.dispose(); // No bone found
+            console.warn("No hand bone found! Using fallback attachment");
+            // Fallback: Just parent to mesh (won't animate with arm but will be visible)
+            bat.parent = mesh;
+            bat.position.x = 0.5;
+            bat.position.y = 1.2;
+            bat.position.z = 0;
         }
     } else {
-        // Fallback: Just parent to mesh (won't animate with arm)
+        console.warn("No skeleton found! Using simple attachment");
+        // Fallback: Just parent to mesh
         bat.parent = mesh;
-        bat.position.x = 0.3;
-        bat.position.y = 1;
+        bat.position.x = 0.5;
+        bat.position.y = 1.2;
+        bat.position.z = 0;
     }
 };
 
