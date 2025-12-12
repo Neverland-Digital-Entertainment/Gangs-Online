@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "cd packages/client && npm install && npm run build",
+  "buildCommand": "npm install && npm run build --workspace=@gangs-online/shared && npm run build --workspace=@gangs-online/client",
   "outputDirectory": "packages/client/dist",
   "framework": "vite",
   "installCommand": "npm install"
