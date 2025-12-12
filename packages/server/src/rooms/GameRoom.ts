@@ -14,16 +14,24 @@ export class GameRoom extends Room<GameState> {
 
         // Spawn Initial Enemies (Near spawn area: -10 to 10)
         console.log(`[NPC] Spawning ${GAME_CONSTANTS.ENEMY_SPAWN_COUNT} enemies...`);
-        for(let i=0; i<GAME_CONSTANTS.ENEMY_SPAWN_COUNT; i++) {
-            const enemy = new Enemy();
-            enemy.id = `mob_${i}`;
-            enemy.x = Math.random() * 20 - 10; // Closer to player spawn (-10 to 10)
-            enemy.z = Math.random() * 20 - 10;
-            enemy.name = "Street Thug";
-            this.state.enemies.set(enemy.id, enemy);
-            console.log(`[NPC] Spawned ${enemy.name} [${enemy.id}] at (${enemy.x.toFixed(2)}, ${enemy.z.toFixed(2)})`);
-        }
-        console.log(`[NPC] ✓ All ${GAME_CONSTANTS.ENEMY_SPAWN_COUNT} enemies spawned`);
+
+        // Delay to ensure at least one player is connected to receive messages
+        this.clock.setTimeout(() => {
+            this.broadcast("chat", { sessionId: "DEBUG", text: `🎮 Spawning ${GAME_CONSTANTS.ENEMY_SPAWN_COUNT} NPCs...` });
+
+            for(let i=0; i<GAME_CONSTANTS.ENEMY_SPAWN_COUNT; i++) {
+                const enemy = new Enemy();
+                enemy.id = `mob_${i}`;
+                enemy.x = Math.random() * 20 - 10; // Closer to player spawn (-10 to 10)
+                enemy.z = Math.random() * 20 - 10;
+                enemy.name = "Street Thug";
+                this.state.enemies.set(enemy.id, enemy);
+                console.log(`[NPC] Spawned ${enemy.name} [${enemy.id}] at (${enemy.x.toFixed(2)}, ${enemy.z.toFixed(2)})`);
+            }
+
+            this.broadcast("chat", { sessionId: "DEBUG", text: `✅ Spawned ${this.state.enemies.size} NPCs` });
+            console.log(`[NPC] ✓ All ${GAME_CONSTANTS.ENEMY_SPAWN_COUNT} enemies spawned`);
+        }, 1000);
 
         this.onMessage("move", (client, input: IPlayerInput) => {
             const player = this.state.players.get(client.sessionId);
@@ -70,6 +78,24 @@ export class GameRoom extends Room<GameState> {
         });
 
         this.onMessage("chat", (client, message: string) => {
+            // Debug commands
+            if (message === "/npcs") {
+                client.send("chat", { sessionId: "DEBUG", text: `📍 NPC Positions (${this.state.enemies.size} total):` });
+                this.state.enemies.forEach((enemy, id) => {
+                    const dist = Math.sqrt(
+                        Math.pow(this.state.players.get(client.sessionId)!.x - enemy.x, 2) +
+                        Math.pow(this.state.players.get(client.sessionId)!.z - enemy.z, 2)
+                    );
+                    client.send("chat", { sessionId: "DEBUG", text: `${id}: (${enemy.x.toFixed(1)}, ${enemy.z.toFixed(1)}) ${dist.toFixed(1)}m away [${enemy.state}]` });
+                });
+                return;
+            }
+
+            if (message === "/help") {
+                client.send("chat", { sessionId: "DEBUG", text: `Commands: /npcs, /help` });
+                return;
+            }
+
             this.broadcast("chat", { sessionId: client.sessionId, text: message });
         });
     }
@@ -146,6 +172,12 @@ export class GameRoom extends Room<GameState> {
         player.z = Math.random() * 10 - 5;
         player.name = options.name || `Gangster ${client.sessionId.substr(0, 4)}`;
         this.state.players.set(client.sessionId, player);
+
+        // Send welcome message with NPC count
+        this.clock.setTimeout(() => {
+            client.send("chat", { sessionId: "DEBUG", text: `📊 NPCs active: ${this.state.enemies.size}` });
+            client.send("chat", { sessionId: "DEBUG", text: `📍 Player spawn: (${player.x.toFixed(1)}, ${player.z.toFixed(1)})` });
+        }, 500);
     }
 
     onLeave(client: Client) {
