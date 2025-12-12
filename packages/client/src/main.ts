@@ -2,7 +2,7 @@ import * as BABYLON from "@babylonjs/core";
 import { SceneLoader } from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import * as Client from "colyseus.js";
-import { PlayerData, GAME_CONSTANTS } from "@gangs-online/shared";
+import { GAME_CONSTANTS } from "@gangs-online/shared";
 import "@babylonjs/loaders"; // Important for loading .glb/.gltf
 
 // --- Configuration ---
@@ -148,54 +148,39 @@ const createCity = (scene: BABYLON.Scene) => {
     }
 }
 
-// --- UPDATED UI: Name Tag + Health Bar + Combat Indicator ---
-const createPlayerUI = (mesh: BABYLON.AbstractMesh, name: string, uiTexture: GUI.AdvancedDynamicTexture) => {
+// --- Entity UI: Name Tag + Health Bar ---
+const createEntityUI = (mesh: BABYLON.AbstractMesh, name: string, isEnemy: boolean, uiTexture: GUI.AdvancedDynamicTexture) => {
     const container = new GUI.Rectangle();
     container.width = "120px";
-    container.height = "80px"; // Increased height for combat indicator
+    container.height = "60px";
     container.thickness = 0;
     uiTexture.addControl(container);
     container.linkWithMesh(mesh);
-    container.linkOffsetY = -150; // Adjusted for taller container
+    container.linkOffsetY = -130;
 
-    // Combat Indicator (Red Exclamation)
-    const combatIndicator = new GUI.TextBlock();
-    combatIndicator.text = "⚔️"; // Sword emoji
-    combatIndicator.color = "red";
-    combatIndicator.fontSize = 24;
-    combatIndicator.top = "-35px";
-    combatIndicator.isVisible = false; // Hidden by default
-    container.addControl(combatIndicator);
-
-    // Name
     const label = new GUI.TextBlock();
     label.text = name;
-    label.color = "white";
-    label.fontSize = 14;
-    label.top = "-10px";
-    label.shadowBlur = 2;
+    label.color = isEnemy ? "#FF4444" : "white"; // Red text for enemies
+    label.top = "-15px";
     container.addControl(label);
 
-    // HP Bar Background (Red)
     const hpBg = new GUI.Rectangle();
-    hpBg.width = "100px";
-    hpBg.height = "10px";
-    hpBg.color = "black";
-    hpBg.thickness = 1;
+    hpBg.width = "80px";
+    hpBg.height = "8px";
     hpBg.background = "red";
-    hpBg.top = "20px";
+    hpBg.thickness = 0;
+    hpBg.top = "10px";
     container.addControl(hpBg);
 
-    // HP Bar Foreground (Green)
     const hpFg = new GUI.Rectangle();
-    hpFg.width = "100px"; // Start full
-    hpFg.height = "10px";
+    hpFg.width = "80px";
+    hpFg.height = "8px";
+    hpFg.background = isEnemy ? "orange" : "#00FF00";
     hpFg.thickness = 0;
-    hpFg.background = "#00FF00";
     hpFg.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
     hpBg.addControl(hpFg);
 
-    return { container, hpFg, hpBg, combatIndicator };
+    return { container, hpFg };
 }
 
 const createScene = async () => {
@@ -231,222 +216,171 @@ const createScene = async () => {
     // --- UI Layer ---
     const uiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
 
-    // --- Multiplayer Logic ---
-    // Store Mesh, Animation Groups, and Rotation Target
-    interface PlayerEntity {
-        mesh: BABYLON.AbstractMesh;
-        ui: { container: GUI.Rectangle, hpFg: GUI.Rectangle, hpBg: GUI.Rectangle, combatIndicator: GUI.TextBlock };
-        idleAnim?: BABYLON.AnimationGroup;
-        runAnim?: BABYLON.AnimationGroup;
-        currentAnim: "idle" | "run" | "dead";
-    }
-
-    const playerEntities: { [sessionId: string]: PlayerEntity } = {};
-    const playerTargets: { [sessionId: string]: { x: number; z: number } } = {};
-    const MOVE_SPEED = 0.15;
+    // Unified Entity Store
+    const entities: any = {};
+    const targets: any = {};
     let mySessionId: string | null = null;
+
+    // Helper to spawn visual mesh
+    const spawnEntityVisuals = async (entityData: any, id: string, type: 'player'|'enemy') => {
+        const result = await BABYLON.SceneLoader.ImportMeshAsync("", "https://models.babylonjs.com/", "HVGirl.glb", scene);
+        const root = result.meshes[0];
+        root.position.set(entityData.x, 0.1, entityData.z);
+        root.scaling.set(0.15, 0.15, 0.15);
+        root.rotationQuaternion = null;
+        root.checkCollisions = true;
+        root.ellipsoid = new BABYLON.Vector3(0.5, 1.0, 0.5);
+
+        // Metadata for click detection
+        root.metadata = { id: id, type: type };
+
+        // Tint Enemies Red
+        if (type === 'enemy') {
+            const meshes = root.getChildMeshes();
+            meshes.forEach(m => {
+                if (m.material) {
+                    // Clone material to not affect others
+                    const newMat = m.material.clone(`enemyMat_${id}`);
+                    if (newMat && 'emissiveColor' in newMat) {
+                         (newMat as any).emissiveColor = new BABYLON.Color3(0.5, 0, 0); // Red Glow
+                    }
+                    m.material = newMat;
+                }
+            });
+        }
+
+        const idle = result.animationGroups.find(a => a.name === "Idle");
+        const run = result.animationGroups.find(a => a.name === "Walking");
+        if (idle) idle.play(true);
+
+        const ui = createEntityUI(root as BABYLON.Mesh, entityData.name, type === 'enemy', uiTexture);
+
+        entities[id] = {
+            mesh: root,
+            ui,
+            idleAnim: idle,
+            runAnim: run,
+            currentAnim: "idle"
+        };
+        targets[id] = { x: entityData.x, z: entityData.z };
+
+        // Sync Logic
+        entityData.onChange(() => {
+            targets[id].x = entityData.x;
+            targets[id].z = entityData.z;
+        });
+
+        entityData.listen("hp", (val: number) => {
+             const pct = Math.max(0, val/entityData.maxHp);
+             ui.hpFg.width = `${pct * 80}px`;
+             if (val <= 0) root.visibility = 0.5;
+             else root.visibility = 1;
+        });
+    };
 
     try {
         const room = await client.joinOrCreate("game_room");
         mySessionId = room.sessionId;
-        console.log("Connected! My ID:", mySessionId);
 
         // Create Chat Input
         createChatUI(room, scene);
 
         // Listen for Chat Broadcasts
         room.onMessage("chat", (msg: { sessionId: string, text: string }) => {
-            if (playerEntities[msg.sessionId]) {
-                createChatBubble(playerEntities[msg.sessionId].mesh, msg.text, uiTexture);
+            if (entities[msg.sessionId]) {
+                createChatBubble(entities[msg.sessionId].mesh, msg.text, uiTexture);
             }
         });
 
-        // Add Player
-        (room.state as any).players.onAdd(async (player: PlayerData, sessionId: string) => {
-            const isSelf = sessionId === room.sessionId;
-
-            // --- LOAD 3D MODEL ---
-            // Using Babylon's HVGirl model from CDN
-            const result = await SceneLoader.ImportMeshAsync("", "https://models.babylonjs.com/", "HVGirl.glb", scene);
-
-            const root = result.meshes[0];
-            // Start slightly above ground to prevent getting stuck immediately
-            root.position.set(player.x, 0.1, player.z);
-            root.scaling.set(0.15, 0.15, 0.15); // Scale down HVGirl
-            root.rotationQuaternion = null; // Allow manual rotation
-
-            // --- COLLISION SETUP ---
-            root.checkCollisions = true;
-            // Define the "body" size (Radius X, Y, Z)
-            root.ellipsoid = new BABYLON.Vector3(0.5, 1.0, 0.5);
-            // Offset the ellipsoid center (usually up by radius Y)
-            root.ellipsoidOffset = new BABYLON.Vector3(0, 1.0, 0);
-
-            // Store SessionId on the mesh for Raycasting (IMPORTANT for attack detection)
-            root.metadata = { sessionId };
-
-            // ATTACH WEAPON
-            attachWeapon(root, result.meshes[1], scene); // root = meshes[0], skinned = meshes[1]
-
-            // --- ANIMATIONS ---
-            const idle = result.animationGroups.find(a => a.name === "Idle");
-            const run = result.animationGroups.find(a => a.name === "Walking"); // HVGirl uses 'Walking'
-
-            if (idle) idle.play(true); // Start Idle by default
-
-            // UI (Name + HP Bar)
-            const ui = createPlayerUI(root, isSelf ? "大佬 (Me)" : "Target", uiTexture);
-
-            playerEntities[sessionId] = {
-                mesh: root,
-                ui,
-                idleAnim: idle,
-                runAnim: run,
-                currentAnim: "idle"
-            };
-            playerTargets[sessionId] = { x: player.x, z: player.z };
-
-            // Sync Position
-            player.onChange(() => {
-                playerTargets[sessionId].x = player.x;
-                playerTargets[sessionId].z = player.z;
-            });
-
-            // Sync HP (Listen for HP changes)
-            player.listen("hp", (currentHp: number) => {
-                const percent = Math.max(0, currentHp / player.maxHp);
-                ui.hpFg.width = `${percent * 100}px`; // Adjust bar width
-
-                // Visual Feedback: Turn semi-transparent if dead
-                if (currentHp <= 0) {
-                    root.visibility = 0.3; // Ghost mode
-                    console.log(`Player ${sessionId} is dead`);
-                } else {
-                    root.visibility = 1;
-                }
-            });
-
-            // Sync Combat State
-            player.listen("inCombatWith", (targetId: string) => {
-                if (targetId && targetId !== "") {
-                    ui.combatIndicator.isVisible = true;
-                    console.log(`Player ${sessionId} entered combat with ${targetId}`);
-                } else {
-                    ui.combatIndicator.isVisible = false;
-                    console.log(`Player ${sessionId} combat ended`);
-                }
-            });
+        // --- PLAYERS ---
+        (room.state as any).players.onAdd((player: any, sessionId: string) => {
+            spawnEntityVisuals(player, sessionId, 'player');
         });
-
-        // Remove Player
-        (room.state as any).players.onRemove((player: PlayerData, sessionId: string) => {
-            if (playerEntities[sessionId]) {
-                playerEntities[sessionId].mesh.dispose();
-                playerEntities[sessionId].ui.container.dispose();
-                // Stop and dispose animation groups
-                playerEntities[sessionId].idleAnim?.stop();
-                playerEntities[sessionId].idleAnim?.dispose();
-                playerEntities[sessionId].runAnim?.stop();
-                playerEntities[sessionId].runAnim?.dispose();
-
-                delete playerEntities[sessionId];
-                delete playerTargets[sessionId];
+        (room.state as any).players.onRemove((player: any, sessionId: string) => {
+            if (entities[sessionId]) {
+                entities[sessionId].mesh.dispose();
+                entities[sessionId].ui.container.dispose();
+                delete entities[sessionId];
+                delete targets[sessionId];
             }
         });
 
-        // --- INPUT: Click to Attack or Move ---
+        // --- ENEMIES ---
+        (room.state as any).enemies.onAdd((enemy: any, enemyId: string) => {
+            spawnEntityVisuals(enemy, enemyId, 'enemy');
+        });
+        (room.state as any).enemies.onRemove((enemy: any, enemyId: string) => {
+            if (entities[enemyId]) {
+                entities[enemyId].mesh.dispose();
+                entities[enemyId].ui.container.dispose();
+                delete entities[enemyId];
+                delete targets[enemyId];
+            }
+        });
+
+        // --- INPUT ---
         scene.onPointerDown = (evt, pickResult) => {
             if (pickResult.hit && pickResult.pickedMesh) {
-                // Check if we clicked a player (using metadata we set earlier)
-                // We need to traverse up to root because pick might hit a child mesh
-                let clickedMesh: BABYLON.Node = pickResult.pickedMesh;
-                while (clickedMesh.parent) {
-                    clickedMesh = clickedMesh.parent;
-                }
+                let m = pickResult.pickedMesh;
+                while (m.parent) m = m.parent as BABYLON.AbstractMesh;
 
-                if (clickedMesh instanceof BABYLON.AbstractMesh && clickedMesh.metadata && clickedMesh.metadata.sessionId) {
-                    // CLICKED ON PLAYER -> ATTACK
-                    const targetId = clickedMesh.metadata.sessionId;
+                if (m.metadata) {
+                    const targetId = m.metadata.id;
+                    const type = m.metadata.type;
+
                     if (targetId !== mySessionId) {
-                        console.log("Attacking:", targetId);
-                        room.send("attack", { targetSessionId: targetId });
-                        return; // Don't move if attacking
+                        // Attack Player OR Enemy
+                        room.send("attack", { targetId: targetId, type: type });
+                        return;
                     }
                 }
 
-                // CLICKED ON GROUND -> MOVE
-                // Prevent clicking on buildings
-                if (pickResult.pickedPoint && !pickResult.pickedMesh.name.startsWith("b_")) {
-                    room.send("move", { x: pickResult.pickedPoint.x, z: pickResult.pickedPoint.z });
+                if (pickResult.pickedMesh.name.startsWith("ground") || pickResult.pickedMesh.name.startsWith("road")) {
+                     room.send("move", { x: pickResult.pickedPoint!.x, z: pickResult.pickedPoint!.z });
                 }
             }
         };
 
-    } catch (e) {
-        console.error("Connection Failed:", e);
-    }
+    } catch (e) { console.error(e); }
 
-    // --- Game Loop (Animation & Movement) ---
+    // --- RENDER LOOP ---
     scene.registerBeforeRender(() => {
-        for (const sessionId in playerEntities) {
-            const entity = playerEntities[sessionId];
-            const target = playerTargets[sessionId];
-
+        // Updated loop to handle both players and enemies in `entities`
+        for (const id in entities) {
+            const entity = entities[id];
+            const target = targets[id];
             if (entity && target) {
-                const mesh = entity.mesh;
+                 const mesh = entity.mesh;
+                 const dx = target.x - mesh.position.x;
+                 const dz = target.z - mesh.position.z;
+                 const dist = Math.sqrt(dx*dx + dz*dz);
+                 if (dist > 0.1) {
+                     const velocity = new BABYLON.Vector3(dx, -0.5, dz).normalize().scale(0.15); // Sync speed visual
+                     if (dist < 0.15) velocity.scaleInPlace(dist/0.15);
 
-                // Calculate direction vector
-                const dx = target.x - mesh.position.x;
-                const dz = target.z - mesh.position.z;
-                // Ignore Y difference for distance check (only 2D distance matters for target)
-                const dist = Math.sqrt(dx * dx + dz * dz);
+                     const targetAngle = Math.atan2(dx, dz);
+                     // Smooth rotation
+                     mesh.rotation.y = BABYLON.Scalar.Lerp(mesh.rotation.y, targetAngle, 0.2);
+                     mesh.moveWithCollisions(velocity);
 
-                // Threshold to stop moving
-                if (dist > 0.1) {
-                    // --- MOVEMENT WITH COLLISIONS ---
-                    // Create a velocity vector
-                    // We apply Gravity (-0.5 per frame) to keep them grounded
-                    const velocity = new BABYLON.Vector3(dx, -0.5, dz).normalize().scale(MOVE_SPEED);
-
-                    // If close to target, clamp velocity to avoid overshooting
-                    if (dist < MOVE_SPEED) {
-                        velocity.scaleInPlace(dist / MOVE_SPEED);
-                    }
-
-                    // Look at target
-                    const targetAngle = Math.atan2(dx, dz);
-                    const currentRotation = mesh.rotation.y;
-                    mesh.rotation.y = BABYLON.Scalar.Lerp(currentRotation, targetAngle, 0.2);
-
-                    // Move!
-                    mesh.moveWithCollisions(velocity);
-
-                    // Play Run Animation
-                    if (entity.currentAnim !== "run") {
-                        if (entity.idleAnim) entity.idleAnim.stop();
-                        if (entity.runAnim) entity.runAnim.play(true);
-                        entity.currentAnim = "run";
-                    }
-                } else {
-                    // Stop: Play Idle
-                    if (entity.currentAnim !== "idle") {
-                        if (entity.runAnim) entity.runAnim.stop();
-                        if (entity.idleAnim) entity.idleAnim.play(true);
-                        entity.currentAnim = "idle";
-                    }
-                }
+                     if (entity.currentAnim !== "run") {
+                         entity.idleAnim?.stop(); entity.runAnim?.play(true); entity.currentAnim = "run";
+                     }
+                 } else {
+                     if (entity.currentAnim !== "idle") {
+                         entity.runAnim?.stop(); entity.idleAnim?.play(true); entity.currentAnim = "idle";
+                     }
+                 }
             }
         }
 
-        // Camera Follow (Smooth)
-        if (mySessionId && playerEntities[mySessionId]) {
-            const myMesh = playerEntities[mySessionId].mesh;
-
-
-            // Smooth Camera Follow with Lerp (position only, angle locked)
-            camera.position.x = BABYLON.Scalar.Lerp(camera.position.x, myMesh.position.x + 20, 0.1);
-            camera.position.z = BABYLON.Scalar.Lerp(camera.position.z, myMesh.position.z - 20, 0.1);
-            camera.position.y = BABYLON.Scalar.Lerp(camera.position.y, myMesh.position.y + 20, 0.1);
+        // Camera Follow
+        if (mySessionId && entities[mySessionId]) {
+             const t = entities[mySessionId].mesh.position;
+             camera.position.x = BABYLON.Scalar.Lerp(camera.position.x, t.x+20, 0.1);
+             camera.position.y = BABYLON.Scalar.Lerp(camera.position.y, t.y+20, 0.1);
+             camera.position.z = BABYLON.Scalar.Lerp(camera.position.z, t.z-20, 0.1);
+             camera.setTarget(t);
         }
     });
 

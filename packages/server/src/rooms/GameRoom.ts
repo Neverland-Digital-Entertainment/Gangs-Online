@@ -1,161 +1,150 @@
 import { Room, Client } from "colyseus";
-import { GameState, Player } from "./schema/GameState";
+import { GameState, Player, Enemy } from "./schema/GameState";
 import { IPlayerInput, GAME_CONSTANTS } from "@gangs-online/shared";
 
 export class GameRoom extends Room<GameState> {
     maxClients = 50;
-    firstPlayerSessionId: string | null = null; // Track first player for special advantage
 
     onCreate(options: any) {
         console.log("Gangs Online: Room Created");
         this.setState(new GameState());
 
-        // Handle Movement
+        // Setup AI Loop (Tick 20 times per second = 50ms)
+        this.setSimulationInterval((deltaTime) => this.update(deltaTime));
+
+        // Spawn Initial Enemies
+        for(let i=0; i<GAME_CONSTANTS.ENEMY_SPAWN_COUNT; i++) {
+            const enemy = new Enemy();
+            enemy.id = `mob_${i}`;
+            enemy.x = Math.random() * 40 - 20;
+            enemy.z = Math.random() * 40 - 20;
+            enemy.name = "Street Thug";
+            this.state.enemies.set(enemy.id, enemy);
+        }
+
         this.onMessage("move", (client, input: IPlayerInput) => {
             const player = this.state.players.get(client.sessionId);
-            if (player && player.hp > 0) { // Can only move if alive
+            if (player && player.hp > 0) {
                 player.x = input.x;
                 player.z = input.z;
             }
         });
 
-        // Handle Attack (Start Combat)
-        this.onMessage("attack", (client, payload: { targetSessionId: string }) => {
+        // Updated Attack Handler (Player vs Player OR Player vs Enemy)
+        this.onMessage("attack", (client, payload: { targetId: string, type: 'player' | 'enemy' }) => {
             const attacker = this.state.players.get(client.sessionId);
-            const target = this.state.players.get(payload.targetSessionId);
+            let target: Player | Enemy | undefined;
+
+            if (payload.type === 'player') {
+                target = this.state.players.get(payload.targetId);
+            } else if (payload.type === 'enemy') {
+                target = this.state.enemies.get(payload.targetId);
+            }
 
             if (attacker && target && attacker.hp > 0 && target.hp > 0) {
-                // Check if not already in combat
-                if (!attacker.inCombatWith && !target.inCombatWith) {
-                    // Calculate Distance
-                    const dx = attacker.x - target.x;
-                    const dz = attacker.z - target.z;
-                    const dist = Math.sqrt(dx * dx + dz * dz);
+                const dx = attacker.x - target.x;
+                const dz = attacker.z - target.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
 
-                    // Validate Range
-                    if (dist <= GAME_CONSTANTS.ATTACK_RANGE) {
-                        // START AUTO-COMBAT
-                        attacker.inCombatWith = target.sessionId;
-                        target.inCombatWith = attacker.sessionId;
+                if (dist <= GAME_CONSTANTS.ATTACK_RANGE) {
+                    target.hp -= GAME_CONSTANTS.ATTACK_DAMAGE;
 
-                        console.log(`Combat started: ${attacker.sessionId} vs ${target.sessionId}`);
+                    if (target.hp <= 0) {
+                        target.hp = 0;
+                        this.broadcast("chat", { sessionId: "SYSTEM", text: `${attacker.name} killed ${target.name}!` });
 
-                        // Immediately deal first damage from both sides
-                        this.dealDamage(attacker, target);
-                        this.dealDamage(target, attacker);
-                    } else {
-                        console.log(`Attack failed: Target out of range (${dist.toFixed(2)}m > ${GAME_CONSTANTS.ATTACK_RANGE}m)`);
+                        // Respawn Logic
+                        if (payload.type === 'player') {
+                            this.clock.setTimeout(() => this.respawnPlayer(payload.targetId), 3000);
+                        } else {
+                            // Remove enemy and spawn new one later
+                            this.state.enemies.delete(payload.targetId);
+                            this.clock.setTimeout(() => this.spawnEnemy(), 5000);
+                        }
                     }
                 }
             }
         });
 
-        // --- NEW: CHAT HANDLER ---
         this.onMessage("chat", (client, message: string) => {
-            const player = this.state.players.get(client.sessionId);
-            if (player) {
-                // Broadcast to everyone including sender
-                this.broadcast("chat", { sessionId: client.sessionId, text: message });
-            }
+            this.broadcast("chat", { sessionId: client.sessionId, text: message });
         });
-
-        // Auto-Combat Loop (runs every ATTACK_INTERVAL)
-        this.clock.setInterval(() => {
-            this.state.players.forEach((player) => {
-                if (player.inCombatWith && player.hp > 0) {
-                    const target = this.state.players.get(player.inCombatWith);
-
-                    if (target && target.hp > 0) {
-                        // Continue attacking
-                        this.dealDamage(player, target);
-                    } else {
-                        // Target is dead or disconnected, end combat
-                        player.inCombatWith = "";
-                    }
-                }
-            });
-        }, GAME_CONSTANTS.ATTACK_INTERVAL);
     }
 
-    // Helper function to deal damage
-    dealDamage(attacker: Player, target: Player) {
-        // Special advantage: First player (me) deals 50 damage, others deal 10
-        const damage = attacker.sessionId === this.firstPlayerSessionId ? 50 : GAME_CONSTANTS.ATTACK_DAMAGE;
+    // AI Loop
+    update(deltaTime: number) {
+        this.state.enemies.forEach(enemy => {
+            if (enemy.hp <= 0) return;
 
-        target.hp -= damage;
-        console.log(`${attacker.sessionId} hit ${target.sessionId} for ${damage} damage! HP: ${target.hp}/${target.maxHp}`);
+            let nearestPlayer: Player | null = null;
+            let minDist = 9999;
 
-        if (target.hp <= 0) {
-            target.hp = 0;
-            target.inCombatWith = ""; // Stop target from attacking
+            // Find nearest player
+            this.state.players.forEach(player => {
+                if (player.hp <= 0) return;
+                const dx = player.x - enemy.x;
+                const dz = player.z - enemy.z;
+                const dist = Math.sqrt(dx*dx + dz*dz);
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearestPlayer = player;
+                }
+            });
 
-            // Stop attacker's combat
-            attacker.inCombatWith = "";
-
-            console.log(`Player ${target.sessionId} was killed by ${attacker.sessionId}`);
-
-            // Special respawn for first player (me): immediate full heal
-            if (target.sessionId === this.firstPlayerSessionId) {
-                console.log(`First player died - instant respawn with full HP`);
-                this.clock.setTimeout(() => {
-                    if (this.state.players.has(target.sessionId)) {
-                        const respawnedPlayer = this.state.players.get(target.sessionId);
-                        if (respawnedPlayer) {
-                            respawnedPlayer.hp = respawnedPlayer.maxHp;
-                            respawnedPlayer.x = Math.random() * 10 - 5;
-                            respawnedPlayer.z = Math.random() * 10 - 5;
-                            console.log(`First player respawned`);
-                        }
+            if (nearestPlayer && minDist < GAME_CONSTANTS.ENEMY_DETECT_RANGE) {
+                if (minDist > GAME_CONSTANTS.ATTACK_RANGE - 0.5) {
+                    // Chase
+                    enemy.state = "chase";
+                    const dx = nearestPlayer.x - enemy.x;
+                    const dz = nearestPlayer.z - enemy.z;
+                    // Normalize and move
+                    enemy.x += (dx / minDist) * GAME_CONSTANTS.ENEMY_SPEED;
+                    enemy.z += (dz / minDist) * GAME_CONSTANTS.ENEMY_SPEED;
+                } else {
+                    // Attack (Simple cooldown logic could go here)
+                    enemy.state = "attack";
+                    if (Math.random() < 0.02) { // Random chance to hit per tick
+                        nearestPlayer.hp -= 5;
+                         if (nearestPlayer.hp <= 0) {
+                             nearestPlayer.hp = 0;
+                             this.respawnPlayer(nearestPlayer.sessionId);
+                         }
                     }
-                }, 1000); // 1 second respawn for first player
+                }
             } else {
-                // Regular respawn (3 seconds)
-                this.clock.setTimeout(() => {
-                    if (this.state.players.has(target.sessionId)) {
-                        const respawnedPlayer = this.state.players.get(target.sessionId);
-                        if (respawnedPlayer) {
-                            respawnedPlayer.hp = respawnedPlayer.maxHp;
-                            respawnedPlayer.x = Math.random() * 10 - 5;
-                            respawnedPlayer.z = Math.random() * 10 - 5;
-                            console.log(`Player ${target.sessionId} respawned`);
-                        }
-                    }
-                }, 3000);
+                enemy.state = "idle";
             }
+        });
+    }
+
+    respawnPlayer(sessionId: string) {
+        const p = this.state.players.get(sessionId);
+        if (p) {
+            p.hp = p.maxHp;
+            p.x = Math.random() * 10 - 5;
+            p.z = Math.random() * 10 - 5;
         }
+    }
+
+    spawnEnemy() {
+        const enemy = new Enemy();
+        enemy.id = `mob_${Math.random().toString(36).substr(2, 5)}`;
+        enemy.x = Math.random() * 40 - 20;
+        enemy.z = Math.random() * 40 - 20;
+        enemy.name = "Street Thug";
+        this.state.enemies.set(enemy.id, enemy);
     }
 
     onJoin(client: Client, options: any) {
-        console.log(`Player ${client.sessionId} joined Gangs Online`);
-
-        // Track first player for special advantage
-        if (!this.firstPlayerSessionId) {
-            this.firstPlayerSessionId = client.sessionId;
-            console.log(`First player detected: ${client.sessionId} - Will deal 50 damage per hit`);
-        }
-
         const player = new Player();
         player.sessionId = client.sessionId;
-        // Random Spawn
         player.x = Math.random() * 10 - 5;
         player.z = Math.random() * 10 - 5;
-        // Initialize HP
-        player.hp = 100;
-        player.maxHp = 100;
-        player.inCombatWith = "";
+        player.name = options.name || `Gangster ${client.sessionId.substr(0, 4)}`;
         this.state.players.set(client.sessionId, player);
     }
 
-    onLeave(client: Client, consented: boolean) {
-        // If player was in combat, end combat for opponent
-        const leavingPlayer = this.state.players.get(client.sessionId);
-        if (leavingPlayer && leavingPlayer.inCombatWith) {
-            const opponent = this.state.players.get(leavingPlayer.inCombatWith);
-            if (opponent) {
-                opponent.inCombatWith = "";
-            }
-        }
-
+    onLeave(client: Client) {
         this.state.players.delete(client.sessionId);
     }
 }
