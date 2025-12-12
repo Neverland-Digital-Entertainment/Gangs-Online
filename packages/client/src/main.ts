@@ -1,34 +1,29 @@
 import * as BABYLON from "@babylonjs/core";
-import { SceneLoader } from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import * as Client from "colyseus.js";
-import { PlayerData, GAME_CONSTANTS } from "@gangs-online/shared";
-import "@babylonjs/loaders"; // Important for loading .glb/.gltf
+import { PlayerData } from "@gangs-online/shared";
+import "@babylonjs/loaders";
 
-// --- Configuration ---
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:2567";
+// Import our modular systems
+import { config } from "./config";
+import { LoadingScreen } from "./systems/LoadingScreen";
+import { ChatSystem } from "./systems/ChatSystem";
+import { UISystem } from "./systems/UISystem";
+import { WeaponSystem } from "./systems/WeaponSystem";
+import { CityGenerator } from "./world/CityGenerator";
+import { PlayerManager } from "./entities/PlayerManager";
+import { createEngine, createIsometricCamera, setupScene, updateCameraFollow } from "./utils/BabylonUtils";
 
-// --- Loading Screen Helper ---
-const updateLoadingText = (text: string) => {
-    const loadingText = document.getElementById("loadingText");
-    if (loadingText) {
-        loadingText.textContent = text;
-    }
-    console.log("📦", text);
-};
+/**
+ * 主入口 - 游戏初始化和场景创建
+ */
 
-const hideLoadingScreen = () => {
-    const loadingScreen = document.getElementById("loadingScreen");
-    if (loadingScreen) {
-        loadingScreen.classList.add("fade-out");
-        setTimeout(() => loadingScreen.remove(), 500);
-    }
-};
-
-// --- Setup ---
+// --- 初始化加载屏幕 ---
 console.log("🎮 Initializing Gangs Online...");
-updateLoadingText("正在初始化引擎...");
+const loadingScreen = new LoadingScreen();
+loadingScreen.updateText("正在初始化引擎...");
 
+// --- 获取 Canvas ---
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 if (!canvas) {
     console.error("❌ Canvas element not found!");
@@ -36,498 +31,172 @@ if (!canvas) {
 }
 console.log("✅ Canvas found:", canvas);
 
-// Create engine with performance optimizations
-const engine = new BABYLON.Engine(canvas, true, {
-    preserveDrawingBuffer: true,
-    stencil: true,
-    disableWebGL2Support: false, // Use WebGL2 if available for better performance
-    powerPreference: "high-performance" // Request high-performance GPU
-});
-
-// Optimize for mobile devices
-if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-    console.log("📱 Mobile device detected, applying optimizations...");
-    engine.setHardwareScalingLevel(1.5); // Reduce resolution on mobile for better performance
-}
-
+// --- 创建引擎 ---
+const engine = createEngine(canvas);
 console.log("✅ BabylonJS Engine created");
 
-updateLoadingText("正在连接服务器...");
-const client = new Client.Client(SERVER_URL);
-console.log("✅ Colyseus Client created, server:", SERVER_URL);
+// --- 创建 Colyseus 客户端 ---
+loadingScreen.updateText("正在连接服务器...");
+const client = new Client.Client(config.serverUrl);
+console.log("✅ Colyseus Client created, server:", config.serverUrl);
 
-// --- WEAPON ATTACHMENT ---
-const attachWeapon = (rootMesh: BABYLON.AbstractMesh, skinnedMesh: BABYLON.AbstractMesh, scene: BABYLON.Scene) => {
-    // Create a wooden bat (cylinder)
-    const bat = BABYLON.MeshBuilder.CreateCylinder("bat", { height: 0.6, diameter: 0.08 }, scene);
-    const mat = new BABYLON.StandardMaterial("batMat", scene);
-    mat.diffuseColor = BABYLON.Color3.FromHexString("#8B4513"); // Brown wood
-    mat.emissiveColor = new BABYLON.Color3(0.2, 0.1, 0.05); // Slight glow
-    bat.material = mat;
-
-    // Try to find skeleton on the skinned mesh
-    const skeleton = skinnedMesh.skeleton;
-    if (skeleton) {
-        // Try to find hand bone - HVGirl model may have different bone names
-        const handBone = skeleton.bones.find(b =>
-            b.name.toLowerCase().includes("righthand") ||
-            b.name.toLowerCase().includes("r_hand") ||
-            b.name.toLowerCase().includes("hand_r") ||
-            b.name.toLowerCase().includes("mixamorig:righthand")
-        );
-
-        if (handBone) {
-            bat.attachToBone(handBone, skinnedMesh);
-            bat.position = new BABYLON.Vector3(0, 0.1, 0);
-            bat.rotation = new BABYLON.Vector3(Math.PI / 2, 0, 0); // Point outward
-            return;
-        }
-    }
-
-    // Fallback: Parent to root and position near where hand would be
-    // Since the model is scaled to 0.15, we need to account for that
-    bat.parent = rootMesh;
-    bat.position = new BABYLON.Vector3(2, 8, 0); // Position relative to root (in model scale)
-    bat.rotation = new BABYLON.Vector3(0, 0, Math.PI / 4);
-};
-
-// --- CHAT BUBBLE ---
-const createChatBubble = (mesh: BABYLON.AbstractMesh, text: string, uiTexture: GUI.AdvancedDynamicTexture) => {
-    const rect = new GUI.Rectangle();
-    rect.width = "150px";
-    rect.height = "40px";
-    rect.cornerRadius = 10;
-    rect.color = "black";
-    rect.thickness = 1;
-    rect.background = "white";
-    uiTexture.addControl(rect);
-    rect.linkWithMesh(mesh);
-    rect.linkOffsetY = -180; // Higher than name tag
-
-    const label = new GUI.TextBlock();
-    label.text = text;
-    label.fontSize = 12;
-    label.textWrapping = true;
-    label.color = "black";
-    rect.addControl(label);
-
-    // Fade out and destroy
-    setTimeout(() => {
-        rect.dispose();
-    }, 4000);
-};
-
-// --- CHAT UI ---
-const createChatUI = (room: Client.Room, scene: BABYLON.Scene) => {
-    const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("ChatUI");
-
-    // Chat Input Box (Bottom Left)
-    const input = new GUI.InputText();
-    input.width = "300px";
-    input.height = "40px";
-    input.text = "";
-    input.color = "white";
-    input.background = "rgba(0,0,0,0.5)";
-    input.placeholderText = "Press Enter to Chat...";
-    input.focusedBackground = "rgba(0,0,0,0.8)";
-    input.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-    input.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-    input.left = "20px";
-    input.top = "-20px";
-
-    // Send on Enter
-    input.onKeyboardEventProcessedObservable.add((ev) => {
-        if (ev.key === "Enter" && input.text) {
-            room.send("chat", input.text);
-            input.text = "";
-        }
-    });
-
-    advancedTexture.addControl(input);
-    return advancedTexture;
-};
-
-// --- City Generator (Procedural Greybox) ---
-const createCity = (scene: BABYLON.Scene) => {
-    // 1. Asphalt Road
-    const ground = BABYLON.MeshBuilder.CreateGround("road", { width: 100, height: 100 }, scene);
-    const roadMat = new BABYLON.StandardMaterial("roadMat", scene);
-    roadMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-    ground.material = roadMat;
-
-    // ENABLE COLLISION ON GROUND
-    ground.checkCollisions = true;
-
-    // 2. Sidewalks (Lighter Grey)
-    const sidewalkMat = new BABYLON.StandardMaterial("sidewalkMat", scene);
-    sidewalkMat.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-
-    // 3. Buildings (Neon Blocks)
-    const buildingMat = new BABYLON.StandardMaterial("bMat", scene);
-    buildingMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.3);
-    buildingMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.2);
-
-    // Generate random blocks
-    for (let i = -4; i <= 4; i++) {
-        for (let j = -4; j <= 4; j++) {
-            if (Math.abs(i) < 2 && Math.abs(j) < 2) continue;
-
-            const height = Math.random() * 8 + 4;
-
-            const building = BABYLON.MeshBuilder.CreateBox(`b_${i}_${j}`, { height: height, width: 8, depth: 8 }, scene);
-            building.position.set(i * 12, height / 2, j * 12);
-            building.material = buildingMat;
-
-            // ENABLE COLLISION ON BUILDINGS
-            building.checkCollisions = true;
-
-            const walk = BABYLON.MeshBuilder.CreateGround(`w_${i}_${j}`, { width: 10, height: 10 }, scene);
-            walk.position.set(i * 12, 0.05, j * 12);
-            walk.material = sidewalkMat;
-
-            // ENABLE COLLISION ON SIDEWALKS
-            walk.checkCollisions = true;
-        }
-    }
-}
-
-// --- UPDATED UI: Name Tag + Health Bar + Combat Indicator ---
-const createPlayerUI = (mesh: BABYLON.AbstractMesh, name: string, uiTexture: GUI.AdvancedDynamicTexture) => {
-    const container = new GUI.Rectangle();
-    container.width = "120px";
-    container.height = "80px"; // Increased height for combat indicator
-    container.thickness = 0;
-    uiTexture.addControl(container);
-    container.linkWithMesh(mesh);
-    container.linkOffsetY = -150; // Adjusted for taller container
-
-    // Combat Indicator (Red Exclamation)
-    const combatIndicator = new GUI.TextBlock();
-    combatIndicator.text = "⚔️"; // Sword emoji
-    combatIndicator.color = "red";
-    combatIndicator.fontSize = 24;
-    combatIndicator.top = "-35px";
-    combatIndicator.isVisible = false; // Hidden by default
-    container.addControl(combatIndicator);
-
-    // Name
-    const label = new GUI.TextBlock();
-    label.text = name;
-    label.color = "white";
-    label.fontSize = 14;
-    label.top = "-10px";
-    label.shadowBlur = 2;
-    container.addControl(label);
-
-    // HP Bar Background (Red)
-    const hpBg = new GUI.Rectangle();
-    hpBg.width = "100px";
-    hpBg.height = "10px";
-    hpBg.color = "black";
-    hpBg.thickness = 1;
-    hpBg.background = "red";
-    hpBg.top = "20px";
-    container.addControl(hpBg);
-
-    // HP Bar Foreground (Green)
-    const hpFg = new GUI.Rectangle();
-    hpFg.width = "100px"; // Start full
-    hpFg.height = "10px";
-    hpFg.thickness = 0;
-    hpFg.background = "#00FF00";
-    hpFg.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-    hpBg.addControl(hpFg);
-
-    return { container, hpFg, hpBg, combatIndicator };
-}
-
-const createScene = async () => {
+/**
+ * 创建游戏场景
+ */
+const createScene = async (): Promise<BABYLON.Scene> => {
     console.log("🌍 Creating scene...");
-    updateLoadingText("正在创建游戏世界...");
+    loadingScreen.updateText("正在创建游戏世界...");
+
     const scene = new BABYLON.Scene(engine);
 
-    // --- ENABLE GLOBAL COLLISIONS ---
-    scene.collisionsEnabled = true;
-    scene.gravity = new BABYLON.Vector3(0, -9.81, 0); // Standard Gravity
+    // 设置场景（光照、碰撞等）
+    setupScene(scene);
 
-    // --- Camera (True Isometric) ---
-    const camera = new BABYLON.FreeCamera("isoCamera", new BABYLON.Vector3(20, 20, -20), scene);
-    camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
-    camera.setTarget(BABYLON.Vector3.Zero());
+    // 创建相机
+    const camera = createIsometricCamera(scene, engine);
 
-    // Zoom
-    const zoom = 14;
-    const aspect = engine.getAspectRatio(camera);
-    camera.orthoTop = zoom;
-    camera.orthoBottom = -zoom;
-    camera.orthoLeft = -zoom * aspect;
-    camera.orthoRight = zoom * aspect;
-
-    // --- Lighting ---
-    const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(1, 1, 0), scene);
-    light.intensity = 0.7;
-    const dirLight = new BABYLON.DirectionalLight("dir01", new BABYLON.Vector3(-1, -2, -1), scene);
-    dirLight.position = new BABYLON.Vector3(20, 40, 20);
-    dirLight.intensity = 0.5;
-
-    // --- Environment ---
-    createCity(scene);
+    // 创建城市环境
+    const cityGenerator = new CityGenerator(scene);
+    cityGenerator.generate();
 
     // --- UI Layer ---
     const uiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
 
-    // --- Multiplayer Logic ---
-    // Store Mesh, Animation Groups, and Rotation Target
-    interface PlayerEntity {
-        mesh: BABYLON.AbstractMesh;
-        ui: { container: GUI.Rectangle, hpFg: GUI.Rectangle, hpBg: GUI.Rectangle, combatIndicator: GUI.TextBlock };
-        idleAnim?: BABYLON.AnimationGroup;
-        runAnim?: BABYLON.AnimationGroup;
-        currentAnim: "idle" | "run" | "dead";
-    }
+    // --- 初始化系统 ---
+    const uiSystem = new UISystem(uiTexture);
+    const weaponSystem = new WeaponSystem();
+    const playerManager = new PlayerManager(scene, uiSystem, weaponSystem);
 
-    const playerEntities: { [sessionId: string]: PlayerEntity } = {};
-    const playerTargets: { [sessionId: string]: { x: number; z: number } } = {};
-    const MOVE_SPEED = 0.15;
     let mySessionId: string | null = null;
 
     try {
-        updateLoadingText("正在连接游戏房间...");
+        // 连接游戏房间
+        loadingScreen.updateText("正在连接游戏房间...");
         const room = await client.joinOrCreate("game_room");
         mySessionId = room.sessionId;
         console.log("Connected! My ID:", mySessionId);
 
-        updateLoadingText("正在准备游戏界面...");
-        // Create Chat Input
-        createChatUI(room, scene);
+        // 初始化聊天系统
+        loadingScreen.updateText("正在准备游戏界面...");
+        const chatSystem = new ChatSystem(room, scene, uiTexture);
+        chatSystem.createChatInput();
 
-        // Listen for Chat Broadcasts
-        room.onMessage("chat", (msg: { sessionId: string, text: string }) => {
-            if (playerEntities[msg.sessionId]) {
-                createChatBubble(playerEntities[msg.sessionId].mesh, msg.text, uiTexture);
+        // 监听聊天消息
+        room.onMessage("chat", (msg: { sessionId: string; text: string }) => {
+            const entity = playerManager.getEntity(msg.sessionId);
+            if (entity) {
+                chatSystem.createChatBubble(entity.mesh, msg.text);
             }
         });
 
-        // Add Player
+        // 添加玩家
         (room.state as any).players.onAdd(async (player: PlayerData, sessionId: string) => {
             const isSelf = sessionId === room.sessionId;
 
-            // --- LOAD 3D MODEL ---
-            // Using Babylon's HVGirl model from CDN
             if (isSelf) {
-                updateLoadingText("正在加载角色模型...");
+                loadingScreen.updateText("正在加载角色模型...");
             }
-            const result = await SceneLoader.ImportMeshAsync("", "https://models.babylonjs.com/", "HVGirl.glb", scene);
 
-            const root = result.meshes[0];
-            // Start slightly above ground to prevent getting stuck immediately
-            root.position.set(player.x, 0.1, player.z);
-            root.scaling.set(0.15, 0.15, 0.15); // Scale down HVGirl
-            root.rotationQuaternion = null; // Allow manual rotation
+            const entity = await playerManager.createPlayer(player, sessionId, isSelf);
 
-            // --- COLLISION SETUP ---
-            root.checkCollisions = true;
-            // Define the "body" size (Radius X, Y, Z)
-            root.ellipsoid = new BABYLON.Vector3(0.5, 1.0, 0.5);
-            // Offset the ellipsoid center (usually up by radius Y)
-            root.ellipsoidOffset = new BABYLON.Vector3(0, 1.0, 0);
-
-            // Store SessionId on the mesh for Raycasting (IMPORTANT for attack detection)
-            root.metadata = { sessionId };
-
-            // ATTACH WEAPON
-            attachWeapon(root, result.meshes[1], scene); // root = meshes[0], skinned = meshes[1]
-
-            // --- ANIMATIONS ---
-            const idle = result.animationGroups.find(a => a.name === "Idle");
-            const run = result.animationGroups.find(a => a.name === "Walking"); // HVGirl uses 'Walking'
-
-            if (idle) idle.play(true); // Start Idle by default
-
-            // UI (Name + HP Bar)
-            const ui = createPlayerUI(root, isSelf ? "大佬 (Me)" : "Target", uiTexture);
-
-            playerEntities[sessionId] = {
-                mesh: root,
-                ui,
-                idleAnim: idle,
-                runAnim: run,
-                currentAnim: "idle"
-            };
-            playerTargets[sessionId] = { x: player.x, z: player.z };
-
-            // Sync Position
+            // 同步位置
             player.onChange(() => {
-                playerTargets[sessionId].x = player.x;
-                playerTargets[sessionId].z = player.z;
+                playerManager.updateTarget(sessionId, player.x, player.z);
             });
 
-            // Sync HP (Listen for HP changes)
+            // 同步血量
             player.listen("hp", (currentHp: number) => {
-                const percent = Math.max(0, currentHp / player.maxHp);
-                ui.hpFg.width = `${percent * 100}px`; // Adjust bar width
-
-                // Visual Feedback: Turn semi-transparent if dead
-                if (currentHp <= 0) {
-                    root.visibility = 0.3; // Ghost mode
-                    console.log(`Player ${sessionId} is dead`);
-                } else {
-                    root.visibility = 1;
-                }
+                playerManager.updateHealth(sessionId, currentHp, player.maxHp);
             });
 
-            // Sync Combat State
+            // 同步战斗状态
             player.listen("inCombatWith", (targetId: string) => {
-                if (targetId && targetId !== "") {
-                    ui.combatIndicator.isVisible = true;
-                    console.log(`Player ${sessionId} entered combat with ${targetId}`);
-                } else {
-                    ui.combatIndicator.isVisible = false;
-                    console.log(`Player ${sessionId} combat ended`);
-                }
+                playerManager.updateCombatState(sessionId, !!(targetId && targetId !== ""));
             });
         });
 
-        // Remove Player
+        // 移除玩家
         (room.state as any).players.onRemove((player: PlayerData, sessionId: string) => {
-            if (playerEntities[sessionId]) {
-                playerEntities[sessionId].mesh.dispose();
-                playerEntities[sessionId].ui.container.dispose();
-                // Stop and dispose animation groups
-                playerEntities[sessionId].idleAnim?.stop();
-                playerEntities[sessionId].idleAnim?.dispose();
-                playerEntities[sessionId].runAnim?.stop();
-                playerEntities[sessionId].runAnim?.dispose();
-
-                delete playerEntities[sessionId];
-                delete playerTargets[sessionId];
-            }
+            playerManager.removePlayer(sessionId);
         });
 
-        // --- INPUT: Click to Attack or Move ---
+        // --- 输入处理：点击攻击或移动 ---
         scene.onPointerDown = (evt, pickResult) => {
             if (pickResult.hit && pickResult.pickedMesh) {
-                // Check if we clicked a player (using metadata we set earlier)
-                // We need to traverse up to root because pick might hit a child mesh
+                // 检查是否点击了玩家
                 let clickedMesh: BABYLON.Node = pickResult.pickedMesh;
                 while (clickedMesh.parent) {
                     clickedMesh = clickedMesh.parent;
                 }
 
-                if (clickedMesh instanceof BABYLON.AbstractMesh && clickedMesh.metadata && clickedMesh.metadata.sessionId) {
-                    // CLICKED ON PLAYER -> ATTACK
+                if (
+                    clickedMesh instanceof BABYLON.AbstractMesh &&
+                    clickedMesh.metadata &&
+                    clickedMesh.metadata.sessionId
+                ) {
+                    // 点击玩家 -> 攻击
                     const targetId = clickedMesh.metadata.sessionId;
                     if (targetId !== mySessionId) {
                         console.log("Attacking:", targetId);
                         room.send("attack", { targetSessionId: targetId });
-                        return; // Don't move if attacking
+                        return;
                     }
                 }
 
-                // CLICKED ON GROUND -> MOVE
-                // Prevent clicking on buildings
+                // 点击地面 -> 移动
                 if (pickResult.pickedPoint && !pickResult.pickedMesh.name.startsWith("b_")) {
-                    room.send("move", { x: pickResult.pickedPoint.x, z: pickResult.pickedPoint.z });
+                    room.send("move", {
+                        x: pickResult.pickedPoint.x,
+                        z: pickResult.pickedPoint.z,
+                    });
                 }
             }
         };
-
     } catch (e) {
         console.error("Connection Failed:", e);
     }
 
-    // --- Game Loop (Animation & Movement) ---
+    // --- 游戏循环（动画 & 移动）---
     scene.registerBeforeRender(() => {
-        for (const sessionId in playerEntities) {
-            const entity = playerEntities[sessionId];
-            const target = playerTargets[sessionId];
+        // 更新所有玩家
+        playerManager.updateAll();
 
-            if (entity && target) {
-                const mesh = entity.mesh;
-
-                // Calculate direction vector
-                const dx = target.x - mesh.position.x;
-                const dz = target.z - mesh.position.z;
-                // Ignore Y difference for distance check (only 2D distance matters for target)
-                const dist = Math.sqrt(dx * dx + dz * dz);
-
-                // Threshold to stop moving
-                if (dist > 0.1) {
-                    // --- MOVEMENT WITH COLLISIONS ---
-                    // Create a velocity vector
-                    // We apply Gravity (-0.5 per frame) to keep them grounded
-                    const velocity = new BABYLON.Vector3(dx, -0.5, dz).normalize().scale(MOVE_SPEED);
-
-                    // If close to target, clamp velocity to avoid overshooting
-                    if (dist < MOVE_SPEED) {
-                        velocity.scaleInPlace(dist / MOVE_SPEED);
-                    }
-
-                    // Look at target
-                    const targetAngle = Math.atan2(dx, dz);
-                    const currentRotation = mesh.rotation.y;
-                    mesh.rotation.y = BABYLON.Scalar.Lerp(currentRotation, targetAngle, 0.2);
-
-                    // Move!
-                    mesh.moveWithCollisions(velocity);
-
-                    // Play Run Animation
-                    if (entity.currentAnim !== "run") {
-                        if (entity.idleAnim) entity.idleAnim.stop();
-                        if (entity.runAnim) entity.runAnim.play(true);
-                        entity.currentAnim = "run";
-                    }
-                } else {
-                    // Stop: Play Idle
-                    if (entity.currentAnim !== "idle") {
-                        if (entity.runAnim) entity.runAnim.stop();
-                        if (entity.idleAnim) entity.idleAnim.play(true);
-                        entity.currentAnim = "idle";
-                    }
-                }
+        // 相机跟随
+        if (mySessionId) {
+            const myEntity = playerManager.getEntity(mySessionId);
+            if (myEntity) {
+                updateCameraFollow(camera, myEntity.mesh);
             }
-        }
-
-        // Camera Follow (Smooth)
-        if (mySessionId && playerEntities[mySessionId]) {
-            const myMesh = playerEntities[mySessionId].mesh;
-
-
-            // Smooth Camera Follow with Lerp (position only, angle locked)
-            camera.position.x = BABYLON.Scalar.Lerp(camera.position.x, myMesh.position.x + 20, 0.1);
-            camera.position.z = BABYLON.Scalar.Lerp(camera.position.z, myMesh.position.z - 20, 0.1);
-            camera.position.y = BABYLON.Scalar.Lerp(camera.position.y, myMesh.position.y + 20, 0.1);
         }
     });
 
     return scene;
 };
 
+// --- 启动应用 ---
 console.log("🚀 Starting application...");
-createScene().then((scene) => {
-    console.log("✅ Scene created successfully!");
-    updateLoadingText("即将进入游戏...");
+createScene()
+    .then((scene) => {
+        console.log("✅ Scene created successfully!");
+        loadingScreen.updateText("即将进入游戏...");
 
-    // Hide loading screen after a short delay to ensure everything is ready
-    setTimeout(() => {
-        hideLoadingScreen();
-    }, 1000);
+        // 延迟隐藏加载屏幕，确保一切就绪
+        setTimeout(() => {
+            loadingScreen.hide();
+        }, 1000);
 
-    engine.runRenderLoop(() => {
-        scene.render();
+        engine.runRenderLoop(() => {
+            scene.render();
+        });
+        console.log("✅ Render loop started!");
+    })
+    .catch((error) => {
+        console.error("❌ Failed to create scene:", error);
+        console.error("Stack trace:", error.stack);
+        loadingScreen.showError(error);
     });
-    console.log("✅ Render loop started!");
-}).catch((error) => {
-    console.error("❌ Failed to create scene:", error);
-    console.error("Stack trace:", error.stack);
-    // Display error on page
-    document.body.innerHTML = `<div style="color: white; background: red; padding: 20px; font-family: monospace;">
-        <h1>Error Loading Game</h1>
-        <p>${error.message}</p>
-        <pre>${error.stack}</pre>
-    </div>`;
-});
 
+// --- 窗口大小调整 ---
 window.addEventListener("resize", () => {
     engine.resize();
 });
