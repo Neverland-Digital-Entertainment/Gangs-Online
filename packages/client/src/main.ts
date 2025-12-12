@@ -14,22 +14,38 @@ const engine = new BABYLON.Engine(canvas, true);
 const client = new Client.Client(SERVER_URL);
 
 // --- WEAPON ATTACHMENT ---
-const attachWeapon = (mesh: BABYLON.AbstractMesh, scene: BABYLON.Scene) => {
-    // Create HUGE RED GLOWING BOX floating above character's head for testing!
-    const bat = BABYLON.MeshBuilder.CreateBox("bat", { size: 2 }, scene);
+const attachWeapon = (rootMesh: BABYLON.AbstractMesh, skinnedMesh: BABYLON.AbstractMesh, scene: BABYLON.Scene) => {
+    // Create a wooden bat (cylinder)
+    const bat = BABYLON.MeshBuilder.CreateCylinder("bat", { height: 0.6, diameter: 0.08 }, scene);
     const mat = new BABYLON.StandardMaterial("batMat", scene);
-    mat.diffuseColor = BABYLON.Color3.Red(); // Bright red for visibility!
-    mat.emissiveColor = BABYLON.Color3.Red(); // Make it glow!
+    mat.diffuseColor = BABYLON.Color3.FromHexString("#8B4513"); // Brown wood
+    mat.emissiveColor = new BABYLON.Color3(0.2, 0.1, 0.05); // Slight glow
     bat.material = mat;
 
-    // Simply parent to the root mesh and place ABOVE the character's head
-    bat.parent = mesh;
-    bat.position = new BABYLON.Vector3(0, 3, 0); // 3 units above character
+    // Try to find skeleton on the skinned mesh
+    const skeleton = skinnedMesh.skeleton;
+    if (skeleton) {
+        // Try to find hand bone - HVGirl model may have different bone names
+        const handBone = skeleton.bones.find(b =>
+            b.name.toLowerCase().includes("righthand") ||
+            b.name.toLowerCase().includes("r_hand") ||
+            b.name.toLowerCase().includes("hand_r") ||
+            b.name.toLowerCase().includes("mixamorig:righthand")
+        );
 
-    console.log("🔴 RED BOX created above character at position:", bat.position);
-    console.log("🔴 Box absolute position:", bat.getAbsolutePosition());
-    console.log("🔴 Box is visible:", bat.isVisible);
-    console.log("🔴 Box is enabled:", bat.isEnabled());
+        if (handBone) {
+            bat.attachToBone(handBone, skinnedMesh);
+            bat.position = new BABYLON.Vector3(0, 0.1, 0);
+            bat.rotation = new BABYLON.Vector3(Math.PI / 2, 0, 0); // Point outward
+            return;
+        }
+    }
+
+    // Fallback: Parent to root and position near where hand would be
+    // Since the model is scaled to 0.15, we need to account for that
+    bat.parent = rootMesh;
+    bat.position = new BABYLON.Vector3(2, 8, 0); // Position relative to root (in model scale)
+    bat.rotation = new BABYLON.Vector3(0, 0, Math.PI / 4);
 };
 
 // --- CHAT BUBBLE ---
@@ -270,7 +286,7 @@ const createScene = async () => {
             root.metadata = { sessionId };
 
             // ATTACH WEAPON
-            attachWeapon(result.meshes[1], scene); // meshes[1] is usually the skinned mesh in HVGirl
+            attachWeapon(root, result.meshes[1], scene); // root = meshes[0], skinned = meshes[1]
 
             // --- ANIMATIONS ---
             const idle = result.animationGroups.find(a => a.name === "Idle");
