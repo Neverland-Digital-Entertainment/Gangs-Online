@@ -6,12 +6,15 @@ import { GAME_CONSTANTS } from "@gangs-online/shared";
 import "@babylonjs/loaders"; // Important for loading .glb/.gltf
 
 // --- Configuration ---
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://21.0.0.138:2567";
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:2567";
 
 // --- Setup ---
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 const engine = new BABYLON.Engine(canvas, true);
 const client = new Client.Client(SERVER_URL);
+
+// Log server URL for debugging
+console.log(`Server URL: ${SERVER_URL}`);
 
 // --- Loading Screen Control ---
 const loadingScreen = document.getElementById("loadingScreen") as HTMLDivElement;
