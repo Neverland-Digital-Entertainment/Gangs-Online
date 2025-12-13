@@ -123,14 +123,34 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         });
 
         // --- 敵人事件處理 ---
-        (room.state as any).enemies.onAdd(async (enemy: any, enemyId: string) => {
-            console.log(`🧟 Enemy joined: ${enemyId}`);
-            await enemyManager.createEnemy(enemy, enemyId);
-        });
+        // 等待下一次狀態同步後再設置敵人監聽器
+        room.onStateChange.once(async (state) => {
+            console.log("🔄 State synchronized, setting up enemy listeners...");
 
-        (room.state as any).enemies.onRemove((enemy: any, enemyId: string) => {
-            console.log(`🧟 Enemy left: ${enemyId}`);
-            enemyManager.removeEnemy(enemyId);
+            if ((state as any).enemies) {
+                // 設置新敵人加入的監聽器
+                (state as any).enemies.onAdd(async (enemy: any, enemyId: string) => {
+                    console.log(`🧟 Enemy joined: ${enemyId}`);
+                    await enemyManager.createEnemy(enemy, enemyId);
+                });
+
+                // 設置敵人移除的監聽器
+                (state as any).enemies.onRemove((enemy: any, enemyId: string) => {
+                    console.log(`🧟 Enemy left: ${enemyId}`);
+                    enemyManager.removeEnemy(enemyId);
+                });
+
+                // 為已存在的敵人創建實體（因為 onAdd 只對新加入的生效）
+                console.log(`📦 Loading existing enemies: ${(state as any).enemies.size}`);
+                (state as any).enemies.forEach(async (enemy: any, enemyId: string) => {
+                    console.log(`🧟 Creating existing enemy: ${enemyId}`);
+                    await enemyManager.createEnemy(enemy, enemyId);
+                });
+
+                console.log(`✅ Enemy system initialized`);
+            } else {
+                console.error("❌ enemies still not available after state sync");
+            }
         });
 
         // --- 輸入處理：點擊攻擊或移動 ---
