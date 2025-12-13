@@ -78,6 +78,29 @@ const createChatBubble = (mesh: BABYLON.AbstractMesh, text: string, uiTexture: G
 const createChatUI = (room: Client.Room, scene: BABYLON.Scene) => {
     const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("ChatUI");
 
+    // Chat Log (Above input box)
+    const chatLog = new GUI.TextBlock();
+    chatLog.width = "400px";
+    chatLog.height = "200px";
+    chatLog.color = "white";
+    chatLog.fontSize = 14;
+    chatLog.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    chatLog.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    chatLog.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    chatLog.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+    chatLog.left = "20px";
+    chatLog.top = "-70px";
+    chatLog.textWrapping = true;
+    chatLog.resizeToFit = false;
+    advancedTexture.addControl(chatLog);
+
+    const chatMessages: string[] = [];
+    const addChatMessage = (msg: string) => {
+        chatMessages.push(msg);
+        if (chatMessages.length > 8) chatMessages.shift(); // Keep last 8 messages
+        chatLog.text = chatMessages.join('\n');
+    };
+
     // Chat Input Box (Bottom Left)
     const input = new GUI.InputText();
     input.width = "300px";
@@ -101,7 +124,7 @@ const createChatUI = (room: Client.Room, scene: BABYLON.Scene) => {
     });
 
     advancedTexture.addControl(input);
-    return advancedTexture;
+    return { advancedTexture, addChatMessage };
 };
 
 // --- City Generator (Procedural Greybox) ---
@@ -283,11 +306,16 @@ const createScene = async () => {
         mySessionId = room.sessionId;
 
         // Create Chat Input
-        createChatUI(room, scene);
+        const { addChatMessage } = createChatUI(room, scene);
 
         // Listen for Chat Broadcasts
         room.onMessage("chat", (msg: { sessionId: string, text: string }) => {
-            if (entities[msg.sessionId]) {
+            // Show in chat log
+            const displayMsg = msg.sessionId === "DEBUG" ? msg.text : `${msg.sessionId.substr(0, 4)}: ${msg.text}`;
+            addChatMessage(displayMsg);
+
+            // Show chat bubble for players (not DEBUG messages)
+            if (msg.sessionId !== "DEBUG" && entities[msg.sessionId]) {
                 createChatBubble(entities[msg.sessionId].mesh, msg.text, uiTexture);
             }
         });

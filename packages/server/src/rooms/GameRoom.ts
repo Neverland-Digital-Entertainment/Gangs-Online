@@ -14,24 +14,16 @@ export class GameRoom extends Room<GameState> {
 
         // Spawn Initial Enemies (Near spawn area: -10 to 10)
         console.log(`[NPC] Spawning ${GAME_CONSTANTS.ENEMY_SPAWN_COUNT} enemies...`);
-
-        // Delay to ensure at least one player is connected to receive messages
-        this.clock.setTimeout(() => {
-            this.broadcast("chat", { sessionId: "DEBUG", text: `🎮 Spawning ${GAME_CONSTANTS.ENEMY_SPAWN_COUNT} NPCs...` });
-
-            for(let i=0; i<GAME_CONSTANTS.ENEMY_SPAWN_COUNT; i++) {
-                const enemy = new Enemy();
-                enemy.id = `mob_${i}`;
-                enemy.x = Math.random() * 20 - 10; // Closer to player spawn (-10 to 10)
-                enemy.z = Math.random() * 20 - 10;
-                enemy.name = "Street Thug";
-                this.state.enemies.set(enemy.id, enemy);
-                console.log(`[NPC] Spawned ${enemy.name} [${enemy.id}] at (${enemy.x.toFixed(2)}, ${enemy.z.toFixed(2)})`);
-            }
-
-            this.broadcast("chat", { sessionId: "DEBUG", text: `✅ Spawned ${this.state.enemies.size} NPCs` });
-            console.log(`[NPC] ✓ All ${GAME_CONSTANTS.ENEMY_SPAWN_COUNT} enemies spawned`);
-        }, 1000);
+        for(let i=0; i<GAME_CONSTANTS.ENEMY_SPAWN_COUNT; i++) {
+            const enemy = new Enemy();
+            enemy.id = `mob_${i}`;
+            enemy.x = Math.random() * 20 - 10; // Closer to player spawn (-10 to 10)
+            enemy.z = Math.random() * 20 - 10;
+            enemy.name = "Street Thug";
+            this.state.enemies.set(enemy.id, enemy);
+            console.log(`[NPC] Spawned ${enemy.name} [${enemy.id}] at (${enemy.x.toFixed(2)}, ${enemy.z.toFixed(2)})`);
+        }
+        console.log(`[NPC] ✓ All ${GAME_CONSTANTS.ENEMY_SPAWN_COUNT} enemies spawned`);
 
         this.onMessage("move", (client, input: IPlayerInput) => {
             const player = this.state.players.get(client.sessionId);
@@ -173,10 +165,28 @@ export class GameRoom extends Room<GameState> {
         player.name = options.name || `Gangster ${client.sessionId.substr(0, 4)}`;
         this.state.players.set(client.sessionId, player);
 
-        // Send welcome message with NPC count
+        // Send welcome message with NPC info
         this.clock.setTimeout(() => {
+            client.send("chat", { sessionId: "DEBUG", text: `🎮 Welcome! Type /npcs to see NPCs` });
             client.send("chat", { sessionId: "DEBUG", text: `📊 NPCs active: ${this.state.enemies.size}` });
-            client.send("chat", { sessionId: "DEBUG", text: `📍 Player spawn: (${player.x.toFixed(1)}, ${player.z.toFixed(1)})` });
+            client.send("chat", { sessionId: "DEBUG", text: `📍 You spawned at: (${player.x.toFixed(1)}, ${player.z.toFixed(1)})` });
+
+            // List first 3 NPCs as examples
+            let count = 0;
+            this.state.enemies.forEach((enemy, id) => {
+                if (count < 3) {
+                    const dist = Math.sqrt(
+                        Math.pow(player.x - enemy.x, 2) +
+                        Math.pow(player.z - enemy.z, 2)
+                    );
+                    client.send("chat", { sessionId: "DEBUG", text: `  ${id}: (${enemy.x.toFixed(1)}, ${enemy.z.toFixed(1)}) ${dist.toFixed(1)}m` });
+                    count++;
+                }
+            });
+
+            if (this.state.enemies.size > 3) {
+                client.send("chat", { sessionId: "DEBUG", text: `  ...and ${this.state.enemies.size - 3} more` });
+            }
         }, 500);
     }
 
