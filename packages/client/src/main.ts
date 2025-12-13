@@ -13,6 +13,59 @@ const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 const engine = new BABYLON.Engine(canvas, true);
 const client = new Client.Client(SERVER_URL);
 
+// --- Loading Screen Control ---
+const loadingScreen = document.getElementById("loadingScreen") as HTMLDivElement;
+const loadingText = document.querySelector(".loading-text") as HTMLDivElement;
+
+const updateLoadingText = (text: string) => {
+    if (loadingText) loadingText.textContent = text;
+};
+
+const hideLoading = () => {
+    if (loadingScreen) {
+        loadingScreen.classList.add("hidden");
+        setTimeout(() => {
+            loadingScreen.style.display = "none";
+        }, 500);
+    }
+};
+
+// --- Debug Console ---
+const debugConsole = document.getElementById("debugConsole") as HTMLDivElement;
+const debugToggle = document.getElementById("debugToggle") as HTMLButtonElement;
+const debugContent = document.getElementById("debugContent") as HTMLDivElement;
+
+const debugLog = (message: string, color: string = "#00ff00") => {
+    if (debugContent) {
+        const timestamp = new Date().toLocaleTimeString();
+        const line = document.createElement("div");
+        line.style.color = color;
+        line.textContent = `[${timestamp}] ${message}`;
+        debugContent.appendChild(line);
+        debugContent.scrollTop = debugContent.scrollHeight;
+
+        // Keep only last 50 messages
+        while (debugContent.children.length > 50) {
+            debugContent.removeChild(debugContent.firstChild!);
+        }
+    }
+};
+
+// Toggle debug console
+if (debugToggle) {
+    debugToggle.addEventListener("click", () => {
+        debugConsole.classList.toggle("collapsed");
+        debugToggle.textContent = debugConsole.classList.contains("collapsed") ? "🐛" : "✖️";
+    });
+}
+
+// Override console.log to also show in debug console
+const originalLog = console.log;
+console.log = function(...args) {
+    originalLog.apply(console, args);
+    debugLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+};
+
 // --- WEAPON ATTACHMENT ---
 const attachWeapon = (rootMesh: BABYLON.AbstractMesh, skinnedMesh: BABYLON.AbstractMesh, scene: BABYLON.Scene) => {
     // Create a wooden bat (cylinder)
@@ -248,11 +301,14 @@ const createEntityUI = (mesh: BABYLON.AbstractMesh, name: string, isEnemy: boole
 }
 
 const createScene = async () => {
+    updateLoadingText("正在準備遊戲介面...");
     const scene = new BABYLON.Scene(engine);
 
     // --- ENABLE GLOBAL COLLISIONS ---
     scene.collisionsEnabled = true;
     scene.gravity = new BABYLON.Vector3(0, -9.81, 0); // Standard Gravity
+
+    updateLoadingText("正在設定攝影機...");
 
     // --- Camera (True Isometric) ---
     const camera = new BABYLON.FreeCamera("isoCamera", new BABYLON.Vector3(20, 20, -20), scene);
@@ -275,9 +331,11 @@ const createScene = async () => {
     dirLight.intensity = 0.5;
 
     // --- Environment ---
+    updateLoadingText("正在建立城市環境...");
     createCity(scene);
 
     // --- UI Layer ---
+    updateLoadingText("正在初始化 UI...");
     const uiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
 
     // Unified Entity Store
@@ -343,8 +401,12 @@ const createScene = async () => {
     };
 
     try {
+        updateLoadingText("正在連接伺服器...");
         const room = await client.joinOrCreate("game_room");
         mySessionId = room.sessionId;
+        console.log("Connected! My ID:", mySessionId);
+
+        updateLoadingText("正在載入遊戲資源...");
 
         // Create Chat Input
         const { addChatMessage } = createChatUI(room, scene);
@@ -412,7 +474,18 @@ const createScene = async () => {
             }
         };
 
-    } catch (e) { console.error(e); }
+        // Hide loading screen when everything is ready
+        updateLoadingText("準備完成！");
+        setTimeout(() => {
+            hideLoading();
+            console.log("Game loaded successfully!");
+        }, 500);
+
+    } catch (e) {
+        console.error("Connection Failed:", e);
+        updateLoadingText("連接失敗！請重新整理頁面");
+        debugLog("ERROR: " + e, "#ff0000");
+    }
 
     // --- RENDER LOOP ---
     scene.registerBeforeRender(() => {

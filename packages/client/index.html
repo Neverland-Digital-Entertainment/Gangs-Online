@@ -5,11 +5,111 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gangs Online</title>
     <style>
-        html, body { overflow: hidden; width: 100%; height: 100%; margin: 0; padding: 0; }
+        html, body { overflow: hidden; width: 100%; height: 100%; margin: 0; padding: 0; font-family: Arial, sans-serif; }
         #renderCanvas { width: 100%; height: 100%; touch-action: none; outline: none; }
+
+        /* Loading Screen */
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s;
+        }
+        #loadingScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loading-title {
+            font-size: 48px;
+            color: #00d9ff;
+            margin-bottom: 30px;
+            text-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+        }
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(0, 217, 255, 0.3);
+            border-top-color: #00d9ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .loading-text {
+            margin-top: 20px;
+            color: #ffffff;
+            font-size: 18px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Debug Console */
+        #debugConsole {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00d9ff;
+            border-radius: 10px;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            z-index: 1000;
+            max-width: 400px;
+            transition: all 0.3s;
+        }
+        #debugConsole.collapsed {
+            width: 50px;
+            height: 50px;
+            overflow: hidden;
+        }
+        #debugToggle {
+            width: 100%;
+            background: #00d9ff;
+            color: #000;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 8px 8px 0 0;
+        }
+        #debugConsole.collapsed #debugToggle {
+            border-radius: 8px;
+            font-size: 20px;
+        }
+        #debugContent {
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        #debugConsole.collapsed #debugContent {
+            display: none;
+        }
     </style>
   </head>
   <body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen">
+        <div class="loading-title">Gangs Online</div>
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading...</div>
+    </div>
+
+    <!-- Debug Console -->
+    <div id="debugConsole" class="collapsed">
+        <button id="debugToggle">🐛</button>
+        <div id="debugContent"></div>
+    </div>
+
     <canvas id="renderCanvas"></canvas>
     <script type="module" src="/src/main.ts"></script>
   </body>
