@@ -78,9 +78,9 @@ const createChatBubble = (mesh: BABYLON.AbstractMesh, text: string, uiTexture: G
 const createChatUI = (room: Client.Room, scene: BABYLON.Scene) => {
     const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("ChatUI");
 
-    // Chat Log (Above input box)
+    // Chat Log (Above input box) - Responsive width
     const chatLog = new GUI.TextBlock();
-    chatLog.width = "400px";
+    chatLog.width = 0.9; // 90% of screen width
     chatLog.height = "200px";
     chatLog.color = "white";
     chatLog.fontSize = 14;
@@ -101,29 +101,70 @@ const createChatUI = (room: Client.Room, scene: BABYLON.Scene) => {
         chatLog.text = chatMessages.join('\n');
     };
 
-    // Chat Input Box (Bottom Left)
+    // Send message function
+    const sendMessage = () => {
+        if (input.text.trim()) {
+            room.send("chat", input.text);
+            input.text = "";
+        }
+    };
+
+    // Chat Input Container
+    const inputContainer = new GUI.StackPanel();
+    inputContainer.isVertical = false;
+    inputContainer.height = "50px";
+    inputContainer.width = 0.9; // 90% of screen width
+    inputContainer.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    inputContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+    inputContainer.left = "20px";
+    inputContainer.top = "-10px";
+    advancedTexture.addControl(inputContainer);
+
+    // Chat Input Box - Flexible width
     const input = new GUI.InputText();
-    input.width = "300px";
+    input.width = 0.75; // 75% of container
     input.height = "40px";
     input.text = "";
     input.color = "white";
     input.background = "rgba(0,0,0,0.5)";
-    input.placeholderText = "Press Enter to Chat...";
+    input.placeholderText = "輸入訊息或指令...";
+    input.placeholderColor = "gray";
     input.focusedBackground = "rgba(0,0,0,0.8)";
-    input.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-    input.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-    input.left = "20px";
-    input.top = "-20px";
+    input.paddingLeft = "10px";
 
-    // Send on Enter
+    // Send on Enter (for desktop)
     input.onKeyboardEventProcessedObservable.add((ev) => {
-        if (ev.key === "Enter" && input.text) {
-            room.send("chat", input.text);
-            input.text = "";
+        if (ev.key === "Enter") {
+            sendMessage();
         }
     });
+    inputContainer.addControl(input);
 
-    advancedTexture.addControl(input);
+    // Send Button (for mobile)
+    const sendButton = GUI.Button.CreateSimpleButton("sendBtn", "傳送");
+    sendButton.width = 0.25; // 25% of container
+    sendButton.height = "40px";
+    sendButton.color = "white";
+    sendButton.background = "#4CAF50";
+    sendButton.thickness = 0;
+    sendButton.cornerRadius = 5;
+    sendButton.fontSize = 16;
+    sendButton.paddingLeft = "5px";
+
+    sendButton.onPointerClickObservable.add(() => {
+        sendMessage();
+    });
+
+    // Hover effect
+    sendButton.onPointerEnterObservable.add(() => {
+        sendButton.background = "#45a049";
+    });
+    sendButton.onPointerOutObservable.add(() => {
+        sendButton.background = "#4CAF50";
+    });
+
+    inputContainer.addControl(sendButton);
+
     return { advancedTexture, addChatMessage };
 };
 
