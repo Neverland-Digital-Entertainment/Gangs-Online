@@ -123,35 +123,52 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         });
 
         // --- 敵人事件處理 ---
-        // 等待下一次狀態同步後再設置敵人監聽器
-        room.onStateChange.once(async (state) => {
-            console.log("🔄 State synchronized, setting up enemy listeners...");
+        // 使用延遲來確保狀態完全同步
+        const setupEnemySystem = () => {
+            console.log("🔄 Setting up enemy system...");
+            console.log("Room state:", room.state);
+            console.log("Enemies map:", (room.state as any).enemies);
 
-            if ((state as any).enemies) {
+            try {
+                const enemiesMap = (room.state as any).enemies;
+
+                if (!enemiesMap) {
+                    console.error("❌ enemies map is undefined, retrying in 500ms...");
+                    setTimeout(setupEnemySystem, 500);
+                    return;
+                }
+
+                console.log("✅ Enemies map found, setting up listeners...");
+
                 // 設置新敵人加入的監聽器
-                (state as any).enemies.onAdd(async (enemy: any, enemyId: string) => {
+                enemiesMap.onAdd(async (enemy: any, enemyId: string) => {
                     console.log(`🧟 Enemy joined: ${enemyId}`);
                     await enemyManager.createEnemy(enemy, enemyId);
                 });
 
                 // 設置敵人移除的監聽器
-                (state as any).enemies.onRemove((enemy: any, enemyId: string) => {
+                enemiesMap.onRemove((enemy: any, enemyId: string) => {
                     console.log(`🧟 Enemy left: ${enemyId}`);
                     enemyManager.removeEnemy(enemyId);
                 });
 
-                // 為已存在的敵人創建實體（因為 onAdd 只對新加入的生效）
-                console.log(`📦 Loading existing enemies: ${(state as any).enemies.size}`);
-                (state as any).enemies.forEach(async (enemy: any, enemyId: string) => {
+                // 為已存在的敵人創建實體
+                console.log(`📦 Loading ${enemiesMap.size} existing enemies...`);
+                enemiesMap.forEach(async (enemy: any, enemyId: string) => {
                     console.log(`🧟 Creating existing enemy: ${enemyId}`);
                     await enemyManager.createEnemy(enemy, enemyId);
                 });
 
-                console.log(`✅ Enemy system initialized`);
-            } else {
-                console.error("❌ enemies still not available after state sync");
+                console.log(`✅ Enemy system initialized successfully`);
+            } catch (error) {
+                console.error("❌ Error setting up enemy system:", error);
+                console.log("Retrying in 500ms...");
+                setTimeout(setupEnemySystem, 500);
             }
-        });
+        };
+
+        // 延遲執行以確保房間狀態完全初始化
+        setTimeout(setupEnemySystem, 100);
 
         // --- 輸入處理：點擊攻擊或移動 ---
         scene.onPointerDown = (evt, pickResult) => {
