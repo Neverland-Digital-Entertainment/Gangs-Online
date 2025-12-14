@@ -176,7 +176,7 @@ export class InventorySystem {
 
         // 2 秒後淡出並移除
         setTimeout(() => {
-            if (notification && !notification.isDisposed) {
+            if (notification) {
                 notification.dispose();
             }
         }, 2000);
