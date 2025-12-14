@@ -56,14 +56,14 @@ export const GAME_CONSTANTS = {
     MAP_HEIGHT: 100,
     PLAYER_SPEED: 0.2,
     ATTACK_RANGE: 3.0, // Meters
-    ATTACK_DAMAGE: 10,
+    ATTACK_DAMAGE: 30, // 提高玩家攻擊力（原本 10）
     ATTACK_INTERVAL: 1000, // Milliseconds between auto-attacks
 
     // Enemy/PVE Constants
     ENEMY_SPEED: 0.1, // Slower than players
     ENEMY_DETECT_RANGE: 10.0, // Aggro range
     ENEMY_SPAWN_COUNT: 10,
-    ENEMY_ATTACK_DAMAGE: 5,
+    ENEMY_ATTACK_DAMAGE: 3, // 降低敵人攻擊力（原本 5）
     ENEMY_ATTACK_CHANCE: 0.02, // 2% chance per tick to attack
 
     // Progression System (Phase 7)
