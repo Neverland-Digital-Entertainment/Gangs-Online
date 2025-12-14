@@ -76,8 +76,8 @@ export class EnemyManager {
 
         if (idleAnim) idleAnim.play(true);
 
-        // 創建 UI（名稱和血條）
-        const ui = this.uiSystem.createEntityUI(root as BABYLON.Mesh, enemyData.name, true);
+        // 創建 UI（名稱和血條）- Phase 7: 傳遞等級（敵人通常是 1 級）
+        const ui = this.uiSystem.createEntityUI(root as BABYLON.Mesh, enemyData.name, true, 1);
 
         const entity: EnemyEntity = {
             mesh: root,

@@ -1,12 +1,14 @@
 import { Room, Client } from "colyseus";
 import { GameState, Player } from "./schema/GameState";
-import { IPlayerInput, GAME_CONSTANTS, EntityType } from "@gangs-online/shared";
+import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle } from "@gangs-online/shared";
 import { EnemyManager } from "../systems/EnemyManager";
+import { ProgressionSystem } from "../systems/ProgressionSystem";
 
 export class GameRoom extends Room<GameState> {
     maxClients = 50;
     firstPlayerSessionId: string | null = null; // Track first player for special advantage
     private enemyManager!: EnemyManager; // 敵人管理系統
+    private progressionSystem!: ProgressionSystem; // 進度系統 (Phase 7)
 
     onCreate(options: any) {
         console.log("Gangs Online: Room Created");
@@ -15,6 +17,9 @@ export class GameRoom extends Room<GameState> {
         // 初始化敵人管理系統
         this.enemyManager = new EnemyManager(this.state.enemies, this.state.players);
         this.enemyManager.initialize();
+
+        // 初始化進度系統 (Phase 7)
+        this.progressionSystem = new ProgressionSystem();
 
         // 設置 AI 更新迴圈（每 50ms 執行一次 = 20 FPS）
         this.setSimulationInterval((deltaTime) => {
@@ -56,10 +61,13 @@ export class GameRoom extends Room<GameState> {
             }
         });
 
-        // Auto-Combat Loop (runs every ATTACK_INTERVAL)
+        // Auto-Combat Loop (runs every ATTACK_INTERVAL) - 0.7.1: 添加 PvE 支援
         this.clock.setInterval(() => {
             this.state.players.forEach((player) => {
-                if (player.inCombatWith && player.hp > 0) {
+                if (player.hp <= 0) return; // 跳過死亡玩家
+
+                // PvP 戰鬥
+                if (player.inCombatWith) {
                     const target = this.state.players.get(player.inCombatWith);
 
                     if (target && target.hp > 0) {
@@ -68,6 +76,71 @@ export class GameRoom extends Room<GameState> {
                     } else {
                         // Target is dead or disconnected, end combat
                         player.inCombatWith = "";
+                    }
+                }
+
+                // PvE 戰鬥（0.7.1）
+                if (player.inCombatWithEnemy) {
+                    const enemy = this.state.enemies.get(player.inCombatWithEnemy);
+
+                    if (enemy && enemy.hp > 0) {
+                        // 玩家攻擊敵人
+                        const isDead = this.enemyManager.takeDamage(player.inCombatWithEnemy, GAME_CONSTANTS.ATTACK_DAMAGE);
+                        console.log(`🗡️ ${player.name} hits ${enemy.name} for ${GAME_CONSTANTS.ATTACK_DAMAGE} damage! HP: ${enemy.hp}/${enemy.maxHp}`);
+
+                        if (isDead) {
+                            // 敵人死亡
+                            const deadEnemyId = player.inCombatWithEnemy; // 保存 ID 用於移除
+                            console.log(`💀 Enemy ${deadEnemyId} was killed by ${player.name}`);
+                            this.broadcast("chat", {
+                                sessionId: "SYSTEM",
+                                text: `${player.name} 擊敗了 ${enemy.name}！`,
+                            });
+
+                            // 獎勵經驗值
+                            const xpGained = this.progressionSystem.getXPForEnemyKill();
+                            const newLevel = this.progressionSystem.awardXP(player, xpGained);
+
+                            if (newLevel !== null) {
+                                const newTitle = getRankTitle(newLevel);
+                                this.broadcast("chat", {
+                                    sessionId: "SYSTEM",
+                                    text: `🎉 ${player.name} 升職了！現在是 ${newTitle} (Lv${newLevel})`,
+                                });
+                            }
+
+                            // 結束戰鬥並移除敵人（修正 bug）
+                            player.inCombatWithEnemy = "";
+                            this.enemyManager.removeEnemy(deadEnemyId);
+                            this.clock.setTimeout(() => {
+                                this.enemyManager.spawnEnemy();
+                            }, 5000);
+                        } else {
+                            // 敵人反擊
+                            player.hp -= GAME_CONSTANTS.ENEMY_ATTACK_DAMAGE;
+                            console.log(`🧟 ${enemy.name} hits ${player.name} for ${GAME_CONSTANTS.ENEMY_ATTACK_DAMAGE} damage! HP: ${player.hp}/${player.maxHp}`);
+
+                            if (player.hp <= 0) {
+                                player.hp = 0;
+                                player.inCombatWithEnemy = "";
+                                console.log(`💀 Player ${player.name} was killed by ${enemy.name}`);
+
+                                // 重生玩家
+                                this.clock.setTimeout(() => {
+                                    if (this.state.players.has(player.sessionId)) {
+                                        const respawnedPlayer = this.state.players.get(player.sessionId);
+                                        if (respawnedPlayer) {
+                                            respawnedPlayer.hp = respawnedPlayer.maxHp;
+                                            respawnedPlayer.x = Math.random() * 10 - 5;
+                                            respawnedPlayer.z = Math.random() * 10 - 5;
+                                        }
+                                    }
+                                }, 3000);
+                            }
+                        }
+                    } else {
+                        // 敵人已死亡或不存在，結束戰鬥
+                        player.inCombatWithEnemy = "";
                     }
                 }
             });
@@ -107,12 +180,18 @@ export class GameRoom extends Room<GameState> {
     }
 
     /**
-     * 處理玩家對敵人的攻擊（PVE）
+     * 處理玩家對敵人的攻擊（PVE）- 0.7.1: 改為自動戰鬥模式
      */
     private handlePlayerVsEnemy(attacker: Player, enemyId: string): void {
         const enemy = this.state.enemies.get(enemyId);
 
         if (enemy && enemy.hp > 0) {
+            // 檢查是否已經在戰鬥中
+            if (attacker.inCombatWithEnemy || attacker.inCombatWith) {
+                console.log(`Player ${attacker.name} is already in combat`);
+                return;
+            }
+
             // Calculate Distance
             const dx = attacker.x - enemy.x;
             const dz = attacker.z - enemy.z;
@@ -120,22 +199,44 @@ export class GameRoom extends Room<GameState> {
 
             // Validate Range
             if (dist <= GAME_CONSTANTS.ATTACK_RANGE) {
-                // 造成傷害
+                // 開始自動戰鬥
+                attacker.inCombatWithEnemy = enemyId;
+                console.log(`⚔️ Auto-combat started: ${attacker.name} vs ${enemy.name}`);
+
+                // 立即進行第一次攻擊
                 const isDead = this.enemyManager.takeDamage(enemyId, GAME_CONSTANTS.ATTACK_DAMAGE);
+                console.log(`🗡️ ${attacker.name} hits ${enemy.name} for ${GAME_CONSTANTS.ATTACK_DAMAGE} damage! HP: ${enemy.hp}/${enemy.maxHp}`);
 
                 if (isDead) {
-                    console.log(`💀 Enemy ${enemyId} was killed by ${attacker.name}`);
+                    // 第一擊就擊殺
+                    console.log(`💀 Enemy ${enemyId} was killed by ${attacker.name} (first strike)`);
                     this.broadcast("chat", {
                         sessionId: "SYSTEM",
-                        text: `${attacker.name} 擊敗了 ${enemy.name}！`,
+                        text: `${attacker.name} 秒殺了 ${enemy.name}！`,
                     });
 
-                    // 移除敵人並延遲重生
+                    const xpGained = this.progressionSystem.getXPForEnemyKill();
+                    const newLevel = this.progressionSystem.awardXP(attacker, xpGained);
+
+                    if (newLevel !== null) {
+                        const newTitle = getRankTitle(newLevel);
+                        this.broadcast("chat", {
+                            sessionId: "SYSTEM",
+                            text: `🎉 ${attacker.name} 升職了！現在是 ${newTitle} (Lv${newLevel})`,
+                        });
+                    }
+
+                    // 清除戰鬥狀態並立即移除敵人
+                    attacker.inCombatWithEnemy = "";
                     this.enemyManager.removeEnemy(enemyId);
+                    console.log(`🧹 Removed dead enemy: ${enemyId}`);
+
+                    // 5 秒後重生新敵人
                     this.clock.setTimeout(() => {
                         this.enemyManager.spawnEnemy();
-                    }, 5000); // 5 秒後重生新敵人
+                    }, 5000);
                 }
+                // 否則，自動戰鬥迴圈會繼續攻擊
             } else {
                 console.log(`Attack failed: Enemy out of range (${dist.toFixed(2)}m > ${GAME_CONSTANTS.ATTACK_RANGE}m)`);
             }
@@ -210,6 +311,11 @@ export class GameRoom extends Room<GameState> {
         player.hp = 100;
         player.maxHp = 100;
         player.inCombatWith = "";
+        player.inCombatWithEnemy = ""; // 0.7.1
+
+        // === Phase 7: 初始化進度系統 ===
+        this.progressionSystem.initializePlayer(player);
+
         this.state.players.set(client.sessionId, player);
     }
 

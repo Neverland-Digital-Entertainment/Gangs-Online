@@ -1,6 +1,6 @@
 {
     "name": "@gangs-online/server",
-    "version": "1.0.0",
+    "version": "0.7.1",
     "scripts": {
         "dev": "nodemon src/index.ts",
         "build": "cd ../shared && npm install && npm run build",
