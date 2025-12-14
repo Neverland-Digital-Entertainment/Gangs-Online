@@ -79,4 +79,53 @@ export class UISystem {
     setCombatIndicator(ui: PlayerUIElements, visible: boolean): void {
         ui.combatIndicator.isVisible = visible;
     }
+
+    /**
+     * 為實體創建UI（玩家或敵人）
+     * @param mesh - 3D 模型
+     * @param name - 名稱
+     * @param isEnemy - 是否為敵人
+     */
+    createEntityUI(
+        mesh: BABYLON.Mesh,
+        name: string,
+        isEnemy: boolean
+    ): { container: GUI.Rectangle; hpFg: GUI.Rectangle; nameLabel: GUI.TextBlock } {
+        const container = new GUI.Rectangle();
+        container.width = "120px";
+        container.height = "60px";
+        container.thickness = 0;
+        this.uiTexture.addControl(container);
+        container.linkWithMesh(mesh);
+        container.linkOffsetY = -130;
+
+        // 名稱標籤
+        const nameLabel = new GUI.TextBlock();
+        nameLabel.text = name;
+        nameLabel.color = isEnemy ? "#FF4444" : "white"; // 敵人紅色，玩家白色
+        nameLabel.fontSize = 14;
+        nameLabel.top = "-15px";
+        nameLabel.shadowBlur = 2;
+        container.addControl(nameLabel);
+
+        // 血條背景
+        const hpBg = new GUI.Rectangle();
+        hpBg.width = "80px";
+        hpBg.height = "8px";
+        hpBg.background = "red";
+        hpBg.thickness = 0;
+        hpBg.top = "10px";
+        container.addControl(hpBg);
+
+        // 血條前景
+        const hpFg = new GUI.Rectangle();
+        hpFg.width = "80px";
+        hpFg.height = "8px";
+        hpFg.background = isEnemy ? "orange" : "#00FF00"; // 敵人橘色，玩家綠色
+        hpFg.thickness = 0;
+        hpFg.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        hpBg.addControl(hpFg);
+
+        return { container, hpFg, nameLabel };
+    }
 }

@@ -1,7 +1,7 @@
 import * as BABYLON from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import * as Client from "colyseus.js";
-import { PlayerData } from "@gangs-online/shared";
+import { PlayerData, IEnemyData, EntityType } from "@gangs-online/shared";
 import "@babylonjs/loaders";
 
 // Import our modular systems
@@ -12,6 +12,7 @@ import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
 import { CityGenerator } from "./world/CityGenerator";
 import { PlayerManager } from "./entities/PlayerManager";
+import { EnemyManager } from "./entities/EnemyManager";
 import { createEngine, createIsometricCamera, setupScene, updateCameraFollow } from "./utils/BabylonUtils";
 
 /**
@@ -66,6 +67,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
     const uiSystem = new UISystem(uiTexture);
     const weaponSystem = new WeaponSystem();
     const playerManager = new PlayerManager(scene, uiSystem, weaponSystem);
+    const enemyManager = new EnemyManager(scene, uiSystem); // 敵人管理系統
 
     let mySessionId: string | null = null;
 
@@ -120,10 +122,58 @@ const createScene = async (): Promise<BABYLON.Scene> => {
             playerManager.removePlayer(sessionId);
         });
 
+        // --- 敵人事件處理 ---
+        // 使用延遲來確保狀態完全同步
+        const setupEnemySystem = () => {
+            console.log("🔄 Setting up enemy system...");
+            console.log("Room state:", room.state);
+            console.log("Enemies map:", (room.state as any).enemies);
+
+            try {
+                const enemiesMap = (room.state as any).enemies;
+
+                if (!enemiesMap) {
+                    console.error("❌ enemies map is undefined, retrying in 500ms...");
+                    setTimeout(setupEnemySystem, 500);
+                    return;
+                }
+
+                console.log("✅ Enemies map found, setting up listeners...");
+
+                // 設置新敵人加入的監聽器
+                enemiesMap.onAdd(async (enemy: any, enemyId: string) => {
+                    console.log(`🧟 Enemy joined: ${enemyId}`);
+                    await enemyManager.createEnemy(enemy, enemyId);
+                });
+
+                // 設置敵人移除的監聽器
+                enemiesMap.onRemove((enemy: any, enemyId: string) => {
+                    console.log(`🧟 Enemy left: ${enemyId}`);
+                    enemyManager.removeEnemy(enemyId);
+                });
+
+                // 為已存在的敵人創建實體
+                console.log(`📦 Loading ${enemiesMap.size} existing enemies...`);
+                enemiesMap.forEach(async (enemy: any, enemyId: string) => {
+                    console.log(`🧟 Creating existing enemy: ${enemyId}`);
+                    await enemyManager.createEnemy(enemy, enemyId);
+                });
+
+                console.log(`✅ Enemy system initialized successfully`);
+            } catch (error) {
+                console.error("❌ Error setting up enemy system:", error);
+                console.log("Retrying in 500ms...");
+                setTimeout(setupEnemySystem, 500);
+            }
+        };
+
+        // 延遲執行以確保房間狀態完全初始化
+        setTimeout(setupEnemySystem, 100);
+
         // --- 輸入處理：點擊攻擊或移動 ---
         scene.onPointerDown = (evt, pickResult) => {
             if (pickResult.hit && pickResult.pickedMesh) {
-                // 檢查是否點擊了玩家
+                // 檢查是否點擊了玩家或敵人
                 let clickedMesh: BABYLON.Node = pickResult.pickedMesh;
                 while (clickedMesh.parent) {
                     clickedMesh = clickedMesh.parent;
@@ -131,14 +181,23 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
                 if (
                     clickedMesh instanceof BABYLON.AbstractMesh &&
-                    clickedMesh.metadata &&
-                    clickedMesh.metadata.sessionId
+                    clickedMesh.metadata
                 ) {
-                    // 點擊玩家 -> 攻擊
-                    const targetId = clickedMesh.metadata.sessionId;
-                    if (targetId !== mySessionId) {
-                        console.log("Attacking:", targetId);
-                        room.send("attack", { targetSessionId: targetId });
+                    // 檢查是否點擊了玩家
+                    if (clickedMesh.metadata.sessionId) {
+                        const targetId = clickedMesh.metadata.sessionId;
+                        if (targetId !== mySessionId) {
+                            console.log("🗡️ Attacking player:", targetId);
+                            room.send("attack", { targetId: targetId, type: "player" as EntityType });
+                            return;
+                        }
+                    }
+
+                    // 檢查是否點擊了敵人
+                    if (clickedMesh.metadata.type === "enemy" && clickedMesh.metadata.id) {
+                        const enemyId = clickedMesh.metadata.id;
+                        console.log("🗡️ Attacking enemy:", enemyId);
+                        room.send("attack", { targetId: enemyId, type: "enemy" as EntityType });
                         return;
                     }
                 }
@@ -160,6 +219,9 @@ const createScene = async (): Promise<BABYLON.Scene> => {
     scene.registerBeforeRender(() => {
         // 更新所有玩家
         playerManager.updateAll();
+
+        // 更新所有敵人
+        enemyManager.updateAll();
 
         // 相機跟隨
         if (mySessionId) {
