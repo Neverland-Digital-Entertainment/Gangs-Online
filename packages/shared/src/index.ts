@@ -92,7 +92,7 @@ export const GAME_CONSTANTS = {
     // Enemy/PVE Constants
     ENEMY_SPEED: 0.1, // Slower than players
     ENEMY_DETECT_RANGE: 10.0, // Aggro range
-    ENEMY_SPAWN_COUNT: 10,
+    ENEMY_SPAWN_COUNT: 2, // 減少數量以便測試道具系統
     ENEMY_ATTACK_DAMAGE: 3, // 降低敵人攻擊力（原本 5）
     ENEMY_ATTACK_CHANCE: 0.02, // 2% chance per tick to attack
 
