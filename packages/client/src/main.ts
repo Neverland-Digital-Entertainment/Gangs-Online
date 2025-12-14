@@ -3,6 +3,7 @@ import * as GUI from "@babylonjs/gui";
 import * as Client from "colyseus.js";
 import { PlayerData, IEnemyData, EntityType } from "@gangs-online/shared";
 import "@babylonjs/loaders";
+import { GAME_VERSION } from "./version";
 
 // Import our modular systems
 import { config } from "./config";
@@ -41,6 +42,19 @@ loadingScreen.updateText("正在連接伺服器...");
 const client = new Client.Client(config.serverUrl);
 console.log("✅ Colyseus Client created, server:", config.serverUrl);
 
+// --- 檢查伺服器版本（0.7.1）---
+const checkServerVersion = async (): Promise<string> => {
+    try {
+        const httpUrl = config.serverUrl.replace("ws://", "http://").replace("wss://", "https://");
+        const response = await fetch(`${httpUrl}/version`);
+        const data = await response.json();
+        return data.version;
+    } catch (error) {
+        console.error("Failed to fetch server version:", error);
+        return "unknown";
+    }
+};
+
 /**
  * 創建遊戲場景
  */
@@ -72,6 +86,11 @@ const createScene = async (): Promise<BABYLON.Scene> => {
     let mySessionId: string | null = null;
 
     try {
+        // 連接遊戲房間前，先檢查版本（0.7.1）
+        loadingScreen.updateText("正在檢查版本...");
+        const serverVersion = await checkServerVersion();
+        loadingScreen.showVersionInfo(GAME_VERSION, serverVersion);
+
         // 連接遊戲房間
         loadingScreen.updateText("正在連接遊戲房間...");
         const room = await client.joinOrCreate("game_room");

@@ -36,7 +36,8 @@ export class PlayerData extends Schema implements IEntityData {
     @type("number") maxHp: number = 100;
     @type("string") name: string = "";
     @type("string") type: EntityType = "player";
-    @type("string") inCombatWith: string = ""; // sessionId/enemyId of target, empty = not in combat
+    @type("string") inCombatWith: string = ""; // sessionId of player target, empty = not in PvP combat
+    @type("string") inCombatWithEnemy: string = ""; // enemyId target, empty = not in PvE combat (0.7.1)
 
     // Progression System (Phase 7)
     @type("number") level: number = 1;
@@ -83,3 +84,8 @@ export const getRankTitle = (level: number): string => {
     if (level >= 3) return "四九 (49)";
     return "藍燈籠 (Blue Lantern)";
 };
+
+/**
+ * 遊戲版本（0.7.1）
+ */
+export const GAME_VERSION = "0.7.1";
