@@ -1,12 +1,14 @@
 import { Room, Client } from "colyseus";
 import { GameState, Player } from "./schema/GameState";
-import { IPlayerInput, GAME_CONSTANTS, EntityType } from "@gangs-online/shared";
+import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle } from "@gangs-online/shared";
 import { EnemyManager } from "../systems/EnemyManager";
+import { ProgressionSystem } from "../systems/ProgressionSystem";
 
 export class GameRoom extends Room<GameState> {
     maxClients = 50;
     firstPlayerSessionId: string | null = null; // Track first player for special advantage
     private enemyManager!: EnemyManager; // 敵人管理系統
+    private progressionSystem!: ProgressionSystem; // 進度系統 (Phase 7)
 
     onCreate(options: any) {
         console.log("Gangs Online: Room Created");
@@ -15,6 +17,9 @@ export class GameRoom extends Room<GameState> {
         // 初始化敵人管理系統
         this.enemyManager = new EnemyManager(this.state.enemies, this.state.players);
         this.enemyManager.initialize();
+
+        // 初始化進度系統 (Phase 7)
+        this.progressionSystem = new ProgressionSystem();
 
         // 設置 AI 更新迴圈（每 50ms 執行一次 = 20 FPS）
         this.setSimulationInterval((deltaTime) => {
@@ -130,6 +135,19 @@ export class GameRoom extends Room<GameState> {
                         text: `${attacker.name} 擊敗了 ${enemy.name}！`,
                     });
 
+                    // === Phase 7: 獎勵經驗值 ===
+                    const xpGained = this.progressionSystem.getXPForEnemyKill();
+                    const newLevel = this.progressionSystem.awardXP(attacker, xpGained);
+
+                    // 如果升級了，廣播升級訊息
+                    if (newLevel !== null) {
+                        const newTitle = getRankTitle(newLevel);
+                        this.broadcast("chat", {
+                            sessionId: "SYSTEM",
+                            text: `🎉 ${attacker.name} 升職了！現在是 ${newTitle} (Lv${newLevel})`,
+                        });
+                    }
+
                     // 移除敵人並延遲重生
                     this.enemyManager.removeEnemy(enemyId);
                     this.clock.setTimeout(() => {
@@ -210,6 +228,10 @@ export class GameRoom extends Room<GameState> {
         player.hp = 100;
         player.maxHp = 100;
         player.inCombatWith = "";
+
+        // === Phase 7: 初始化進度系統 ===
+        this.progressionSystem.initializePlayer(player);
+
         this.state.players.set(client.sessionId, player);
     }
 

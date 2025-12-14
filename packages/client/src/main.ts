@@ -115,6 +115,15 @@ const createScene = async (): Promise<BABYLON.Scene> => {
             player.listen("inCombatWith", (targetId: string) => {
                 playerManager.updateCombatState(sessionId, !!(targetId && targetId !== ""));
             });
+
+            // === Phase 7: 同步經驗值和等級 ===
+            player.listen("xp", (currentXP: number) => {
+                playerManager.updateXP(sessionId, currentXP, player.maxXp);
+            });
+
+            player.listen("level", (newLevel: number) => {
+                playerManager.updateLevel(sessionId, newLevel, player.name);
+            });
         });
 
         // 移除玩家
