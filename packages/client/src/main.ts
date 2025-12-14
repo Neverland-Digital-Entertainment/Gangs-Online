@@ -11,9 +11,11 @@ import { LoadingScreen } from "./systems/LoadingScreen";
 import { ChatSystem } from "./systems/ChatSystem";
 import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
+import { InventorySystem } from "./systems/InventorySystem"; // Phase 8
 import { CityGenerator } from "./world/CityGenerator";
 import { PlayerManager } from "./entities/PlayerManager";
 import { EnemyManager } from "./entities/EnemyManager";
+import { LootManager } from "./entities/LootManager"; // Phase 8
 import { createEngine, createIsometricCamera, setupScene, updateCameraFollow } from "./utils/BabylonUtils";
 
 /**
@@ -84,6 +86,8 @@ const createScene = async (): Promise<BABYLON.Scene> => {
     const enemyManager = new EnemyManager(scene, uiSystem); // 敵人管理系統
 
     let mySessionId: string | null = null;
+    let lootManager: LootManager | null = null; // Phase 8
+    let inventorySystem: InventorySystem | null = null; // Phase 8
 
     try {
         // 連接遊戲房間前，先檢查版本（0.7.1）
@@ -101,6 +105,10 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         loadingScreen.updateText("正在準備遊戲介面...");
         const chatSystem = new ChatSystem(room, scene, uiTexture);
         chatSystem.createChatInput();
+
+        // === Phase 8: 初始化戰利品和背包系統 ===
+        lootManager = new LootManager(scene, room);
+        inventorySystem = new InventorySystem(room, uiTexture);
 
         // 監聽聊天訊息
         room.onMessage("chat", (msg: { sessionId: string; text: string }) => {
@@ -143,6 +151,11 @@ const createScene = async (): Promise<BABYLON.Scene> => {
             player.listen("level", (newLevel: number) => {
                 playerManager.updateLevel(sessionId, newLevel, player.name);
             });
+
+            // === Phase 8: 同步背包系統（僅限自己的角色）===
+            if (isSelf && inventorySystem) {
+                inventorySystem.setupPlayerInventoryListener(player);
+            }
         });
 
         // 移除玩家
@@ -198,9 +211,19 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         // 延遲執行以確保房間狀態完全初始化
         setTimeout(setupEnemySystem, 100);
 
-        // --- 輸入處理：點擊攻擊或移動 ---
+        // --- 輸入處理：點擊攻擊、拾取戰利品或移動 (Phase 8 更新) ---
         scene.onPointerDown = (evt, pickResult) => {
             if (pickResult.hit && pickResult.pickedMesh) {
+                // === Phase 8: 檢查是否點擊了戰利品 ===
+                if (lootManager && lootManager.isLootMesh(pickResult.pickedMesh)) {
+                    const lootId = lootManager.getLootId(pickResult.pickedMesh);
+                    if (lootId) {
+                        console.log("📦 Picking up loot:", lootId);
+                        room.send("pickup", lootId);
+                        return;
+                    }
+                }
+
                 // 檢查是否點擊了玩家或敵人
                 let clickedMesh: BABYLON.Node = pickResult.pickedMesh;
                 while (clickedMesh.parent) {

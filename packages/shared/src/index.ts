@@ -50,6 +50,36 @@ export interface IEnemyData extends IEntityData {
     state: 'idle' | 'chase' | 'attack';
 }
 
+// Item Types (Phase 8)
+export type ItemType = 'currency' | 'consumable';
+
+// Item Interface (Phase 8)
+export interface IItem {
+    id: string;
+    name: string;
+    type: ItemType;
+    value: number; // Amount for currency, Heal amount for consumable
+}
+
+// Loot Data (Phase 8)
+export interface ILootData {
+    id: string;
+    x: number;
+    z: number;
+    item: IItem;
+}
+
+// Player Data Interface (Extended for Phase 8)
+export interface IPlayerData extends IEntityData {
+    sessionId: string;
+    role: PlayerRole;
+    level: number;
+    xp: number;
+    maxXp: number;
+    money: number;
+    inventory: IItem[];
+}
+
 // Game Constants
 export const GAME_CONSTANTS = {
     MAP_WIDTH: 100,
@@ -70,7 +100,11 @@ export const GAME_CONSTANTS = {
     XP_PER_KILL: 50, // XP awarded for killing an enemy
     BASE_XP_TO_LEVEL: 100, // Base XP required to reach level 2
     XP_SCALING_FACTOR: 1.5, // Each level requires 1.5x more XP
-    HP_PER_LEVEL: 20 // HP bonus per level
+    HP_PER_LEVEL: 20, // HP bonus per level
+
+    // Loot System (Phase 8)
+    LOOT_PICKUP_RANGE: 2.0, // Distance to pickup loot
+    DROP_CHANCE: 0.8 // 80% chance to drop loot
 };
 
 /**
@@ -86,6 +120,6 @@ export const getRankTitle = (level: number): string => {
 };
 
 /**
- * 遊戲版本（0.7.1）
+ * 遊戲版本（0.8.0）
  */
-export const GAME_VERSION = "0.7.1";
+export const GAME_VERSION = "0.8.0";
