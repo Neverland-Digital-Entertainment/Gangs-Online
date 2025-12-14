@@ -48,7 +48,7 @@ export class InventorySystem {
 
         if (wasMobile !== this.isMobile) {
             // 重新設置面板尺寸
-            this.panel.width = this.isMobile ? "90%" : "240px";
+            this.panel.width = this.isMobile ? "280px" : "240px";
             this.panel.paddingBottom = this.isMobile ? "70px" : "20px"; // 手機上避開聊天框
             this.panel.paddingRight = this.isMobile ? "5%" : "20px";
 
@@ -63,9 +63,12 @@ export class InventorySystem {
     private createMainPanel(): GUI.StackPanel {
         const panel = new GUI.StackPanel();
 
-        // 響應式寬度
-        panel.width = this.isMobile ? "90%" : "240px";
-        panel.maxWidth = "400px";
+        // 響應式寬度（手機上較寬但設定最大值避免過寬）
+        if (this.isMobile) {
+            panel.width = "280px"; // 手機上固定寬度，適合大部分螢幕
+        } else {
+            panel.width = "240px";
+        }
 
         panel.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
         panel.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
