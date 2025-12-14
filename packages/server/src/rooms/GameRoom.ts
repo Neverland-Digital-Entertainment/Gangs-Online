@@ -90,7 +90,8 @@ export class GameRoom extends Room<GameState> {
 
                         if (isDead) {
                             // 敵人死亡
-                            console.log(`💀 Enemy ${player.inCombatWithEnemy} was killed by ${player.name}`);
+                            const deadEnemyId = player.inCombatWithEnemy; // 保存 ID 用於移除
+                            console.log(`💀 Enemy ${deadEnemyId} was killed by ${player.name}`);
                             this.broadcast("chat", {
                                 sessionId: "SYSTEM",
                                 text: `${player.name} 擊敗了 ${enemy.name}！`,
@@ -108,9 +109,9 @@ export class GameRoom extends Room<GameState> {
                                 });
                             }
 
-                            // 結束戰鬥並移除敵人
+                            // 結束戰鬥並移除敵人（修正 bug）
                             player.inCombatWithEnemy = "";
-                            this.enemyManager.removeEnemy(player.inCombatWithEnemy);
+                            this.enemyManager.removeEnemy(deadEnemyId);
                             this.clock.setTimeout(() => {
                                 this.enemyManager.spawnEnemy();
                             }, 5000);
@@ -225,8 +226,12 @@ export class GameRoom extends Room<GameState> {
                         });
                     }
 
+                    // 清除戰鬥狀態並立即移除敵人
                     attacker.inCombatWithEnemy = "";
                     this.enemyManager.removeEnemy(enemyId);
+                    console.log(`🧹 Removed dead enemy: ${enemyId}`);
+
+                    // 5 秒後重生新敵人
                     this.clock.setTimeout(() => {
                         this.enemyManager.spawnEnemy();
                     }, 5000);
