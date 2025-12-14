@@ -64,9 +64,14 @@ export class EnemyManager {
      * @param deltaTime - 時間差（毫秒）
      */
     update(deltaTime: number): void {
-        this.enemies.forEach((enemy) => {
+        // 收集需要移除的死亡敵人
+        const deadEnemies: string[] = [];
+
+        this.enemies.forEach((enemy, enemyId) => {
             if (enemy.hp <= 0) {
-                return; // 跳過死亡的敵人
+                // 收集死亡敵人 ID，稍後移除
+                deadEnemies.push(enemyId);
+                return;
             }
 
             // 尋找最近的活著的玩家
@@ -92,6 +97,12 @@ export class EnemyManager {
                 // 沒有玩家，閒置
                 enemy.state = "idle";
             }
+        });
+
+        // 清理所有死亡的敵人（避免在迭代中修改 Map）
+        deadEnemies.forEach((enemyId) => {
+            console.log(`🧹 Auto-removing dead enemy: ${enemyId}`);
+            this.removeEnemy(enemyId);
         });
     }
 
