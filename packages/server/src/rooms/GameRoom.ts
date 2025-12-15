@@ -1,12 +1,12 @@
 import { Room, Client } from "colyseus";
-import { GameState, Player, Item } from "./schema/GameState";
+import { GameState, Player, Item } from "./schema/GameState.js";
 import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle } from "@gangs-online/shared";
-import { EnemyManager } from "../systems/EnemyManager";
-import { ProgressionSystem } from "../systems/ProgressionSystem";
-import { LootSystem } from "../systems/LootSystem"; // Phase 8
-import { SafeZoneSystem } from "../systems/SafeZoneSystem"; // Phase 9
-import { ShopSystem } from "../systems/ShopSystem"; // Phase 9
-import { NPCManager } from "../systems/NPCManager"; // Phase 9
+import { EnemyManager } from "../systems/EnemyManager.js";
+import { ProgressionSystem } from "../systems/ProgressionSystem.js";
+import { LootSystem } from "../systems/LootSystem.js"; // Phase 8
+import { SafeZoneSystem } from "../systems/SafeZoneSystem.js"; // Phase 9
+import { ShopSystem } from "../systems/ShopSystem.js"; // Phase 9
+import { NPCManager } from "../systems/NPCManager.js"; // Phase 9
 
 export class GameRoom extends Room<GameState> {
     maxClients = 50;

@@ -1,6 +1,6 @@
 import { MapSchema } from "@colyseus/schema";
-import { Enemy } from "../rooms/schema/GameState";
-import { Player } from "../rooms/schema/GameState";
+import { Enemy } from "../rooms/schema/GameState.js";
+import { Player } from "../rooms/schema/GameState.js";
 import { GAME_CONSTANTS } from "@gangs-online/shared";
 
 /**

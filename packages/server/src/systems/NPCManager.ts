@@ -1,5 +1,5 @@
 import { MapSchema } from "@colyseus/schema";
-import { Enemy } from "../rooms/schema/GameState";
+import { Enemy } from "../rooms/schema/GameState.js";
 
 /**
  * NPCManager - 管理 NPC 生成和邏輯 (Phase 9)
