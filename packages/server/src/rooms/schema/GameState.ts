@@ -30,7 +30,7 @@ export class Loot extends Schema implements ILootData {
 }
 
 /**
- * Enemy Schema for PVE System
+ * Enemy Schema for PVE System (Phase 9: 也用於 NPC)
  */
 export class Enemy extends Schema implements IEnemyData {
     @type("string") id: string = "";
@@ -40,7 +40,7 @@ export class Enemy extends Schema implements IEnemyData {
     @type("number") maxHp: number = 50;
     @type("string") name: string = "街頭混混";
     @type("string") state: 'idle' | 'chase' | 'attack' = "idle";
-    @type("string") type: EntityType = "enemy";
+    @type("string") type: EntityType = "enemy"; // Phase 9: 可以是 'enemy' 或 'npc'
 }
 
 /**

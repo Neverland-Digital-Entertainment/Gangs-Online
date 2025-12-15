@@ -10,8 +10,8 @@ export interface IPlayerInput {
 // Player Roles (Based on GDD)
 export type PlayerRole = 'citizen' | 'triad' | 'police';
 
-// Entity Type
-export type EntityType = 'player' | 'enemy';
+// Entity Type (Phase 9: 增加 NPC)
+export type EntityType = 'player' | 'enemy' | 'npc';
 
 // Base Entity Data (for both players and enemies)
 export interface IEntityData {
@@ -104,8 +104,31 @@ export const GAME_CONSTANTS = {
 
     // Loot System (Phase 8)
     LOOT_PICKUP_RANGE: 2.0, // Distance to pickup loot
-    DROP_CHANCE: 0.8 // 80% chance to drop loot
+    DROP_CHANCE: 0.8, // 80% chance to drop loot
+
+    // Safe Zone & Shop System (Phase 9)
+    SAFE_ZONE_RADIUS: 15.0, // 安全區半徑（地圖中心）
+    SHOP_INTERACTION_RANGE: 5.0, // 與商店 NPC 互動距離
 };
+
+/**
+ * 商店物品定義 (Phase 9)
+ */
+export interface IShopItem {
+    id: string;
+    name: string;
+    price: number;
+    value: number;
+    type: ItemType;
+}
+
+/**
+ * 商店物品列表 (Phase 9)
+ */
+export const SHOP_ITEMS: IShopItem[] = [
+    { id: "food_small", name: "魚蛋 (Fishball)", price: 50, value: 20, type: "consumable" },
+    { id: "food_large", name: "叉燒飯 (Rice)", price: 100, value: 50, type: "consumable" }
+];
 
 /**
  * 根據等級獲取三合會頭銜
@@ -120,6 +143,6 @@ export const getRankTitle = (level: number): string => {
 };
 
 /**
- * 遊戲版本（0.8.0）
+ * 遊戲版本（0.9.0 - Safe Zone & Shop）
  */
-export const GAME_VERSION = "0.8.0";
+export const GAME_VERSION = "0.9.0";

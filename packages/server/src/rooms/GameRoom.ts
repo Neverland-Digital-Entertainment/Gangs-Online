@@ -4,6 +4,9 @@ import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle } from "@gangs-o
 import { EnemyManager } from "../systems/EnemyManager";
 import { ProgressionSystem } from "../systems/ProgressionSystem";
 import { LootSystem } from "../systems/LootSystem"; // Phase 8
+import { SafeZoneSystem } from "../systems/SafeZoneSystem"; // Phase 9
+import { ShopSystem } from "../systems/ShopSystem"; // Phase 9
+import { NPCManager } from "../systems/NPCManager"; // Phase 9
 
 export class GameRoom extends Room<GameState> {
     maxClients = 50;
@@ -11,6 +14,9 @@ export class GameRoom extends Room<GameState> {
     private enemyManager!: EnemyManager; // 敵人管理系統
     private progressionSystem!: ProgressionSystem; // 進度系統 (Phase 7)
     private lootSystem!: LootSystem; // 戰利品系統 (Phase 8)
+    private safeZoneSystem!: SafeZoneSystem; // 安全區系統 (Phase 9)
+    private shopSystem!: ShopSystem; // 商店系統 (Phase 9)
+    private npcManager!: NPCManager; // NPC 管理系統 (Phase 9)
 
     onCreate(options: any) {
         console.log("Gangs Online: Room Created");
@@ -26,6 +32,16 @@ export class GameRoom extends Room<GameState> {
         // 初始化戰利品系統 (Phase 8)
         this.lootSystem = new LootSystem(this);
 
+        // 初始化安全區系統 (Phase 9)
+        this.safeZoneSystem = new SafeZoneSystem();
+
+        // 初始化商店系統 (Phase 9)
+        this.shopSystem = new ShopSystem();
+
+        // 初始化 NPC 管理系統 (Phase 9)
+        this.npcManager = new NPCManager(this.state.enemies);
+        this.npcManager.initialize();
+
         // 設置 AI 更新迴圈（每 50ms 執行一次 = 20 FPS）
         this.setSimulationInterval((deltaTime) => {
             this.enemyManager.update(deltaTime);
@@ -40,13 +56,19 @@ export class GameRoom extends Room<GameState> {
             }
         });
 
-        // Handle Attack (支援攻擊玩家或敵人)
+        // Handle Attack (支援攻擊玩家或敵人) - Phase 9: 增加安全區檢查
         this.onMessage("attack", (client, payload: { targetId: string; type: EntityType }) => {
             const attacker = this.state.players.get(client.sessionId);
 
             if (!attacker || attacker.hp <= 0) {
                 console.log(`❌ Attack failed: attacker not found or dead`);
                 return; // 攻擊者不存在或已死亡
+            }
+
+            // Phase 9: 檢查攻擊者是否在安全區內
+            if (this.safeZoneSystem.isInSafeZone(attacker.x, attacker.z)) {
+                client.send("notification", "這裡是安全區，不能打架！");
+                return;
             }
 
             if (payload.type === "player") {
@@ -60,6 +82,13 @@ export class GameRoom extends Room<GameState> {
                     console.log(`Current enemies:`, Array.from(this.state.enemies.keys()));
                     return;
                 }
+
+                // Phase 9: 檢查是否攻擊 NPC
+                if (this.npcManager.isNPC(payload.targetId)) {
+                    client.send("notification", "唔好打十三叔！佢係好人嚟架！");
+                    return;
+                }
+
                 console.log(`✅ Attacking enemy ${payload.targetId}, HP: ${enemy.hp}/${enemy.maxHp}`);
                 // 攻擊敵人（PVE）
                 this.handlePlayerVsEnemy(attacker, payload.targetId);
@@ -122,6 +151,14 @@ export class GameRoom extends Room<GameState> {
 
                     client.send("notification", `食咗 ${item.name}，回復 ${healAmount} HP`);
                 }
+            }
+        });
+
+        // --- PHASE 9: BUY ITEM HANDLER ---
+        this.onMessage("buy", (client, itemId: string) => {
+            const player = this.state.players.get(client.sessionId);
+            if (player && player.hp > 0) {
+                this.shopSystem.handlePurchase(client, player, itemId);
             }
         });
 
@@ -216,12 +253,18 @@ export class GameRoom extends Room<GameState> {
     }
 
     /**
-     * 處理玩家對玩家的攻擊（PVP）
+     * 處理玩家對玩家的攻擊（PVP） - Phase 9: 增加安全區檢查
      */
     private handlePlayerVsPlayer(client: Client, attacker: Player, targetSessionId: string): void {
         const target = this.state.players.get(targetSessionId);
 
         if (target && target.hp > 0) {
+            // Phase 9: 檢查目標是否在安全區內
+            if (this.safeZoneSystem.isInSafeZone(target.x, target.z)) {
+                client.send("notification", "對方在安全區內！");
+                return;
+            }
+
             // Check if not already in combat
             if (!attacker.inCombatWith && !target.inCombatWith) {
                 // Calculate Distance
