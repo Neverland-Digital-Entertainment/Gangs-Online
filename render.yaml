@@ -3,11 +3,19 @@ services:
     name: gangs-online-server
     runtime: node
     buildCommand: |
+      echo "==> Installing dependencies..."
       npm install
+      echo "==> Building shared package..."
       npm run build --workspace=@gangs-online/shared
+      echo "==> Checking shared build output..."
+      ls -la packages/shared/dist || echo "Shared dist not found"
+      echo "==> Building server package..."
       npm run build --workspace=@gangs-online/server
-      ls -la packages/server/dist
-    startCommand: cd packages/server && node dist/index.js
+      echo "==> Checking server build output..."
+      ls -la packages/server/dist || echo "Server dist not found"
+      echo "==> Verifying dist/index.js exists..."
+      test -f packages/server/dist/index.js && echo "✓ dist/index.js exists" || echo "✗ dist/index.js NOT FOUND"
+    startCommand: node packages/server/dist/index.js
     envVars:
       - key: NODE_VERSION
         value: 18.18.0
