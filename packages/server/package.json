@@ -3,9 +3,9 @@
     "version": "0.7.1",
     "type": "module",
     "scripts": {
-        "dev": "NODE_OPTIONS='--loader ts-node/esm' nodemon src/index.ts",
+        "dev": "tsx watch src/index.ts",
         "build": "cd ../shared && npm install && npm run build",
-        "start": "NODE_OPTIONS='--loader ts-node/esm' ts-node src/index.ts"
+        "start": "tsx src/index.ts"
     },
     "dependencies": {
         "@colyseus/monitor": "^0.15.0",
@@ -13,7 +13,7 @@
         "colyseus": "^0.15.0",
         "cors": "^2.8.5",
         "express": "^4.18.0",
-        "ts-node": "^10.0.0",
+        "tsx": "^4.7.0",
         "typescript": "^5.0.0"
     },
     "devDependencies": {
