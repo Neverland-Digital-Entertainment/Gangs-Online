@@ -193,14 +193,15 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                     enemyManager.removeEnemy(enemyId);
                 });
 
-                // 為已存在的敵人創建實體
+                // 為已存在的敵人創建實體（修正：使用 Promise.all 等待所有敵人創建完成）
                 console.log(`📦 Loading ${enemiesMap.size} existing enemies...`);
-                enemiesMap.forEach(async (enemy: any, enemyId: string) => {
+                const enemyCreationPromises = Array.from(enemiesMap.entries()).map(([enemyId, enemy]) => {
                     console.log(`🧟 Creating existing enemy: ${enemyId}`);
-                    await enemyManager.createEnemy(enemy, enemyId);
+                    return enemyManager.createEnemy(enemy, enemyId);
                 });
+                await Promise.all(enemyCreationPromises);
 
-                console.log(`✅ Enemy system initialized successfully`);
+                console.log(`✅ Enemy system initialized successfully (${enemyCreationPromises.length} enemies loaded)`);
             } catch (error) {
                 console.error("❌ Error setting up enemy system:", error);
                 console.log("Retrying in 500ms...");
