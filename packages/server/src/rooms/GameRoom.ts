@@ -1,14 +1,16 @@
 import { Room, Client } from "colyseus";
-import { GameState, Player } from "./schema/GameState";
+import { GameState, Player, Item } from "./schema/GameState";
 import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle } from "@gangs-online/shared";
 import { EnemyManager } from "../systems/EnemyManager";
 import { ProgressionSystem } from "../systems/ProgressionSystem";
+import { LootSystem } from "../systems/LootSystem"; // Phase 8
 
 export class GameRoom extends Room<GameState> {
     maxClients = 50;
     firstPlayerSessionId: string | null = null; // Track first player for special advantage
     private enemyManager!: EnemyManager; // 敵人管理系統
     private progressionSystem!: ProgressionSystem; // 進度系統 (Phase 7)
+    private lootSystem!: LootSystem; // 戰利品系統 (Phase 8)
 
     onCreate(options: any) {
         console.log("Gangs Online: Room Created");
@@ -20,6 +22,9 @@ export class GameRoom extends Room<GameState> {
 
         // 初始化進度系統 (Phase 7)
         this.progressionSystem = new ProgressionSystem();
+
+        // 初始化戰利品系統 (Phase 8)
+        this.lootSystem = new LootSystem(this);
 
         // 設置 AI 更新迴圈（每 50ms 執行一次 = 20 FPS）
         this.setSimulationInterval((deltaTime) => {
@@ -40,6 +45,7 @@ export class GameRoom extends Room<GameState> {
             const attacker = this.state.players.get(client.sessionId);
 
             if (!attacker || attacker.hp <= 0) {
+                console.log(`❌ Attack failed: attacker not found or dead`);
                 return; // 攻擊者不存在或已死亡
             }
 
@@ -47,6 +53,14 @@ export class GameRoom extends Room<GameState> {
                 // 攻擊玩家（PVP）
                 this.handlePlayerVsPlayer(client, attacker, payload.targetId);
             } else if (payload.type === "enemy") {
+                // 診斷：檢查敵人是否存在
+                const enemy = this.state.enemies.get(payload.targetId);
+                if (!enemy) {
+                    console.log(`❌ Attack failed: enemy ${payload.targetId} not found on server!`);
+                    console.log(`Current enemies:`, Array.from(this.state.enemies.keys()));
+                    return;
+                }
+                console.log(`✅ Attacking enemy ${payload.targetId}, HP: ${enemy.hp}/${enemy.maxHp}`);
                 // 攻擊敵人（PVE）
                 this.handlePlayerVsEnemy(attacker, payload.targetId);
             }
@@ -58,6 +72,56 @@ export class GameRoom extends Room<GameState> {
             if (player) {
                 // Broadcast to everyone including sender
                 this.broadcast("chat", { sessionId: client.sessionId, text: message });
+            }
+        });
+
+        // --- PHASE 8: PICKUP ITEM HANDLER ---
+        this.onMessage("pickup", (client, lootId: string) => {
+            const player = this.state.players.get(client.sessionId);
+            const loot = this.state.lootItems.get(lootId);
+
+            if (player && loot && player.hp > 0) {
+                // 檢查距離
+                if (this.lootSystem.isInPickupRange(player.x, player.z, loot.x, loot.z)) {
+                    // 添加到背包
+                    if (loot.item.type === 'currency') {
+                        // 金錢直接加到 money
+                        player.money += loot.item.value;
+                        client.send("notification", `執到 $${loot.item.value}`);
+                    } else {
+                        // 消耗品加到背包
+                        const newItem = new Item();
+                        newItem.id = loot.item.id;
+                        newItem.name = loot.item.name;
+                        newItem.type = loot.item.type;
+                        newItem.value = loot.item.value;
+                        player.inventory.push(newItem);
+                        client.send("notification", `執到 ${loot.item.name}`);
+                    }
+
+                    // 從世界中移除
+                    this.state.lootItems.delete(lootId);
+                }
+            }
+        });
+
+        // --- PHASE 8: USE ITEM HANDLER ---
+        this.onMessage("useItem", (client, itemIndex: number) => {
+            const player = this.state.players.get(client.sessionId);
+
+            if (player && player.hp > 0 && itemIndex >= 0 && itemIndex < player.inventory.length) {
+                const item = player.inventory.at(itemIndex);
+
+                if (item && item.type === 'consumable') {
+                    // 恢復 HP
+                    const healAmount = item.value;
+                    player.hp = Math.min(player.hp + healAmount, player.maxHp);
+
+                    // 從背包中移除
+                    player.inventory.deleteAt(itemIndex);
+
+                    client.send("notification", `食咗 ${item.name}，回復 ${healAmount} HP`);
+                }
             }
         });
 
@@ -109,12 +173,16 @@ export class GameRoom extends Room<GameState> {
                                 });
                             }
 
+                            // Phase 8: 掉落戰利品
+                            this.lootSystem.spawnLoot(enemy.x, enemy.z);
+
                             // 結束戰鬥並移除敵人（修正 bug）
                             player.inCombatWithEnemy = "";
                             this.enemyManager.removeEnemy(deadEnemyId);
+                            // 1 分鐘後重生 NPC
                             this.clock.setTimeout(() => {
                                 this.enemyManager.spawnEnemy();
-                            }, 5000);
+                            }, 60000); // 60 秒
                         } else {
                             // 敵人反擊
                             player.hp -= GAME_CONSTANTS.ENEMY_ATTACK_DAMAGE;
@@ -226,15 +294,18 @@ export class GameRoom extends Room<GameState> {
                         });
                     }
 
+                    // Phase 8: 掉落戰利品
+                    this.lootSystem.spawnLoot(enemy.x, enemy.z);
+
                     // 清除戰鬥狀態並立即移除敵人
                     attacker.inCombatWithEnemy = "";
                     this.enemyManager.removeEnemy(enemyId);
                     console.log(`🧹 Removed dead enemy: ${enemyId}`);
 
-                    // 5 秒後重生新敵人
+                    // 1 分鐘後重生 NPC
                     this.clock.setTimeout(() => {
                         this.enemyManager.spawnEnemy();
-                    }, 5000);
+                    }, 60000); // 60 秒
                 }
                 // 否則，自動戰鬥迴圈會繼續攻擊
             } else {
@@ -315,6 +386,9 @@ export class GameRoom extends Room<GameState> {
 
         // === Phase 7: 初始化進度系統 ===
         this.progressionSystem.initializePlayer(player);
+
+        // === Phase 8: 初始化背包系統 ===
+        player.money = 0;
 
         this.state.players.set(client.sessionId, player);
     }

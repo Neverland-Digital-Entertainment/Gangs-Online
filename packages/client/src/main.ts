@@ -11,9 +11,11 @@ import { LoadingScreen } from "./systems/LoadingScreen";
 import { ChatSystem } from "./systems/ChatSystem";
 import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
+import { InventorySystem } from "./systems/InventorySystem"; // Phase 8
 import { CityGenerator } from "./world/CityGenerator";
 import { PlayerManager } from "./entities/PlayerManager";
 import { EnemyManager } from "./entities/EnemyManager";
+import { LootManager } from "./entities/LootManager"; // Phase 8
 import { createEngine, createIsometricCamera, setupScene, updateCameraFollow } from "./utils/BabylonUtils";
 
 /**
@@ -46,12 +48,12 @@ console.log("✅ Colyseus Client created, server:", config.serverUrl);
 const checkServerVersion = async (): Promise<string> => {
     try {
         const httpUrl = config.serverUrl.replace("ws://", "http://").replace("wss://", "https://");
-        const response = await fetch(`${httpUrl}/version`);
+        const response = await fetch(`${httpUrl}/version`, { timeout: 5000 } as any);
         const data = await response.json();
         return data.version;
     } catch (error) {
         console.error("Failed to fetch server version:", error);
-        return "unknown";
+        return "unknown"; // 失敗時返回 unknown 而不是阻塞
     }
 };
 
@@ -84,12 +86,19 @@ const createScene = async (): Promise<BABYLON.Scene> => {
     const enemyManager = new EnemyManager(scene, uiSystem); // 敵人管理系統
 
     let mySessionId: string | null = null;
+    let lootManager: LootManager | null = null; // Phase 8
+    let inventorySystem: InventorySystem | null = null; // Phase 8
 
     try {
         // 連接遊戲房間前，先檢查版本（0.7.1）
         loadingScreen.updateText("正在檢查版本...");
-        const serverVersion = await checkServerVersion();
-        loadingScreen.showVersionInfo(GAME_VERSION, serverVersion);
+        try {
+            const serverVersion = await checkServerVersion();
+            loadingScreen.showVersionInfo(GAME_VERSION, serverVersion);
+        } catch (err) {
+            console.error("Version check failed, continuing anyway:", err);
+            loadingScreen.showVersionInfo(GAME_VERSION, "unknown");
+        }
 
         // 連接遊戲房間
         loadingScreen.updateText("正在連接遊戲房間...");
@@ -101,6 +110,10 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         loadingScreen.updateText("正在準備遊戲介面...");
         const chatSystem = new ChatSystem(room, scene, uiTexture);
         chatSystem.createChatInput();
+
+        // === Phase 8: 初始化戰利品和背包系統 ===
+        lootManager = new LootManager(scene, room);
+        inventorySystem = new InventorySystem(room, uiTexture);
 
         // 監聽聊天訊息
         room.onMessage("chat", (msg: { sessionId: string; text: string }) => {
@@ -143,6 +156,11 @@ const createScene = async (): Promise<BABYLON.Scene> => {
             player.listen("level", (newLevel: number) => {
                 playerManager.updateLevel(sessionId, newLevel, player.name);
             });
+
+            // === Phase 8: 同步背包系統（僅限自己的角色）===
+            if (isSelf && inventorySystem) {
+                inventorySystem.setupPlayerInventoryListener(player);
+            }
         });
 
         // 移除玩家
@@ -152,7 +170,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
         // --- 敵人事件處理 ---
         // 使用延遲來確保狀態完全同步
-        const setupEnemySystem = () => {
+        const setupEnemySystem = async () => {
             console.log("🔄 Setting up enemy system...");
             console.log("Room state:", room.state);
             console.log("Enemies map:", (room.state as any).enemies);
@@ -168,8 +186,23 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
                 console.log("✅ Enemies map found, setting up listeners...");
 
-                // 設置新敵人加入的監聽器
+                // 為已存在的敵人創建實體（先創建，避免 onAdd 重複創建）
+                console.log(`📦 Loading ${enemiesMap.size} existing enemies...`);
+                const enemyCreationPromises: Promise<any>[] = [];
+                enemiesMap.forEach((enemy: any, enemyId: string) => {
+                    console.log(`🧟 Creating existing enemy: ${enemyId}`);
+                    enemyCreationPromises.push(enemyManager.createEnemy(enemy, enemyId));
+                });
+                await Promise.all(enemyCreationPromises);
+                console.log(`✅ Existing enemies loaded (${enemyCreationPromises.length})`);
+
+                // 設置新敵人加入的監聽器（放在初始化之後，避免重複觸發）
                 enemiesMap.onAdd(async (enemy: any, enemyId: string) => {
+                    // 檢查是否已經存在，避免重複創建
+                    if (enemyManager.getEntity(enemyId)) {
+                        console.log(`⚠️ Enemy ${enemyId} already exists, skipping creation`);
+                        return;
+                    }
                     console.log(`🧟 Enemy joined: ${enemyId}`);
                     await enemyManager.createEnemy(enemy, enemyId);
                 });
@@ -178,13 +211,6 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 enemiesMap.onRemove((enemy: any, enemyId: string) => {
                     console.log(`🧟 Enemy left: ${enemyId}`);
                     enemyManager.removeEnemy(enemyId);
-                });
-
-                // 為已存在的敵人創建實體
-                console.log(`📦 Loading ${enemiesMap.size} existing enemies...`);
-                enemiesMap.forEach(async (enemy: any, enemyId: string) => {
-                    console.log(`🧟 Creating existing enemy: ${enemyId}`);
-                    await enemyManager.createEnemy(enemy, enemyId);
                 });
 
                 console.log(`✅ Enemy system initialized successfully`);
@@ -198,9 +224,19 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         // 延遲執行以確保房間狀態完全初始化
         setTimeout(setupEnemySystem, 100);
 
-        // --- 輸入處理：點擊攻擊或移動 ---
+        // --- 輸入處理：點擊攻擊、拾取戰利品或移動 (Phase 8 更新) ---
         scene.onPointerDown = (evt, pickResult) => {
             if (pickResult.hit && pickResult.pickedMesh) {
+                // === Phase 8: 檢查是否點擊了戰利品 ===
+                if (lootManager && lootManager.isLootMesh(pickResult.pickedMesh)) {
+                    const lootId = lootManager.getLootId(pickResult.pickedMesh);
+                    if (lootId) {
+                        console.log("📦 Picking up loot:", lootId);
+                        room.send("pickup", lootId);
+                        return;
+                    }
+                }
+
                 // 檢查是否點擊了玩家或敵人
                 let clickedMesh: BABYLON.Node = pickResult.pickedMesh;
                 while (clickedMesh.parent) {
@@ -224,10 +260,13 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                     // 檢查是否點擊了敵人
                     if (clickedMesh.metadata.type === "enemy" && clickedMesh.metadata.id) {
                         const enemyId = clickedMesh.metadata.id;
-                        console.log("🗡️ Attacking enemy:", enemyId);
+                        console.log("🗡️ Attacking enemy:", enemyId, "metadata:", clickedMesh.metadata);
                         room.send("attack", { targetId: enemyId, type: "enemy" as EntityType });
                         return;
                     }
+
+                    // 診斷：顯示點擊的物體資訊
+                    console.log("❓ Clicked mesh:", clickedMesh.name, "metadata:", clickedMesh.metadata);
                 }
 
                 // 點擊地面 -> 移動
