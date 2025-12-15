@@ -45,6 +45,7 @@ export class GameRoom extends Room<GameState> {
             const attacker = this.state.players.get(client.sessionId);
 
             if (!attacker || attacker.hp <= 0) {
+                console.log(`❌ Attack failed: attacker not found or dead`);
                 return; // 攻擊者不存在或已死亡
             }
 
@@ -52,6 +53,14 @@ export class GameRoom extends Room<GameState> {
                 // 攻擊玩家（PVP）
                 this.handlePlayerVsPlayer(client, attacker, payload.targetId);
             } else if (payload.type === "enemy") {
+                // 診斷：檢查敵人是否存在
+                const enemy = this.state.enemies.get(payload.targetId);
+                if (!enemy) {
+                    console.log(`❌ Attack failed: enemy ${payload.targetId} not found on server!`);
+                    console.log(`Current enemies:`, Array.from(this.state.enemies.keys()));
+                    return;
+                }
+                console.log(`✅ Attacking enemy ${payload.targetId}, HP: ${enemy.hp}/${enemy.maxHp}`);
                 // 攻擊敵人（PVE）
                 this.handlePlayerVsEnemy(attacker, payload.targetId);
             }

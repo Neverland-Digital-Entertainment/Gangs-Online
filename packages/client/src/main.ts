@@ -249,10 +249,13 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                     // 檢查是否點擊了敵人
                     if (clickedMesh.metadata.type === "enemy" && clickedMesh.metadata.id) {
                         const enemyId = clickedMesh.metadata.id;
-                        console.log("🗡️ Attacking enemy:", enemyId);
+                        console.log("🗡️ Attacking enemy:", enemyId, "metadata:", clickedMesh.metadata);
                         room.send("attack", { targetId: enemyId, type: "enemy" as EntityType });
                         return;
                     }
+
+                    // 診斷：顯示點擊的物體資訊
+                    console.log("❓ Clicked mesh:", clickedMesh.name, "metadata:", clickedMesh.metadata);
                 }
 
                 // 點擊地面 -> 移動
