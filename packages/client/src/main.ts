@@ -186,8 +186,23 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
                 console.log("✅ Enemies map found, setting up listeners...");
 
-                // 設置新敵人加入的監聽器
+                // 為已存在的敵人創建實體（先創建，避免 onAdd 重複創建）
+                console.log(`📦 Loading ${enemiesMap.size} existing enemies...`);
+                const enemyCreationPromises: Promise<any>[] = [];
+                enemiesMap.forEach((enemy: any, enemyId: string) => {
+                    console.log(`🧟 Creating existing enemy: ${enemyId}`);
+                    enemyCreationPromises.push(enemyManager.createEnemy(enemy, enemyId));
+                });
+                await Promise.all(enemyCreationPromises);
+                console.log(`✅ Existing enemies loaded (${enemyCreationPromises.length})`);
+
+                // 設置新敵人加入的監聽器（放在初始化之後，避免重複觸發）
                 enemiesMap.onAdd(async (enemy: any, enemyId: string) => {
+                    // 檢查是否已經存在，避免重複創建
+                    if (enemyManager.getEntity(enemyId)) {
+                        console.log(`⚠️ Enemy ${enemyId} already exists, skipping creation`);
+                        return;
+                    }
                     console.log(`🧟 Enemy joined: ${enemyId}`);
                     await enemyManager.createEnemy(enemy, enemyId);
                 });
@@ -198,16 +213,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                     enemyManager.removeEnemy(enemyId);
                 });
 
-                // 為已存在的敵人創建實體（修正：使用 Promise.all 等待所有敵人創建完成）
-                console.log(`📦 Loading ${enemiesMap.size} existing enemies...`);
-                const enemyCreationPromises: Promise<any>[] = [];
-                enemiesMap.forEach((enemy: any, enemyId: string) => {
-                    console.log(`🧟 Creating existing enemy: ${enemyId}`);
-                    enemyCreationPromises.push(enemyManager.createEnemy(enemy, enemyId));
-                });
-                await Promise.all(enemyCreationPromises);
-
-                console.log(`✅ Enemy system initialized successfully (${enemyCreationPromises.length} enemies loaded)`);
+                console.log(`✅ Enemy system initialized successfully`);
             } catch (error) {
                 console.error("❌ Error setting up enemy system:", error);
                 console.log("Retrying in 500ms...");
