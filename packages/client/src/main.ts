@@ -165,7 +165,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
         // --- 敵人事件處理 ---
         // 使用延遲來確保狀態完全同步
-        const setupEnemySystem = () => {
+        const setupEnemySystem = async () => {
             console.log("🔄 Setting up enemy system...");
             console.log("Room state:", room.state);
             console.log("Enemies map:", (room.state as any).enemies);
@@ -195,9 +195,10 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
                 // 為已存在的敵人創建實體（修正：使用 Promise.all 等待所有敵人創建完成）
                 console.log(`📦 Loading ${enemiesMap.size} existing enemies...`);
-                const enemyCreationPromises = Array.from(enemiesMap.entries()).map(([enemyId, enemy]) => {
+                const enemyCreationPromises: Promise<any>[] = [];
+                enemiesMap.forEach((enemy: any, enemyId: string) => {
                     console.log(`🧟 Creating existing enemy: ${enemyId}`);
-                    return enemyManager.createEnemy(enemy, enemyId);
+                    enemyCreationPromises.push(enemyManager.createEnemy(enemy, enemyId));
                 });
                 await Promise.all(enemyCreationPromises);
 
