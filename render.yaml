@@ -2,8 +2,12 @@ services:
   - type: web
     name: gangs-online-server
     runtime: node
-    buildCommand: npm install && npm run build --workspace=@gangs-online/shared && npm run build --workspace=@gangs-online/server
-    startCommand: cd packages/server && npm start
+    buildCommand: |
+      npm install
+      npm run build --workspace=@gangs-online/shared
+      npm run build --workspace=@gangs-online/server
+      ls -la packages/server/dist
+    startCommand: cd packages/server && node dist/index.js
     envVars:
       - key: NODE_VERSION
         value: 18.18.0
