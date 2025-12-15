@@ -48,12 +48,12 @@ console.log("✅ Colyseus Client created, server:", config.serverUrl);
 const checkServerVersion = async (): Promise<string> => {
     try {
         const httpUrl = config.serverUrl.replace("ws://", "http://").replace("wss://", "https://");
-        const response = await fetch(`${httpUrl}/version`);
+        const response = await fetch(`${httpUrl}/version`, { timeout: 5000 } as any);
         const data = await response.json();
         return data.version;
     } catch (error) {
         console.error("Failed to fetch server version:", error);
-        return "unknown";
+        return "unknown"; // 失敗時返回 unknown 而不是阻塞
     }
 };
 
@@ -92,8 +92,13 @@ const createScene = async (): Promise<BABYLON.Scene> => {
     try {
         // 連接遊戲房間前，先檢查版本（0.7.1）
         loadingScreen.updateText("正在檢查版本...");
-        const serverVersion = await checkServerVersion();
-        loadingScreen.showVersionInfo(GAME_VERSION, serverVersion);
+        try {
+            const serverVersion = await checkServerVersion();
+            loadingScreen.showVersionInfo(GAME_VERSION, serverVersion);
+        } catch (err) {
+            console.error("Version check failed, continuing anyway:", err);
+            loadingScreen.showVersionInfo(GAME_VERSION, "unknown");
+        }
 
         // 連接遊戲房間
         loadingScreen.updateText("正在連接遊戲房間...");
