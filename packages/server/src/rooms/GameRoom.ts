@@ -179,10 +179,10 @@ export class GameRoom extends Room<GameState> {
                             // 結束戰鬥並移除敵人（修正 bug）
                             player.inCombatWithEnemy = "";
                             this.enemyManager.removeEnemy(deadEnemyId);
-                            // TODO: 暫時停用 NPC 重生以便測試道具系統
-                            // this.clock.setTimeout(() => {
-                            //     this.enemyManager.spawnEnemy();
-                            // }, 5000);
+                            // 1 分鐘後重生 NPC
+                            this.clock.setTimeout(() => {
+                                this.enemyManager.spawnEnemy();
+                            }, 60000); // 60 秒
                         } else {
                             // 敵人反擊
                             player.hp -= GAME_CONSTANTS.ENEMY_ATTACK_DAMAGE;
@@ -302,10 +302,10 @@ export class GameRoom extends Room<GameState> {
                     this.enemyManager.removeEnemy(enemyId);
                     console.log(`🧹 Removed dead enemy: ${enemyId}`);
 
-                    // TODO: 暫時停用 NPC 重生以便測試道具系統
-                    // this.clock.setTimeout(() => {
-                    //     this.enemyManager.spawnEnemy();
-                    // }, 5000);
+                    // 1 分鐘後重生 NPC
+                    this.clock.setTimeout(() => {
+                        this.enemyManager.spawnEnemy();
+                    }, 60000); // 60 秒
                 }
                 // 否則，自動戰鬥迴圈會繼續攻擊
             } else {
