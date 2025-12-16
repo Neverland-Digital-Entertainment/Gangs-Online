@@ -11,5 +11,11 @@
         "moduleResolution": "node",
         "skipLibCheck": true
     },
-    "include": ["src/**/*"]
+    "include": [
+        "src/**/*"
+    ],
+    "ts-node": {
+        "esm": true,
+        "experimentalSpecifierResolution": "node"
+    }
 }

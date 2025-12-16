@@ -4,8 +4,8 @@
     "type": "module",
     "scripts": {
         "dev": "tsx watch src/index.ts",
-        "build": "tsc && ls -la dist",
-        "start": "node dist/index.js"
+        "build": "tsc",
+        "start": "ts-node src/index.ts"
     },
     "dependencies": {
         "@colyseus/monitor": "^0.15.0",
