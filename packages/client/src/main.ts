@@ -12,6 +12,7 @@ import { ChatSystem } from "./systems/ChatSystem";
 import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
 import { InventorySystem } from "./systems/InventorySystem"; // Phase 8
+import { ShopSystem } from "./systems/ShopSystem"; // Phase 9
 import { CityGenerator } from "./world/CityGenerator";
 import { PlayerManager } from "./entities/PlayerManager";
 import { EnemyManager } from "./entities/EnemyManager";
@@ -88,6 +89,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
     let mySessionId: string | null = null;
     let lootManager: LootManager | null = null; // Phase 8
     let inventorySystem: InventorySystem | null = null; // Phase 8
+    let shopSystem: ShopSystem | null = null; // Phase 9
 
     try {
         // 連接遊戲房間前，先檢查版本（0.7.1）
@@ -114,6 +116,9 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         // === Phase 8: 初始化戰利品和背包系統 ===
         lootManager = new LootManager(scene, room);
         inventorySystem = new InventorySystem(room, uiTexture);
+
+        // === Phase 9: 初始化商店系統 ===
+        shopSystem = new ShopSystem(room, uiTexture);
 
         // 監聽聊天訊息
         room.onMessage("chat", (msg: { sessionId: string; text: string }) => {
@@ -255,6 +260,15 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                             room.send("attack", { targetId: targetId, type: "player" as EntityType });
                             return;
                         }
+                    }
+
+                    // Phase 9: 檢查是否點擊了 NPC
+                    if (clickedMesh.metadata.type === "npc" && clickedMesh.metadata.id) {
+                        console.log("👔 Clicked NPC:", clickedMesh.metadata.id);
+                        if (shopSystem) {
+                            shopSystem.toggle();
+                        }
+                        return;
                     }
 
                     // 檢查是否點擊了敵人

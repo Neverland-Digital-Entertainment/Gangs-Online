@@ -1,10 +1,10 @@
 import * as BABYLON from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
-import { IEnemyData } from "@gangs-online/shared";
+import { IEnemyData, EntityType } from "@gangs-online/shared";
 import { UISystem } from "../systems/UISystem";
 
 /**
- * 敵人實體介面
+ * 敵人實體介面 (Phase 9: 也包含 NPC)
  */
 interface EnemyEntity {
     mesh: BABYLON.AbstractMesh;
@@ -19,14 +19,15 @@ interface EnemyEntity {
     currentAnim: string;
     targetX: number;
     targetZ: number;
+    type: EntityType; // Phase 9: 追蹤實體類型
 }
 
 /**
- * EnemyManager - 客戶端敵人管理系統
+ * EnemyManager - 客戶端敵人管理系統 (Phase 9: 也管理 NPC)
  * 負責：
- * 1. 敵人視覺化（3D 模型、UI）
- * 2. 敵人動畫
- * 3. 敵人移動同步
+ * 1. 敵人/NPC 視覺化（3D 模型、UI）
+ * 2. 敵人/NPC 動畫
+ * 3. 敵人移動同步（NPC 是靜態的）
  */
 export class EnemyManager {
     private scene: BABYLON.Scene;
@@ -39,11 +40,13 @@ export class EnemyManager {
     }
 
     /**
-     * 創建敵人
+     * 創建敵人或 NPC (Phase 9: 支援 NPC)
      * @param enemyData - Colyseus Schema 對象（具有 onChange 和 listen 方法）
      */
     async createEnemy(enemyData: any, enemyId: string): Promise<EnemyEntity> {
-        console.log(`🧟 Creating enemy: ${enemyId}`);
+        const entityType = enemyData.type || "enemy";
+        const isNPC = entityType === "npc";
+        console.log(`${isNPC ? '👔' : '🧟'} Creating ${isNPC ? 'NPC' : 'enemy'}: ${enemyId}`);
 
         // 載入 3D 模型
         const result = await BABYLON.SceneLoader.ImportMeshAsync(
@@ -63,11 +66,15 @@ export class EnemyManager {
         // 設置 metadata 以便點擊偵測
         root.metadata = {
             id: enemyId,
-            type: "enemy",
+            type: entityType,
         };
 
-        // 為敵人添加紅色發光效果
-        this.applyEnemyMaterial(root);
+        // Phase 9: 根據類型應用不同材質
+        if (isNPC) {
+            this.applyNPCMaterial(root); // NPC 使用藍色/白色發光
+        } else {
+            this.applyEnemyMaterial(root); // 敵人使用紅色發光
+        }
 
         // 載入動畫
         const idleAnim = result.animationGroups.find((a) => a.name === "Idle");
@@ -88,27 +95,31 @@ export class EnemyManager {
             currentAnim: "idle",
             targetX: enemyData.x,
             targetZ: enemyData.z,
+            type: entityType, // Phase 9: 儲存類型
         };
 
         this.enemies.set(enemyId, entity);
 
-        // 監聽位置變化
-        enemyData.onChange(() => {
-            entity.targetX = enemyData.x;
-            entity.targetZ = enemyData.z;
-        });
+        // Phase 9: NPC 不需要監聽位置變化（靜態）
+        if (!isNPC) {
+            // 監聽位置變化
+            enemyData.onChange(() => {
+                entity.targetX = enemyData.x;
+                entity.targetZ = enemyData.z;
+            });
 
-        // 監聽血量變化
-        enemyData.listen("hp", (currentHp: number) => {
-            this.updateHealth(enemyId, currentHp, enemyData.maxHp);
-        });
+            // 監聽血量變化
+            enemyData.listen("hp", (currentHp: number) => {
+                this.updateHealth(enemyId, currentHp, enemyData.maxHp);
+            });
 
-        // 監聽狀態變化（閒置、追逐、攻擊）
-        enemyData.listen("state", (state: string) => {
-            this.updateState(enemyId, state as "idle" | "chase" | "attack");
-        });
+            // 監聽狀態變化（閒置、追逐、攻擊）
+            enemyData.listen("state", (state: string) => {
+                this.updateState(enemyId, state as "idle" | "chase" | "attack");
+            });
+        }
 
-        console.log(`✅ Enemy created: ${enemyId}`);
+        console.log(`✅ ${isNPC ? 'NPC' : 'Enemy'} created: ${enemyId}`);
         return entity;
     }
 
@@ -126,10 +137,15 @@ export class EnemyManager {
     }
 
     /**
-     * 更新所有敵人（每幀調用）
+     * 更新所有敵人（每幀調用）- Phase 9: 跳過 NPC
      */
     updateAll(): void {
         this.enemies.forEach((entity, enemyId) => {
+            // Phase 9: 跳過 NPC（NPC 是靜態的，不需要移動）
+            if (entity.type === 'npc') {
+                return;
+            }
+
             const mesh = entity.mesh;
             const dx = entity.targetX - mesh.position.x;
             const dz = entity.targetZ - mesh.position.z;
@@ -219,6 +235,23 @@ export class EnemyManager {
                 const newMat = mesh.material.clone(`enemyMat_${root.name}`);
                 if (newMat && "emissiveColor" in newMat) {
                     (newMat as any).emissiveColor = new BABYLON.Color3(0.5, 0, 0); // 紅色發光
+                }
+                mesh.material = newMat;
+            }
+        });
+    }
+
+    /**
+     * 為 NPC 應用藍色/白色材質 (Phase 9)
+     */
+    private applyNPCMaterial(root: BABYLON.AbstractMesh): void {
+        const meshes = root.getChildMeshes();
+        meshes.forEach((mesh) => {
+            if (mesh.material) {
+                // 克隆材質以避免影響其他模型
+                const newMat = mesh.material.clone(`npcMat_${root.name}`);
+                if (newMat && "emissiveColor" in newMat) {
+                    (newMat as any).emissiveColor = new BABYLON.Color3(0.3, 0.5, 1); // 藍色發光
                 }
                 mesh.material = newMat;
             }

@@ -1,6 +1,5 @@
 import { MapSchema } from "@colyseus/schema";
-import { Enemy } from "../rooms/schema/GameState";
-import { Player } from "../rooms/schema/GameState";
+import { Enemy, Player } from "../rooms/schema/GameState";
 import { GAME_CONSTANTS } from "@gangs-online/shared";
 
 /**
@@ -68,6 +67,11 @@ export class EnemyManager {
         const deadEnemies: string[] = [];
 
         this.enemies.forEach((enemy, enemyId) => {
+            // Phase 9: 跳過 NPC（NPC 是靜態的，不需要 AI）
+            if (enemy.type === 'npc') {
+                return;
+            }
+
             if (enemy.hp <= 0) {
                 // 收集死亡敵人 ID，稍後移除
                 deadEnemies.push(enemyId);

@@ -1,8 +1,10 @@
 import * as BABYLON from "@babylonjs/core";
+import { GAME_CONSTANTS } from "@gangs-online/shared";
 
 /**
  * 城市生成器
  * 負責生成程序化的城市環境（道路、人行道、建築物）
+ * Phase 9: 增加安全區視覺效果
  */
 export class CityGenerator {
     private scene: BABYLON.Scene;
@@ -16,6 +18,7 @@ export class CityGenerator {
      */
     generate(): void {
         this.createRoad();
+        this.createSafeZone(); // Phase 9: 安全區
         this.createBuildings();
     }
 
@@ -34,6 +37,31 @@ export class CityGenerator {
 
         // ENABLE COLLISION ON GROUND
         ground.checkCollisions = true;
+    }
+
+    /**
+     * 創建安全區視覺效果 (Phase 9)
+     */
+    private createSafeZone(): void {
+        // 創建綠色半透明圓形作為安全區標記
+        const safeZone = BABYLON.MeshBuilder.CreateDisc(
+            "safeZone",
+            { radius: GAME_CONSTANTS.SAFE_ZONE_RADIUS },
+            this.scene
+        );
+
+        // 旋轉到地面（預設是垂直的）
+        safeZone.rotation.x = Math.PI / 2;
+        safeZone.position.y = 0.02; // 稍微高於地面，避免 Z-fighting
+
+        // 創建半透明綠色材質
+        const safeMat = new BABYLON.StandardMaterial("safeMat", this.scene);
+        safeMat.diffuseColor = new BABYLON.Color3(0, 1, 0); // 綠色
+        safeMat.emissiveColor = new BABYLON.Color3(0, 0.3, 0); // 發光效果
+        safeMat.alpha = 0.2; // 半透明
+        safeZone.material = safeMat;
+
+        console.log(`✅ Safe Zone created with radius ${GAME_CONSTANTS.SAFE_ZONE_RADIUS}`);
     }
 
     /**
