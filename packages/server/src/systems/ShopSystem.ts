@@ -1,5 +1,5 @@
 import { Client } from "colyseus";
-import { Player, Item } from "../rooms/schema/GameState.js";
+import { Player, Item } from "../rooms/schema/GameState";
 import { GAME_CONSTANTS, SHOP_ITEMS } from "@gangs-online/shared";
 
 /**

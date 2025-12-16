@@ -1,4 +1,4 @@
-import { Player } from "../rooms/schema/GameState.js";
+import { Player } from "../rooms/schema/GameState";
 import { GAME_CONSTANTS, getRankTitle } from "@gangs-online/shared";
 
 /**

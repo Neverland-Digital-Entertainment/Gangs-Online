@@ -1,5 +1,5 @@
 import { Room } from "colyseus";
-import { GameState, Loot, Item } from "../rooms/schema/GameState.js";
+import { GameState, Loot, Item } from "../rooms/schema/GameState";
 import { GAME_CONSTANTS } from "@gangs-online/shared";
 
 /**

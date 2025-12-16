@@ -2,7 +2,7 @@ import { Server } from "colyseus";
 import { createServer } from "http";
 import express from "express";
 import cors from "cors";
-import { GameRoom } from "./rooms/GameRoom.js";
+import { GameRoom } from "./rooms/GameRoom";
 import { GAME_VERSION } from "@gangs-online/shared";
 
 const port = Number(process.env.PORT || 2567);
