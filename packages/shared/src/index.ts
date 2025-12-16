@@ -107,7 +107,7 @@ export const GAME_CONSTANTS = {
     DROP_CHANCE: 0.8, // 80% chance to drop loot
 
     // Safe Zone & Shop System (Phase 9)
-    SAFE_ZONE_RADIUS: 15.0, // 安全區半徑（地圖中心）
+    SAFE_ZONE_RADIUS: 8.0, // 安全區半徑（地圖中心）- 縮小方便測試
     SHOP_INTERACTION_RANGE: 5.0, // 與商店 NPC 互動距離
 };
 

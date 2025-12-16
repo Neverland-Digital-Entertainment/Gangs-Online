@@ -111,7 +111,7 @@ export class EnemyManager {
     }
 
     /**
-     * 尋找最近的玩家
+     * 尋找最近的玩家（跳過安全區內的玩家）
      */
     private findNearestPlayer(enemy: Enemy): Player | null {
         let nearestPlayer: Player | null = null;
@@ -119,6 +119,9 @@ export class EnemyManager {
 
         this.players.forEach((player) => {
             if (player.hp <= 0) return; // 跳過死亡的玩家
+
+            // 跳過在安全區內的玩家
+            if (this.isInSafeZone(player.x, player.z)) return;
 
             const distance = this.calculateDistance(enemy, player);
             if (distance < minDistance) {
@@ -128,6 +131,14 @@ export class EnemyManager {
         });
 
         return nearestPlayer;
+    }
+
+    /**
+     * 檢查位置是否在安全區內
+     */
+    private isInSafeZone(x: number, z: number): boolean {
+        const distanceFromCenter = Math.sqrt(x * x + z * z);
+        return distanceFromCenter < GAME_CONSTANTS.SAFE_ZONE_RADIUS;
     }
 
     /**
