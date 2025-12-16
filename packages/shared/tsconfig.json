@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
         "target": "ES2020",
-        "module": "CommonJS",
+        "module": "ESNext",
         "declaration": true,
         "outDir": "./dist",
         "strict": true,
@@ -9,7 +9,7 @@
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
         "skipLibCheck": true,
-        "moduleResolution": "node"
+        "moduleResolution": "bundler"
     },
     "include": [
         "src/**/*"
