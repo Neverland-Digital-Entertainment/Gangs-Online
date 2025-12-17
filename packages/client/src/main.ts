@@ -283,12 +283,44 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                     console.log("❓ Clicked mesh:", clickedMesh.name, "metadata:", clickedMesh.metadata);
                 }
 
-                // 點擊地面 -> 移動
-                if (pickResult.pickedPoint && !pickResult.pickedMesh.name.startsWith("b_")) {
-                    room.send("move", {
-                        x: pickResult.pickedPoint.x,
-                        z: pickResult.pickedPoint.z,
-                    });
+                // 點擊地面 -> 移動（支持穿透建筑物）
+                if (pickResult.pickedPoint) {
+                    let targetPoint = null;
+
+                    // 如果點擊了建筑物，嘗試穿透找到後面的道路
+                    if (pickResult.pickedMesh.name.startsWith("b_")) {
+                        // 使用射線檢測獲取所有擊中的物體
+                        const ray = scene.createPickingRay(
+                            scene.pointerX,
+                            scene.pointerY,
+                            BABYLON.Matrix.Identity(),
+                            camera
+                        );
+
+                        const hits = scene.multiPickWithRay(ray);
+                        if (hits) {
+                            // 遍歷所有擊中的物體，找到第一個不是建筑物的地面
+                            for (const hit of hits) {
+                                if (hit.pickedMesh &&
+                                    !hit.pickedMesh.name.startsWith("b_") &&
+                                    hit.pickedPoint) {
+                                    targetPoint = hit.pickedPoint;
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        // 直接點擊了地面
+                        targetPoint = pickResult.pickedPoint;
+                    }
+
+                    // 如果找到了有效的目標點，發送移動命令
+                    if (targetPoint) {
+                        room.send("move", {
+                            x: targetPoint.x,
+                            z: targetPoint.z,
+                        });
+                    }
                 }
             }
         };
@@ -304,11 +336,15 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         // 更新所有敵人
         enemyManager.updateAll();
 
-        // 相機跟隨
+        // Phase 10: 更新建築物遮擋效果
         if (mySessionId) {
             const myEntity = playerManager.getEntity(mySessionId);
             if (myEntity) {
+                // 相機跟隨
                 updateCameraFollow(camera, myEntity.mesh);
+
+                // 檢查並更新建築物透明度（當玩家在建築物後面時）
+                cityGenerator.updateBuildingOcclusion(myEntity.mesh.position, camera);
             }
         }
     });
