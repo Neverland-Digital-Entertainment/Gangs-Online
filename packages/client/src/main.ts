@@ -11,7 +11,7 @@ import { LoadingScreen } from "./systems/LoadingScreen";
 import { ChatSystem } from "./systems/ChatSystem";
 import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
-import { InventorySystem } from "./systems/InventorySystem"; // Phase 8
+// Phase 9.1: InventorySystem UI 已移除，金錢改為在 HUD 顯示
 import { ShopSystem } from "./systems/ShopSystem"; // Phase 9
 import { HUDManager } from "./systems/HUDManager"; // Phase 9.1
 import { CityGenerator } from "./world/CityGenerator";
@@ -93,7 +93,6 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
     let mySessionId: string | null = null;
     let lootManager: LootManager | null = null; // Phase 8
-    let inventorySystem: InventorySystem | null = null; // Phase 8
     let shopSystem: ShopSystem | null = null; // Phase 9
     let hudManager: HUDManager | null = null; // Phase 9.1
 
@@ -114,14 +113,14 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         mySessionId = room.sessionId;
         console.log("Connected! My ID:", mySessionId);
 
-        // 初始化聊天系統
+        // 初始化聊天系統（只保留聊天氣泡功能）
         loadingScreen.updateText("正在準備遊戲介面...");
         const chatSystem = new ChatSystem(room, scene, uiTexture);
-        chatSystem.createChatInput();
+        // Phase 9.1: 舊的 createChatInput 已移除，改用 HUD 中的聊天輸入
 
-        // === Phase 8: 初始化戰利品和背包系統 ===
+        // === Phase 8: 初始化戰利品系統 ===
         lootManager = new LootManager(scene, room);
-        inventorySystem = new InventorySystem(room, uiTexture);
+        // Phase 9.1: 舊的 InventorySystem UI 已移除，金錢改為在 HUD 顯示
 
         // === Phase 9: 初始化商店系統 ===
         shopSystem = new ShopSystem(room, uiTexture);
@@ -178,17 +177,13 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 playerManager.updateLevel(sessionId, newLevel, player.name);
             });
 
-            // === Phase 8: 同步背包系統（僅限自己的角色）===
-            if (isSelf && inventorySystem) {
-                inventorySystem.setupPlayerInventoryListener(player);
-            }
-
             // === Phase 9.1: 同步 HUD（僅限自己的角色）===
             if (isSelf && hudManager) {
                 // 初始化 HUD 狀態
                 hudManager.updateHP(player.hp, player.maxHp);
                 hudManager.updateExp(player.xp, player.maxXp);
                 hudManager.updateLevel(player.level, getRankTitle(player.level));
+                hudManager.updateMoney(player.money || 0);
 
                 // 監聽血量變化
                 player.listen("hp", (currentHp: number) => {
@@ -203,6 +198,11 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 // 監聽等級變化
                 player.listen("level", (newLevel: number) => {
                     hudManager?.updateLevel(newLevel, getRankTitle(newLevel));
+                });
+
+                // 監聽金錢變化
+                player.listen("money", (money: number) => {
+                    hudManager?.updateMoney(money);
                 });
             }
         });

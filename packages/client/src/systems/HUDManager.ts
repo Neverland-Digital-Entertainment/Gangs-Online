@@ -37,6 +37,9 @@ export class HUDManager {
     // Action Menu
     private actionMenuContainer: GUI.Rectangle | null = null;
 
+    // Money
+    private moneyText: GUI.TextBlock | null = null;
+
     // Popup
     private popupRoot: GUI.Container | null = null;
     private popupContainer: GUI.Rectangle | null = null;
@@ -313,6 +316,9 @@ export class HUDManager {
 
         // Action Menu
         this.actionMenuContainer = this.findControlByName<GUI.Rectangle>("ActionMenuContainer");
+
+        // Money
+        this.moneyText = this.findControlByName<GUI.TextBlock>("MoneyText");
     }
 
     /**
@@ -535,6 +541,15 @@ export class HUDManager {
     updateLevel(level: number, rankTitle?: string): void {
         if (this.levelText) {
             this.levelText.text = rankTitle ? `LV ${level} ${rankTitle}` : `LV ${level}`;
+        }
+    }
+
+    /**
+     * 更新金錢顯示
+     */
+    updateMoney(money: number): void {
+        if (this.moneyText) {
+            this.moneyText.text = `HKD: $${money.toLocaleString()}`;
         }
     }
 
