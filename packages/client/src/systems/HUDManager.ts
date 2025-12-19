@@ -444,12 +444,13 @@ export class HUDManager {
         console.log("⚠️ Creating fallback HUD");
 
         // Create a basic container
-        this.mainHUD = new GUI.Rectangle();
-        this.mainHUD.name = "MainHUD";
-        this.mainHUD.width = "100%";
-        this.mainHUD.height = "100%";
-        this.mainHUD.thickness = 0;
-        this.uiTexture.addControl(this.mainHUD);
+        const mainContainer = new GUI.Rectangle();
+        mainContainer.name = "MainHUD";
+        mainContainer.width = "100%";
+        mainContainer.height = "100%";
+        mainContainer.thickness = 0;
+        this.uiTexture.addControl(mainContainer);
+        this.mainHUD = mainContainer;
 
         // Create basic status container
         const statusContainer = new GUI.Rectangle();
@@ -462,7 +463,7 @@ export class HUDManager {
         statusContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
         statusContainer.left = "10px";
         statusContainer.top = "10px";
-        this.mainHUD.addControl(statusContainer);
+        mainContainer.addControl(statusContainer);
 
         // HP Bar
         const hpBg = new GUI.Rectangle();
