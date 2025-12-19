@@ -5,9 +5,11 @@ import { GAME_CONSTANTS } from "@gangs-online/shared";
  * 城市生成器
  * 負責生成程序化的城市環境（道路、人行道、建築物）
  * Phase 9: 增加安全區視覺效果
+ * Phase 10: 增加建築物遮擋透明效果
  */
 export class CityGenerator {
     private scene: BABYLON.Scene;
+    private buildings: BABYLON.Mesh[] = []; // 存儲所有建築物以便遮擋檢測
 
     constructor(scene: BABYLON.Scene) {
         this.scene = scene;
@@ -72,11 +74,6 @@ export class CityGenerator {
         const sidewalkMat = new BABYLON.StandardMaterial("sidewalkMat", this.scene);
         sidewalkMat.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
 
-        // Building material (Neon Blocks)
-        const buildingMat = new BABYLON.StandardMaterial("bMat", this.scene);
-        buildingMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.3);
-        buildingMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.2);
-
         // Generate random blocks
         for (let i = -4; i <= 4; i++) {
             for (let j = -4; j <= 4; j++) {
@@ -90,10 +87,19 @@ export class CityGenerator {
                     this.scene
                 );
                 building.position.set(i * 12, height / 2, j * 12);
+
+                // 為每個建築物創建獨立材質（以便單獨控制透明度）
+                const buildingMat = new BABYLON.StandardMaterial(`bMat_${i}_${j}`, this.scene);
+                buildingMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.3);
+                buildingMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.2);
+                buildingMat.alpha = 1.0; // 初始為不透明
                 building.material = buildingMat;
 
                 // ENABLE COLLISION ON BUILDINGS
                 building.checkCollisions = true;
+
+                // 保存建築物引用以便後續遮擋檢測
+                this.buildings.push(building);
 
                 const walk = BABYLON.MeshBuilder.CreateGround(
                     `w_${i}_${j}`,
@@ -105,6 +111,33 @@ export class CityGenerator {
 
                 // ENABLE COLLISION ON SIDEWALKS
                 walk.checkCollisions = true;
+            }
+        }
+    }
+
+    /**
+     * 更新建築物遮擋效果 (Phase 10)
+     * 當玩家在建築物後面時，將建築物設置為半透明，讓玩家可見
+     */
+    updateBuildingOcclusion(playerPosition: BABYLON.Vector3, camera: BABYLON.Camera): void {
+        const cameraPos = camera.position;
+
+        for (const building of this.buildings) {
+            // 從相機到玩家創建射線
+            const direction = playerPosition.subtract(cameraPos).normalize();
+            const distance = BABYLON.Vector3.Distance(cameraPos, playerPosition);
+
+            const ray = new BABYLON.Ray(cameraPos, direction, distance);
+
+            // 檢查射線是否擊中這個建築物
+            const hit = ray.intersectsMesh(building, false);
+
+            if (hit.hit && building.material instanceof BABYLON.StandardMaterial) {
+                // 玩家被這個建築物遮擋，設置為半透明
+                building.material.alpha = 0.3;
+            } else if (building.material instanceof BABYLON.StandardMaterial) {
+                // 玩家沒有被遮擋，恢復不透明
+                building.material.alpha = 1.0;
             }
         }
     }
