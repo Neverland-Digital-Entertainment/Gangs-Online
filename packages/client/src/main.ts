@@ -81,6 +81,9 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
     // --- UI Layer ---
     const uiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+    // Phase 9.1: 設置理想寬度，讓 UI 根據螢幕比例自動縮放
+    uiTexture.idealWidth = 1920;
+    uiTexture.useSmallestIdeal = true;
 
     // --- 初始化系統 ---
     const uiSystem = new UISystem(uiTexture);

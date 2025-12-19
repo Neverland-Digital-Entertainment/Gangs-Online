@@ -31,6 +31,13 @@
             text-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
 
+        #loadingScreen .logo {
+            max-width: 80%;
+            max-height: 200px;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 2px 10px rgba(0,0,0,0.3));
+        }
+
         #loadingText {
             color: rgba(255,255,255,0.9);
             font-size: 18px;
@@ -122,7 +129,7 @@
   <body>
     <!-- Loading Screen -->
     <div id="loadingScreen">
-        <h1>🎮 Gangs Online</h1>
+        <img src="/logo-small.png" alt="Gangs Online" class="logo" />
         <div class="spinner"></div>
         <div id="loadingText">正在初始化...</div>
     </div>
