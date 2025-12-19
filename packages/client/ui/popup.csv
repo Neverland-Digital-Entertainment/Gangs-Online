@@ -1,0 +1,7 @@
+層級 / 名稱 (Name),類型 (Type),預設文字 (Text / Content),說明 (Description)
+root,Container,(Root),
+└── PopupContainer,Rectangle,,
+      ├── btn_close,Button,,關閉popup
+      │   └── Button_button,TextBlock,X,
+      ├── ScrollViewer,ScrollViewer,,顯示相關內容
+      └── txt_title,TextBlock,Title,popup的標題，根據選擇的功能轉換

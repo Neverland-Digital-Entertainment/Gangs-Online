@@ -1,0 +1,42 @@
+Main UI Instruction,類型 (Type),預設文字 (Text / Content),說明 (Description)
+MainHUD,Rectangle,(Root),
+├── StatusContainer,Rectangle,,
+│   ├── Player,Image,(Placeholder Image),玩家頭像
+│   ├── HP_Bar_BG,Rectangle,,玩家最大HP %
+│   │   └── HP_Bar_Fill,Rectangle,,玩家現時HP %
+│   ├── VP_Bar_BG,Rectangle,,玩家最大VP %
+│   │   └── VP_Bar_Fill,Rectangle,,玩家現時VP %
+│   ├── Exp_Bar_BG,Rectangle,,玩家所需升級EXP %
+│   │   └── Exp_Bar_Fill,Rectangle,,玩家現時EXP/所需升級EXP %
+│   ├── LevelText,TextBlock,LV,玩家現時等級(integer)
+│   └── Wanted,Ellipse,,BOOL，玩家是否被通緝
+├── MinimapContainer,Ellipse,,地圖顯示，玩家在不同地方邊框顏色不同：綠(安全區)、紅(敵人地盤)、黃(其他地方)
+│   └── LocationName,TextBlock,銅鑼灣,地方名稱
+├── ChatContainer,Rectangle,,
+│   ├── ChatTabs,StackPanel,,
+│   │   ├── tab_all,Button,全部,在ChatScroll顯示所有頻道的對話內容
+│   │   ├── tab_world,Button,世界,在ChatScroll顯示世界頻道的對話內容
+│   │   ├── tab_guild,Button,公會,在ChatScroll顯示公會頻道的對話內容
+│   │   └── tab_private,Button,私訊,在ChatScroll顯示曾私訊的玩家列表以及私訊的對話內容
+│   ├── ChatScroll,ScrollViewer,,顯示相關對話內容
+│   └── ChatInput,InputText,(Placeholder: Enter 說話...),"輸入並傳送訊息，訊息會發出在玩家選擇了的頻道，如果是""全部""會傳送到世界頻道"
+├── ShortcutBar,StackPanel,,給玩家儲存道具或技能的捷徑
+│   ├── slot1,Button,,
+│   ├── slot2,Button,,
+│   ├── slot3,Button,,
+│   ├── slot4,Button,,
+│   ├── slot5,Button,,
+│   ├── slot6,Button,,
+│   ├── slot7,Button,,
+│   ├── slot8,Button,,
+│   ├── slot9,Button,,
+│   └── slot10,Button,,
+└── ActionMenuContainer,Rectangle,,使用popup.js顯示相關資訊
+      ├── Row1,StackPanel,,
+      │   ├── btn_character,Button,角色,顯示角色狀態和裝備的資訊
+      │   ├── btn_skills,Button,技能,顯示角色技能及升級的資訊
+      │   └── btn_inventory,Button,道具,顯示玩家身上所有消耗道具和裝備的資訊
+      └── Row2,StackPanel,,
+            ├── btn_quest,Button,任務,顯示各種任務資訊
+            ├── btn_social,Button,社交,顯示朋友列表或公會成員列表
+            └── btn_system,Button,設定,進行遊戲的相關設定
