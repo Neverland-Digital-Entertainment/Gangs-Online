@@ -43,6 +43,9 @@ export class PlayerData extends Schema implements IEntityData {
     @type("number") level: number = 1;
     @type("number") xp: number = 0;
     @type("number") maxXp: number = 100;
+
+    // Economy System (Phase 8)
+    @type("number") money: number = 0;
 }
 
 // Enemy Data (for PVE)
