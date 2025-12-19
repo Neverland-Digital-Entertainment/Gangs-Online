@@ -418,3 +418,16 @@ createScene()
 window.addEventListener("resize", () => {
     engine.resize();
 });
+
+// --- 全螢幕切換處理 ---
+const handleFullscreenChange = () => {
+    // 延遲執行以確保瀏覽器完成全螢幕切換
+    setTimeout(() => {
+        engine.resize();
+    }, 100);
+};
+
+document.addEventListener("fullscreenchange", handleFullscreenChange);
+document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+document.addEventListener("MSFullscreenChange", handleFullscreenChange);
