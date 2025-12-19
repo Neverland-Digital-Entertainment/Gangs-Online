@@ -615,8 +615,8 @@ export class HUDManager {
     private sendChatMessage(text: string): void {
         if (!this.room) return;
 
-        const channel = this.currentChatChannel === "all" ? "world" : this.currentChatChannel;
-        this.room.send("chat", { text, channel });
+        // 服務器期望純字符串格式
+        this.room.send("chat", text);
     }
 
     /**
