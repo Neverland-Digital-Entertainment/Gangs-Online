@@ -7,7 +7,7 @@ import { PlayerData } from "@gangs-online/shared";
  */
 export interface PlayerEntity {
     mesh: BABYLON.AbstractMesh;
-    ui: PlayerUIElements;
+    ui: PlayerUIElements | null; // Phase 9.1: 自己的玩家不顯示頭頂 UI
     idleAnim?: BABYLON.AnimationGroup;
     runAnim?: BABYLON.AnimationGroup;
     currentAnim: "idle" | "run" | "dead";

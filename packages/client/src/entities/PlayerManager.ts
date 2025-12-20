@@ -66,8 +66,8 @@ export class PlayerManager {
 
         if (idle) idle.play(true); // Start Idle by default
 
-        // UI (Name + HP Bar)
-        const ui = this.uiSystem.createPlayerUI(root, isSelf ? "大佬 (Me)" : "Target");
+        // UI (Name + HP Bar) - 只為其他玩家創建頭頂 UI，自己的狀態會顯示在 HUD 上
+        const ui = isSelf ? null : this.uiSystem.createPlayerUI(root, "Target");
 
         const entity: PlayerEntity = {
             mesh: root,
@@ -94,7 +94,7 @@ export class PlayerManager {
         const entity = this.playerEntities[sessionId];
         if (entity) {
             entity.mesh.dispose();
-            entity.ui.container.dispose();
+            entity.ui?.container?.dispose();
             entity.idleAnim?.stop();
             entity.idleAnim?.dispose();
             entity.runAnim?.stop();
@@ -121,7 +121,10 @@ export class PlayerManager {
     updateHealth(sessionId: string, currentHp: number, maxHp: number): void {
         const entity = this.playerEntities[sessionId];
         if (entity) {
-            this.uiSystem.updateHealthBar(entity.ui, currentHp, maxHp);
+            // 只為有 UI 的玩家（其他玩家）更新頭頂血條
+            if (entity.ui) {
+                this.uiSystem.updateHealthBar(entity.ui, currentHp, maxHp);
+            }
 
             // Visual Feedback: Turn semi-transparent if dead
             if (currentHp <= 0) {
@@ -138,7 +141,7 @@ export class PlayerManager {
      */
     updateCombatState(sessionId: string, inCombat: boolean): void {
         const entity = this.playerEntities[sessionId];
-        if (entity) {
+        if (entity?.ui) {
             this.uiSystem.setCombatIndicator(entity.ui, inCombat);
         }
     }
@@ -148,7 +151,7 @@ export class PlayerManager {
      */
     updateXP(sessionId: string, currentXP: number, maxXP: number): void {
         const entity = this.playerEntities[sessionId];
-        if (entity && entity.ui.xpFg) {
+        if (entity?.ui?.xpFg) {
             this.uiSystem.updateXPBar(entity.ui.xpFg, currentXP, maxXP);
         }
     }
@@ -158,7 +161,7 @@ export class PlayerManager {
      */
     updateLevel(sessionId: string, level: number, playerName: string): void {
         const entity = this.playerEntities[sessionId];
-        if (entity && entity.ui.nameLabel) {
+        if (entity?.ui?.nameLabel) {
             this.uiSystem.updatePlayerTitle(entity.ui.nameLabel, playerName, level);
         }
     }

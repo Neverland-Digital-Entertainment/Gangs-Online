@@ -11,13 +11,15 @@ import { LoadingScreen } from "./systems/LoadingScreen";
 import { ChatSystem } from "./systems/ChatSystem";
 import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
-import { InventorySystem } from "./systems/InventorySystem"; // Phase 8
+// Phase 9.1: InventorySystem UI 已移除，金錢改為在 HUD 顯示
 import { ShopSystem } from "./systems/ShopSystem"; // Phase 9
+import { HUDManager } from "./systems/HUDManager"; // Phase 9.1
 import { CityGenerator } from "./world/CityGenerator";
 import { PlayerManager } from "./entities/PlayerManager";
 import { EnemyManager } from "./entities/EnemyManager";
 import { LootManager } from "./entities/LootManager"; // Phase 8
-import { createEngine, createIsometricCamera, setupScene, updateCameraFollow } from "./utils/BabylonUtils";
+import { createEngine, createIsometricCamera, setupScene, updateCameraFollow, updateCameraOrtho } from "./utils/BabylonUtils";
+import { getRankTitle } from "./utils/progression";
 
 /**
  * 主入口 - 遊戲初始化和場景創建
@@ -79,6 +81,9 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
     // --- UI Layer ---
     const uiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+    // Phase 9.1: 設置理想寬度，讓 UI 根據螢幕比例自動縮放
+    uiTexture.idealWidth = 1920;
+    uiTexture.useSmallestIdeal = true;
 
     // --- 初始化系統 ---
     const uiSystem = new UISystem(uiTexture);
@@ -88,8 +93,8 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
     let mySessionId: string | null = null;
     let lootManager: LootManager | null = null; // Phase 8
-    let inventorySystem: InventorySystem | null = null; // Phase 8
     let shopSystem: ShopSystem | null = null; // Phase 9
+    let hudManager: HUDManager | null = null; // Phase 9.1
 
     try {
         // 連接遊戲房間前，先檢查版本（0.7.1）
@@ -108,23 +113,33 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         mySessionId = room.sessionId;
         console.log("Connected! My ID:", mySessionId);
 
-        // 初始化聊天系統
+        // 初始化聊天系統（只保留聊天氣泡功能）
         loadingScreen.updateText("正在準備遊戲介面...");
         const chatSystem = new ChatSystem(room, scene, uiTexture);
-        chatSystem.createChatInput();
+        // Phase 9.1: 舊的 createChatInput 已移除，改用 HUD 中的聊天輸入
 
-        // === Phase 8: 初始化戰利品和背包系統 ===
+        // === Phase 8: 初始化戰利品系統 ===
         lootManager = new LootManager(scene, room);
-        inventorySystem = new InventorySystem(room, uiTexture);
+        // Phase 9.1: 舊的 InventorySystem UI 已移除，金錢改為在 HUD 顯示
 
         // === Phase 9: 初始化商店系統 ===
         shopSystem = new ShopSystem(room, uiTexture);
 
+        // === Phase 9.1: 初始化 HUD 管理器 ===
+        hudManager = new HUDManager(uiTexture);
+        await hudManager.initialize(room);
+
         // 監聽聊天訊息
-        room.onMessage("chat", (msg: { sessionId: string; text: string }) => {
+        room.onMessage("chat", (msg: { sessionId: string; text: string; channel?: string }) => {
             const entity = playerManager.getEntity(msg.sessionId);
             if (entity) {
                 chatSystem.createChatBubble(entity.mesh, msg.text);
+            }
+            // Phase 9.1: 同步到 HUD 聊天系統
+            if (hudManager) {
+                const player = (room.state as any).players.get(msg.sessionId);
+                const senderName = player?.name || "Unknown";
+                hudManager.addChatMessage(senderName, msg.text, msg.channel || "world");
             }
         });
 
@@ -162,9 +177,33 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 playerManager.updateLevel(sessionId, newLevel, player.name);
             });
 
-            // === Phase 8: 同步背包系統（僅限自己的角色）===
-            if (isSelf && inventorySystem) {
-                inventorySystem.setupPlayerInventoryListener(player);
+            // === Phase 9.1: 同步 HUD（僅限自己的角色）===
+            if (isSelf && hudManager) {
+                // 初始化 HUD 狀態
+                hudManager.updateHP(player.hp, player.maxHp);
+                hudManager.updateExp(player.xp, player.maxXp);
+                hudManager.updateLevel(player.level, getRankTitle(player.level));
+                hudManager.updateMoney(player.money || 0);
+
+                // 監聽血量變化
+                player.listen("hp", (currentHp: number) => {
+                    hudManager?.updateHP(currentHp, player.maxHp);
+                });
+
+                // 監聽經驗值變化
+                player.listen("xp", (currentXP: number) => {
+                    hudManager?.updateExp(currentXP, player.maxXp);
+                });
+
+                // 監聽等級變化
+                player.listen("level", (newLevel: number) => {
+                    hudManager?.updateLevel(newLevel, getRankTitle(newLevel));
+                });
+
+                // 監聽金錢變化
+                player.listen("money", (money: number) => {
+                    hudManager?.updateMoney(money);
+                });
             }
         });
 
@@ -376,6 +415,26 @@ createScene()
     });
 
 // --- 視窗大小調整 ---
-window.addEventListener("resize", () => {
+const handleResize = () => {
     engine.resize();
-});
+    // 更新相機正交邊界，確保畫面不會變形
+    const scene = engine.scenes[0];
+    if (scene && scene.activeCamera) {
+        updateCameraOrtho(scene.activeCamera as BABYLON.FreeCamera, engine);
+    }
+};
+
+window.addEventListener("resize", handleResize);
+
+// --- 全螢幕切換處理 ---
+const handleFullscreenChange = () => {
+    // 延遲執行以確保瀏覽器完成全螢幕切換
+    setTimeout(() => {
+        handleResize();
+    }, 100);
+};
+
+document.addEventListener("fullscreenchange", handleFullscreenChange);
+document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+document.addEventListener("MSFullscreenChange", handleFullscreenChange);

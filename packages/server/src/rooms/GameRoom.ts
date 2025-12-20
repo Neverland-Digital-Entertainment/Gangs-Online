@@ -418,6 +418,8 @@ export class GameRoom extends Room<GameState> {
 
         const player = new Player();
         player.sessionId = client.sessionId;
+        // 設置玩家名字（使用 sessionId 前 6 位作為暱稱）
+        player.name = `玩家${client.sessionId.substring(0, 6)}`;
         // Random Spawn
         player.x = Math.random() * 10 - 5;
         player.z = Math.random() * 10 - 5;
