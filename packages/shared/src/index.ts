@@ -148,4 +148,4 @@ export const getRankTitle = (level: number): string => {
 /**
  * 遊戲版本（0.9.0 - Safe Zone & Shop）
  */
-export const GAME_VERSION = "0.9.0";
+export const GAME_VERSION = "0.9.1";
