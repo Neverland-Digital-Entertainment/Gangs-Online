@@ -18,7 +18,7 @@ import { CityGenerator } from "./world/CityGenerator";
 import { PlayerManager } from "./entities/PlayerManager";
 import { EnemyManager } from "./entities/EnemyManager";
 import { LootManager } from "./entities/LootManager"; // Phase 8
-import { createEngine, createIsometricCamera, setupScene, updateCameraFollow } from "./utils/BabylonUtils";
+import { createEngine, createIsometricCamera, setupScene, updateCameraFollow, updateCameraOrtho } from "./utils/BabylonUtils";
 import { getRankTitle } from "./utils/progression";
 
 /**
@@ -415,15 +415,22 @@ createScene()
     });
 
 // --- 視窗大小調整 ---
-window.addEventListener("resize", () => {
+const handleResize = () => {
     engine.resize();
-});
+    // 更新相機正交邊界，確保畫面不會變形
+    const scene = engine.scenes[0];
+    if (scene && scene.activeCamera) {
+        updateCameraOrtho(scene.activeCamera as BABYLON.FreeCamera, engine);
+    }
+};
+
+window.addEventListener("resize", handleResize);
 
 // --- 全螢幕切換處理 ---
 const handleFullscreenChange = () => {
     // 延遲執行以確保瀏覽器完成全螢幕切換
     setTimeout(() => {
-        engine.resize();
+        handleResize();
     }, 100);
 };
 

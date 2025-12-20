@@ -41,14 +41,21 @@ export function createIsometricCamera(scene: BABYLON.Scene, engine: BABYLON.Engi
     camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
     camera.setTarget(BABYLON.Vector3.Zero());
 
-    // Zoom
+    // 初始化正交邊界
+    updateCameraOrtho(camera, engine);
+
+    return camera;
+}
+
+/**
+ * 更新相機正交邊界（當畫面大小改變時調用）
+ */
+export function updateCameraOrtho(camera: BABYLON.FreeCamera, engine: BABYLON.Engine): void {
     const aspect = engine.getAspectRatio(camera);
     camera.orthoTop = cameraConfig.zoom;
     camera.orthoBottom = -cameraConfig.zoom;
     camera.orthoLeft = -cameraConfig.zoom * aspect;
     camera.orthoRight = cameraConfig.zoom * aspect;
-
-    return camera;
 }
 
 /**
