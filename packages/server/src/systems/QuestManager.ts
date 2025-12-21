@@ -84,6 +84,19 @@ export class QuestManager {
         newQuest.rewardMoney = questDef.reward.money;
 
         player.activeQuest = newQuest;
+
+        // 發送任務狀態更新消息到客戶端
+        client.send("questStateUpdate", {
+            id: newQuest.id,
+            name: newQuest.name,
+            description: newQuest.description,
+            currentCount: newQuest.currentCount,
+            requiredCount: newQuest.requiredCount,
+            completed: newQuest.completed,
+            rewardXp: newQuest.rewardXp,
+            rewardMoney: newQuest.rewardMoney,
+        });
+
         client.send("notification", `接受任務: ${questDef.name}`);
         console.log(`📋 ${player.name} accepted quest: ${questDef.name}`);
 
@@ -114,6 +127,18 @@ export class QuestManager {
                     `任務進度: ${player.activeQuest.currentCount}/${player.activeQuest.requiredCount}`
                 );
             }
+
+            // 發送任務狀態更新消息
+            client.send("questStateUpdate", {
+                id: player.activeQuest.id,
+                name: player.activeQuest.name,
+                description: player.activeQuest.description,
+                currentCount: player.activeQuest.currentCount,
+                requiredCount: player.activeQuest.requiredCount,
+                completed: player.activeQuest.completed,
+                rewardXp: player.activeQuest.rewardXp,
+                rewardMoney: player.activeQuest.rewardMoney,
+            });
         }
     }
 
@@ -163,6 +188,9 @@ export class QuestManager {
         // 清除當前任務
         player.activeQuest = null;
 
+        // 發送任務清除消息
+        client.send("questStateUpdate", null);
+
         return { xpGained, moneyGained, newLevel };
     }
 
@@ -177,6 +205,10 @@ export class QuestManager {
 
         const questName = player.activeQuest.name;
         player.activeQuest = null;
+
+        // 發送任務清除消息
+        client.send("questStateUpdate", null);
+
         client.send("notification", `已放棄任務: ${questName}`);
         console.log(`❌ ${player.name} abandoned quest: ${questName}`);
 

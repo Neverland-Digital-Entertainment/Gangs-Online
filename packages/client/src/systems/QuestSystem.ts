@@ -41,6 +41,12 @@ export class QuestSystem {
             this.availableQuest = quest;
             console.log("📋 Received quest info:", quest.name);
         });
+
+        // 接收任務狀態更新
+        this.room.onMessage("questStateUpdate", (quest: IQuestState | null) => {
+            console.log("📋 Quest state update:", quest);
+            this.currentQuest = quest;
+        });
     }
 
     /**
