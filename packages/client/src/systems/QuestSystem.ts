@@ -20,11 +20,21 @@ export class QuestSystem {
     private currentQuest: IQuestState | null = null;
     private availableQuest: IQuestDef | null = null;
 
+    // 關閉 popup 的回調
+    private hidePopupCallback: (() => void) | null = null;
+
     constructor(room: Room, uiTexture: GUI.AdvancedDynamicTexture) {
         this.room = room;
         this.uiTexture = uiTexture;
         this.setupQuestTracker();
         this.setupMessageHandlers();
+    }
+
+    /**
+     * 設置關閉 popup 的回調
+     */
+    setHidePopupCallback(callback: () => void): void {
+        this.hidePopupCallback = callback;
     }
 
     /**
@@ -216,6 +226,10 @@ export class QuestSystem {
             completeBtn.onPointerUpObservable.add(() => {
                 console.log("📋 Completing quest");
                 this.room.send("completeQuest");
+                // 領取獎勵後關閉 popup
+                if (this.hidePopupCallback) {
+                    this.hidePopupCallback();
+                }
             });
             buttonPanel.addControl(completeBtn);
         }
@@ -231,6 +245,10 @@ export class QuestSystem {
         abandonBtn.onPointerUpObservable.add(() => {
             console.log("📋 Abandoning quest");
             this.room.send("abandonQuest");
+            // 放棄任務後關閉 popup
+            if (this.hidePopupCallback) {
+                this.hidePopupCallback();
+            }
         });
         buttonPanel.addControl(abandonBtn);
 
@@ -367,6 +385,10 @@ export class QuestSystem {
         acceptBtn.onPointerUpObservable.add(() => {
             console.log(`📋 Accepting quest: ${questId}`);
             this.room.send("acceptQuest", questId);
+            // 接受任務後關閉 popup
+            if (this.hidePopupCallback) {
+                this.hidePopupCallback();
+            }
         });
         btnContainer.addControl(acceptBtn);
 

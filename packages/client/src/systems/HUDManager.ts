@@ -78,6 +78,10 @@ export class HUDManager {
         // Initialize Quest System (Phase 10)
         this.questSystem = new QuestSystem(room, this.uiTexture);
         this.questSystem.setPopupContent(this.popupContent);
+        // 設置關閉 popup 的回調
+        this.questSystem.setHidePopupCallback(() => {
+            this.hidePopup();
+        });
 
         // Initialize Shop Popup System (Phase 10.1)
         this.shopPopupSystem = new ShopPopupSystem(room);

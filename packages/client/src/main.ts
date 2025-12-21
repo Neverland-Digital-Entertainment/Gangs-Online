@@ -224,6 +224,40 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
                 // Phase 10.1: 初始化商店系統的金錢
                 hudManager?.updateShopMoney(player.money || 0);
+
+                // Phase 10: 監聽任務狀態變化
+                player.listen("activeQuest", (quest: any) => {
+                    console.log("📋 Quest state changed:", quest);
+                    if (quest) {
+                        hudManager?.updateQuestState({
+                            id: quest.id,
+                            name: quest.name,
+                            description: quest.description,
+                            currentCount: quest.currentCount,
+                            requiredCount: quest.requiredCount,
+                            completed: quest.completed,
+                            rewardXp: quest.rewardXp,
+                            rewardMoney: quest.rewardMoney,
+                        });
+                    } else {
+                        hudManager?.updateQuestState(null);
+                    }
+                });
+
+                // Phase 10: 初始化任務狀態
+                if ((player as any).activeQuest) {
+                    const quest = (player as any).activeQuest;
+                    hudManager?.updateQuestState({
+                        id: quest.id,
+                        name: quest.name,
+                        description: quest.description,
+                        currentCount: quest.currentCount,
+                        requiredCount: quest.requiredCount,
+                        completed: quest.completed,
+                        rewardXp: quest.rewardXp,
+                        rewardMoney: quest.rewardMoney,
+                    });
+                }
             }
         });
 
