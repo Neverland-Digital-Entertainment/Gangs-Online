@@ -86,7 +86,7 @@ export class QuestManager {
         player.activeQuest = newQuest;
 
         // 發送任務狀態更新消息到客戶端
-        client.send("questStateUpdate", {
+        const questState = {
             id: newQuest.id,
             name: newQuest.name,
             description: newQuest.description,
@@ -95,7 +95,9 @@ export class QuestManager {
             completed: newQuest.completed,
             rewardXp: newQuest.rewardXp,
             rewardMoney: newQuest.rewardMoney,
-        });
+        };
+        console.log("📋 [Server] Sending questStateUpdate:", questState);
+        client.send("questStateUpdate", questState);
 
         client.send("notification", `接受任務: ${questDef.name}`);
         console.log(`📋 ${player.name} accepted quest: ${questDef.name}`);

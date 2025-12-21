@@ -44,8 +44,9 @@ export class QuestSystem {
 
         // 接收任務狀態更新
         this.room.onMessage("questStateUpdate", (quest: IQuestState | null) => {
-            console.log("📋 Quest state update:", quest);
+            console.log("📋 [QuestSystem] questStateUpdate received:", quest);
             this.currentQuest = quest;
+            console.log("📋 [QuestSystem] currentQuest is now:", this.currentQuest);
         });
     }
 
@@ -53,6 +54,7 @@ export class QuestSystem {
      * 更新任務狀態（從玩家數據同步）
      */
     updateQuestState(quest: IQuestState | null): void {
+        console.log("📋 [QuestSystem] updateQuestState called:", quest);
         this.currentQuest = quest;
     }
 
@@ -67,12 +69,15 @@ export class QuestSystem {
      * 創建任務 Popup 內容
      */
     createQuestPopupContent(): GUI.Control[] {
+        console.log("📋 [QuestSystem] createQuestPopupContent called, currentQuest:", this.currentQuest);
         const controls: GUI.Control[] = [];
 
         if (this.currentQuest) {
+            console.log("📋 [QuestSystem] Showing current quest panel");
             // 顯示當前任務進度
             controls.push(this.createCurrentQuestPanel());
         } else {
+            console.log("📋 [QuestSystem] Showing available quest panel");
             // 顯示可接任務
             controls.push(this.createAvailableQuestPanel());
         }
