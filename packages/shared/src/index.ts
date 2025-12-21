@@ -24,6 +24,21 @@ export interface IEntityData {
     type: EntityType;
 }
 
+/**
+ * Quest Data Schema (Phase 10: Data-Driven Quest System)
+ * 任務狀態同步 Schema
+ */
+export class QuestData extends Schema implements IQuestState {
+    @type("string") id: string = "";
+    @type("string") name: string = "";
+    @type("string") description: string = "";
+    @type("number") currentCount: number = 0;
+    @type("number") requiredCount: number = 0;
+    @type("boolean") completed: boolean = false;
+    @type("number") rewardXp: number = 0;
+    @type("number") rewardMoney: number = 0;
+}
+
 // Player Data Structure for Sync (Colyseus Schema)
 export class PlayerData extends Schema implements IEntityData {
     @type("string") id: string = "";
@@ -46,6 +61,9 @@ export class PlayerData extends Schema implements IEntityData {
 
     // Economy System (Phase 8)
     @type("number") money: number = 0;
+
+    // Quest System (Phase 10)
+    @type(QuestData) activeQuest: QuestData | null = null;
 }
 
 // Enemy Data (for PVE)
