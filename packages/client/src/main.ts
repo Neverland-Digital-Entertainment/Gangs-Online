@@ -322,11 +322,22 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                     }
 
                     // Phase 9: 檢查是否點擊了 NPC
-                    // Phase 10.1: 改用 HUDManager 的 popup 系統
+                    // Phase 10.1: 根據 NPC 類型打開不同的 popup
                     if (clickedMesh.metadata.type === "npc" && clickedMesh.metadata.id) {
-                        console.log("👔 Clicked NPC:", clickedMesh.metadata.id);
+                        const npcId = clickedMesh.metadata.id;
+                        console.log("👔 Clicked NPC:", npcId);
                         if (hudManager) {
-                            hudManager.showShopPopup();
+                            // 根據 NPC ID 決定打開哪個介面
+                            if (npcId === "npc_quest") {
+                                // 浩南 - 任務 NPC
+                                hudManager.showPopup("任務", "quest");
+                            } else if (npcId === "npc_shopkeeper") {
+                                // 十三叔 - 商店 NPC
+                                hudManager.showShopPopup();
+                            } else {
+                                // 其他 NPC 預設打開商店
+                                hudManager.showShopPopup();
+                            }
                         }
                         return;
                     }
