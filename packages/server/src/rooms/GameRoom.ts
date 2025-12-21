@@ -7,6 +7,7 @@ import { LootSystem } from "../systems/LootSystem"; // Phase 8
 import { SafeZoneSystem } from "../systems/SafeZoneSystem"; // Phase 9
 import { ShopSystem } from "../systems/ShopSystem"; // Phase 9
 import { NPCManager } from "../systems/NPCManager"; // Phase 9
+import { QuestManager } from "../systems/QuestManager"; // Phase 10
 
 export class GameRoom extends Room<GameState> {
     maxClients = 50;
@@ -17,6 +18,7 @@ export class GameRoom extends Room<GameState> {
     private safeZoneSystem!: SafeZoneSystem; // 安全區系統 (Phase 9)
     private shopSystem!: ShopSystem; // 商店系統 (Phase 9)
     private npcManager!: NPCManager; // NPC 管理系統 (Phase 9)
+    private questManager!: QuestManager; // 任務管理系統 (Phase 10)
 
     onCreate(options: any) {
         console.log("Gangs Online: Room Created");
@@ -41,6 +43,11 @@ export class GameRoom extends Room<GameState> {
         // 初始化 NPC 管理系統 (Phase 9)
         this.npcManager = new NPCManager(this.state.enemies);
         this.npcManager.initialize();
+
+        // 初始化任務管理系統 (Phase 10)
+        this.questManager = new QuestManager();
+        // 生成任務 NPC - 浩南哥
+        this.npcManager.spawnQuestNPC("npc_quest", 5, 5, "浩南 (Quest)");
 
         // 設置 AI 更新迴圈（每 50ms 執行一次 = 20 FPS）
         this.setSimulationInterval((deltaTime) => {
@@ -90,8 +97,8 @@ export class GameRoom extends Room<GameState> {
                 }
 
                 console.log(`✅ Attacking enemy ${payload.targetId}, HP: ${enemy.hp}/${enemy.maxHp}`);
-                // 攻擊敵人（PVE）
-                this.handlePlayerVsEnemy(attacker, payload.targetId);
+                // 攻擊敵人（PVE） - Phase 10: 傳入 client 用於任務更新
+                this.handlePlayerVsEnemy(client, attacker, payload.targetId);
             }
         });
 
@@ -162,6 +169,60 @@ export class GameRoom extends Room<GameState> {
             }
         });
 
+        // --- PHASE 10: QUEST HANDLERS ---
+        this.onMessage("acceptQuest", (client, questId: string) => {
+            const player = this.state.players.get(client.sessionId);
+            if (player && player.hp > 0) {
+                // 檢查是否靠近任務 NPC
+                const questNpc = this.state.enemies.get("npc_quest");
+                if (questNpc) {
+                    const dist = Math.sqrt(
+                        Math.pow(player.x - questNpc.x, 2) + Math.pow(player.z - questNpc.z, 2)
+                    );
+                    if (dist <= GAME_CONSTANTS.SHOP_INTERACTION_RANGE) {
+                        this.questManager.acceptQuest(client, player, questId);
+                    } else {
+                        client.send("notification", "離浩南哥太遠了！");
+                    }
+                }
+            }
+        });
+
+        this.onMessage("completeQuest", (client) => {
+            const player = this.state.players.get(client.sessionId);
+            if (player && player.hp > 0) {
+                // 檢查是否靠近任務 NPC
+                const questNpc = this.state.enemies.get("npc_quest");
+                if (questNpc) {
+                    const dist = Math.sqrt(
+                        Math.pow(player.x - questNpc.x, 2) + Math.pow(player.z - questNpc.z, 2)
+                    );
+                    if (dist <= GAME_CONSTANTS.SHOP_INTERACTION_RANGE) {
+                        this.questManager.completeQuest(client, player, (type, data) =>
+                            this.broadcast(type, data)
+                        );
+                    } else {
+                        client.send("notification", "離浩南哥太遠了！");
+                    }
+                }
+            }
+        });
+
+        this.onMessage("abandonQuest", (client) => {
+            const player = this.state.players.get(client.sessionId);
+            if (player) {
+                this.questManager.abandonQuest(client, player);
+            }
+        });
+
+        this.onMessage("getQuestInfo", (client) => {
+            // 發送可用任務信息到客戶端
+            const quest = this.questManager.getFirstAvailableQuest();
+            if (quest) {
+                client.send("questInfo", quest);
+            }
+        });
+
         // Auto-Combat Loop (runs every ATTACK_INTERVAL) - 0.7.1: 添加 PvE 支援
         this.clock.setInterval(() => {
             this.state.players.forEach((player) => {
@@ -212,6 +273,12 @@ export class GameRoom extends Room<GameState> {
 
                             // Phase 8: 掉落戰利品
                             this.lootSystem.spawnLoot(enemy.x, enemy.z);
+
+                            // Phase 10: 更新任務進度
+                            const playerClient = this.clients.find((c) => c.sessionId === player.sessionId);
+                            if (playerClient) {
+                                this.questManager.updateKillProgress(playerClient, player, deadEnemyId);
+                            }
 
                             // 結束戰鬥並移除敵人（修正 bug）
                             player.inCombatWithEnemy = "";
@@ -292,8 +359,9 @@ export class GameRoom extends Room<GameState> {
 
     /**
      * 處理玩家對敵人的攻擊（PVE）- 0.7.1: 改為自動戰鬥模式
+     * Phase 10: 添加 client 參數用於任務更新
      */
-    private handlePlayerVsEnemy(attacker: Player, enemyId: string): void {
+    private handlePlayerVsEnemy(client: Client, attacker: Player, enemyId: string): void {
         const enemy = this.state.enemies.get(enemyId);
 
         if (enemy && enemy.hp > 0) {
@@ -339,6 +407,9 @@ export class GameRoom extends Room<GameState> {
 
                     // Phase 8: 掉落戰利品
                     this.lootSystem.spawnLoot(enemy.x, enemy.z);
+
+                    // Phase 10: 更新任務進度
+                    this.questManager.updateKillProgress(client, attacker, enemyId);
 
                     // 清除戰鬥狀態並立即移除敵人
                     attacker.inCombatWithEnemy = "";

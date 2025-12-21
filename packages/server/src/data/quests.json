@@ -1,0 +1,27 @@
+[
+  {
+    "id": "q1_first_blood",
+    "name": "清理門戶",
+    "description": "浩南哥話最近有班廢青係銅鑼灣搞事，你去教訓下 3 個小混混 (Street Thug)。",
+    "type": "kill",
+    "targetId": "mob_thug",
+    "requiredCount": 3,
+    "reward": {
+      "xp": 300,
+      "money": 500
+    },
+    "nextQuestId": "q2_delivery"
+  },
+  {
+    "id": "q2_delivery",
+    "name": "運送私貨",
+    "description": "十三叔有批貨要運去碼頭，你去幫手。(尚未實裝)",
+    "type": "talk",
+    "targetId": "npc_shop",
+    "requiredCount": 1,
+    "reward": {
+      "xp": 100,
+      "money": 100
+    }
+  }
+]

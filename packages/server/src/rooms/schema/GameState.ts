@@ -1,5 +1,5 @@
 import { Schema, MapSchema, ArraySchema, type } from "@colyseus/schema";
-import { IEnemyData, ILootData, IItem, EntityType, ItemType, PlayerRole } from "@gangs-online/shared";
+import { IEnemyData, ILootData, IItem, IQuestState, EntityType, ItemType, PlayerRole } from "@gangs-online/shared";
 
 /**
  * Item Schema (Phase 8)
@@ -9,6 +9,20 @@ export class Item extends Schema implements IItem {
     @type("string") name: string = "";
     @type("string") type: ItemType = "consumable";
     @type("number") value: number = 0;
+}
+
+/**
+ * Quest Schema (Phase 10: Dynamic Quest State)
+ */
+export class Quest extends Schema implements IQuestState {
+    @type("string") id: string = "";
+    @type("string") name: string = "";
+    @type("string") description: string = "";
+    @type("number") currentCount: number = 0;
+    @type("number") requiredCount: number = 0;
+    @type("boolean") completed: boolean = false;
+    @type("number") rewardXp: number = 0;
+    @type("number") rewardMoney: number = 0;
 }
 
 /**
@@ -36,6 +50,9 @@ export class Player extends Schema {
     // Inventory System (Phase 8)
     @type("number") money: number = 0;
     @type([Item]) inventory = new ArraySchema<Item>();
+
+    // Quest System (Phase 10)
+    @type(Quest) activeQuest: Quest | null = null;
 }
 
 /**

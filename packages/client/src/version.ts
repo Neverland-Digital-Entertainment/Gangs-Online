@@ -1,4 +1,4 @@
 /**
- * 客戶端版本資訊 (Phase 9.1: HUD System with JSON UI)
+ * 客戶端版本資訊 (Phase 10: Data-Driven Quest System)
  */
-export const GAME_VERSION = "0.9.1";
+export const GAME_VERSION = "0.10.0";

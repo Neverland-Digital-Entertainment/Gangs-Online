@@ -49,4 +49,26 @@ export class NPCManager {
         const entity = this.npcs.get(entityId);
         return entity !== undefined && entity.type === "npc";
     }
+
+    /**
+     * 生成任務 NPC (Phase 10)
+     * @param id NPC ID
+     * @param x X 座標
+     * @param z Z 座標
+     * @param name NPC 名稱
+     */
+    spawnQuestNPC(id: string, x: number, z: number, name: string): void {
+        const questNpc = new Enemy();
+        questNpc.id = id;
+        questNpc.x = x;
+        questNpc.z = z;
+        questNpc.name = name;
+        questNpc.type = "npc";
+        questNpc.state = "idle";
+        questNpc.hp = 9999; // 無敵
+        questNpc.maxHp = 9999;
+
+        this.npcs.set(questNpc.id, questNpc);
+        console.log(`✅ Quest NPC "${name}" spawned at (${x}, ${z})`);
+    }
 }

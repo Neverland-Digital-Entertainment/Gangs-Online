@@ -1,5 +1,7 @@
 import * as GUI from "@babylonjs/gui";
 import { Room } from "colyseus.js";
+import { QuestSystem } from "./QuestSystem";
+import { IQuestState } from "@gangs-online/shared";
 
 /**
  * HUD 管理器 - 使用 JSON 定義的 UI
@@ -47,6 +49,9 @@ export class HUDManager {
     private popupScrollViewer: GUI.ScrollViewer | null = null;
     private popupContent: GUI.StackPanel | null = null;
 
+    // Quest System (Phase 10)
+    private questSystem: QuestSystem | null = null;
+
     constructor(uiTexture: GUI.AdvancedDynamicTexture) {
         this.uiTexture = uiTexture;
     }
@@ -65,6 +70,10 @@ export class HUDManager {
 
         // Setup event handlers
         this.setupEventHandlers();
+
+        // Initialize Quest System (Phase 10)
+        this.questSystem = new QuestSystem(room, this.uiTexture);
+        this.questSystem.setPopupContent(this.popupContent);
 
         console.log("✅ HUD Manager initialized");
     }
@@ -709,13 +718,21 @@ export class HUDManager {
         if (this.popupContent) {
             this.popupContent.clearControls();
 
-            // Add placeholder content based on type
-            const placeholder = new GUI.TextBlock();
-            placeholder.text = `${title}功能開發中...`;
-            placeholder.color = "#666666";
-            placeholder.fontSize = 18;
-            placeholder.height = "50px";
-            this.popupContent.addControl(placeholder);
+            // Phase 10: Handle quest popup with QuestSystem
+            if (type === "quest" && this.questSystem) {
+                const questControls = this.questSystem.createQuestPopupContent();
+                questControls.forEach((control) => {
+                    this.popupContent!.addControl(control);
+                });
+            } else {
+                // Add placeholder content based on type
+                const placeholder = new GUI.TextBlock();
+                placeholder.text = `${title}功能開發中...`;
+                placeholder.color = "#666666";
+                placeholder.fontSize = 18;
+                placeholder.height = "50px";
+                this.popupContent.addControl(placeholder);
+            }
         }
 
         this.popupRoot.isVisible = true;
@@ -758,6 +775,22 @@ export class HUDManager {
     }
 
     /**
+     * 更新任務狀態 (Phase 10)
+     */
+    updateQuestState(quest: IQuestState | null): void {
+        if (this.questSystem) {
+            this.questSystem.updateQuestState(quest);
+        }
+    }
+
+    /**
+     * 獲取任務系統 (Phase 10)
+     */
+    getQuestSystem(): QuestSystem | null {
+        return this.questSystem;
+    }
+
+    /**
      * 釋放資源
      */
     dispose(): void {
@@ -766,6 +799,10 @@ export class HUDManager {
         }
         if (this.popupRoot) {
             this.uiTexture.removeControl(this.popupRoot);
+        }
+        // Phase 10: Dispose Quest System
+        if (this.questSystem) {
+            this.questSystem.dispose();
         }
     }
 }
