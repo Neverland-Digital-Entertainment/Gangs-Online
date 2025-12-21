@@ -25,6 +25,22 @@ import { getRankTitle } from "./utils/progression";
  * 主入口 - 遊戲初始化和場景創建
  */
 
+// --- 計算動態 idealWidth ---
+// 根據螢幕尺寸動態設定，確保 UI 在任何設備上都有合適的大小
+function calculateIdealWidth(): number {
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    const minDimension = Math.min(screenWidth, screenHeight);
+
+    // 使用較小維度作為基準，確保橫屏竪屏都適用
+    // 基準：375px (手機) -> 768, 1920px (桌面) -> 1920
+    // 公式：minDimension * 2，但限制在 768-1920 範圍內
+    return Math.max(768, Math.min(1920, minDimension * 2));
+}
+
+// --- 全局 UI Texture 引用（用於 resize 時更新）---
+let globalUITexture: GUI.AdvancedDynamicTexture | null = null;
+
 // --- 初始化載入螢幕 ---
 console.log("🎮 Initializing Gangs Online...");
 const loadingScreen = new LoadingScreen();
@@ -81,9 +97,10 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
     // --- UI Layer ---
     const uiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
-    // Phase 9.1: 設置理想寬度，讓 UI 根據螢幕比例自動縮放
-    uiTexture.idealWidth = 1920;
+    // Phase 9.1: 動態設置理想寬度，確保 UI 在不同設備上都有合適的大小
+    uiTexture.idealWidth = calculateIdealWidth();
     uiTexture.useSmallestIdeal = true;
+    globalUITexture = uiTexture; // 保存引用供 resize 時使用
 
     // --- 初始化系統 ---
     const uiSystem = new UISystem(uiTexture);
@@ -417,6 +434,12 @@ createScene()
 // --- 視窗大小調整 ---
 const handleResize = () => {
     engine.resize();
+
+    // 更新 UI idealWidth，確保 HUD 在不同設備上都有合適的大小
+    if (globalUITexture) {
+        globalUITexture.idealWidth = calculateIdealWidth();
+    }
+
     // 更新相機正交邊界，確保畫面不會變形
     const scene = engine.scenes[0];
     if (scene && scene.activeCamera) {
