@@ -1,7 +1,8 @@
 import * as GUI from "@babylonjs/gui";
 import { Room } from "colyseus.js";
 import { QuestSystem } from "./QuestSystem";
-import { IQuestState } from "@gangs-online/shared";
+import { ShopPopupSystem } from "./ShopPopupSystem";
+import { IQuestState, IItem } from "@gangs-online/shared";
 
 /**
  * HUD 管理器 - 使用 JSON 定義的 UI
@@ -52,6 +53,9 @@ export class HUDManager {
     // Quest System (Phase 10)
     private questSystem: QuestSystem | null = null;
 
+    // Shop Popup System (Phase 10.1)
+    private shopPopupSystem: ShopPopupSystem | null = null;
+
     constructor(uiTexture: GUI.AdvancedDynamicTexture) {
         this.uiTexture = uiTexture;
     }
@@ -74,6 +78,9 @@ export class HUDManager {
         // Initialize Quest System (Phase 10)
         this.questSystem = new QuestSystem(room, this.uiTexture);
         this.questSystem.setPopupContent(this.popupContent);
+
+        // Initialize Shop Popup System (Phase 10.1)
+        this.shopPopupSystem = new ShopPopupSystem(room);
 
         console.log("✅ HUD Manager initialized");
     }
@@ -724,6 +731,13 @@ export class HUDManager {
                 questControls.forEach((control) => {
                     this.popupContent!.addControl(control);
                 });
+            }
+            // Phase 10.1: Handle inventory/shop popup with ShopPopupSystem
+            else if (type === "inventory" && this.shopPopupSystem) {
+                const shopControls = this.shopPopupSystem.createInventoryPopupContent();
+                shopControls.forEach((control) => {
+                    this.popupContent!.addControl(control);
+                });
             } else {
                 // Add placeholder content based on type
                 const placeholder = new GUI.TextBlock();
@@ -788,6 +802,34 @@ export class HUDManager {
      */
     getQuestSystem(): QuestSystem | null {
         return this.questSystem;
+    }
+
+    /**
+     * 更新商店系統的金錢 (Phase 10.1)
+     */
+    updateShopMoney(money: number): void {
+        if (this.shopPopupSystem) {
+            this.shopPopupSystem.updateMoney(money);
+        }
+    }
+
+    /**
+     * 更新商店系統的背包 (Phase 10.1)
+     */
+    updateShopInventory(inventory: IItem[]): void {
+        if (this.shopPopupSystem) {
+            this.shopPopupSystem.updateInventory(inventory);
+        }
+    }
+
+    /**
+     * 顯示商店 popup (Phase 10.1) - 供 NPC 點擊使用
+     */
+    showShopPopup(): void {
+        if (this.shopPopupSystem) {
+            this.shopPopupSystem.setTab("shop");
+        }
+        this.showPopup("道具", "inventory");
     }
 
     /**

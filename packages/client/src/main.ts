@@ -12,7 +12,7 @@ import { ChatSystem } from "./systems/ChatSystem";
 import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
 // Phase 9.1: InventorySystem UI 已移除，金錢改為在 HUD 顯示
-import { ShopSystem } from "./systems/ShopSystem"; // Phase 9
+// Phase 10.1: ShopSystem 已整合到 HUDManager 的 Popup 系統
 import { HUDManager } from "./systems/HUDManager"; // Phase 9.1
 import { CityGenerator } from "./world/CityGenerator";
 import { PlayerManager } from "./entities/PlayerManager";
@@ -110,7 +110,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
     let mySessionId: string | null = null;
     let lootManager: LootManager | null = null; // Phase 8
-    let shopSystem: ShopSystem | null = null; // Phase 9
+    // Phase 10.1: shopSystem 已整合到 hudManager
     let hudManager: HUDManager | null = null; // Phase 9.1
 
     try {
@@ -138,9 +138,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         // === Phase 8: 初始化戰利品系統 ===
         lootManager = new LootManager(scene, room);
         // Phase 9.1: 舊的 InventorySystem UI 已移除，金錢改為在 HUD 顯示
-
-        // === Phase 9: 初始化商店系統 ===
-        shopSystem = new ShopSystem(room, uiTexture);
+        // Phase 10.1: ShopSystem 已整合到 HUDManager 的 Popup 系統
 
         // === Phase 9.1: 初始化 HUD 管理器 ===
         hudManager = new HUDManager(uiTexture);
@@ -220,7 +218,12 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 // 監聽金錢變化
                 player.listen("money", (money: number) => {
                     hudManager?.updateMoney(money);
+                    // Phase 10.1: 同步到商店 popup 系統
+                    hudManager?.updateShopMoney(money);
                 });
+
+                // Phase 10.1: 初始化商店系統的金錢
+                hudManager?.updateShopMoney(player.money || 0);
             }
         });
 
@@ -319,10 +322,11 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                     }
 
                     // Phase 9: 檢查是否點擊了 NPC
+                    // Phase 10.1: 改用 HUDManager 的 popup 系統
                     if (clickedMesh.metadata.type === "npc" && clickedMesh.metadata.id) {
                         console.log("👔 Clicked NPC:", clickedMesh.metadata.id);
-                        if (shopSystem) {
-                            shopSystem.toggle();
+                        if (hudManager) {
+                            hudManager.showShopPopup();
                         }
                         return;
                     }
