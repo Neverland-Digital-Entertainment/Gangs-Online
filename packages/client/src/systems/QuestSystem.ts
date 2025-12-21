@@ -129,6 +129,7 @@ export class QuestSystem {
         panel.width = "100%";
         panel.spacing = 10;
         panel.paddingTop = "20px";
+        panel.isPointerBlocker = false; // 讓點擊事件可以穿透到子元素
 
         const quest = this.currentQuest!;
 
@@ -200,6 +201,7 @@ export class QuestSystem {
         buttonPanel.height = "50px";
         buttonPanel.paddingTop = "20px";
         buttonPanel.spacing = 20;
+        buttonPanel.isPointerBlocker = false; // 讓點擊事件可以穿透到按鈕
         panel.addControl(buttonPanel);
 
         if (quest.completed) {
@@ -210,7 +212,9 @@ export class QuestSystem {
             completeBtn.color = "white";
             completeBtn.background = "#228B22";
             completeBtn.cornerRadius = 5;
+            completeBtn.isPointerBlocker = true;
             completeBtn.onPointerUpObservable.add(() => {
+                console.log("📋 Completing quest");
                 this.room.send("completeQuest");
             });
             buttonPanel.addControl(completeBtn);
@@ -223,7 +227,9 @@ export class QuestSystem {
         abandonBtn.color = "white";
         abandonBtn.background = "#8B0000";
         abandonBtn.cornerRadius = 5;
+        abandonBtn.isPointerBlocker = true;
         abandonBtn.onPointerUpObservable.add(() => {
+            console.log("📋 Abandoning quest");
             this.room.send("abandonQuest");
         });
         buttonPanel.addControl(abandonBtn);
@@ -240,6 +246,7 @@ export class QuestSystem {
         panel.width = "100%";
         panel.spacing = 10;
         panel.paddingTop = "20px";
+        panel.isPointerBlocker = false; // 讓點擊事件可以穿透到子元素
 
         // 請求可用任務信息
         this.room.send("getQuestInfo");
@@ -297,17 +304,19 @@ export class QuestSystem {
     ): GUI.Container {
         const container = new GUI.Rectangle();
         container.width = "100%";
-        container.height = "140px";
+        container.height = "150px";
         container.background = "rgba(50, 50, 50, 0.8)";
         container.thickness = 1;
         container.color = "#666666";
         container.cornerRadius = 5;
         container.paddingTop = "10px";
+        container.isPointerBlocker = false; // 讓點擊事件可以穿透到子元素
 
         const panel = new GUI.StackPanel();
         panel.isVertical = true;
         panel.width = "95%";
         panel.spacing = 5;
+        panel.isPointerBlocker = false; // 讓點擊事件可以穿透到子元素
         container.addControl(panel);
 
         // 任務名稱
@@ -339,18 +348,27 @@ export class QuestSystem {
         rewardBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
         panel.addControl(rewardBlock);
 
-        // 接受按鈕
-        const acceptBtn = GUI.Button.CreateSimpleButton("acceptBtn", "接受任務");
+        // 接受按鈕 - 使用獨立的容器確保按鈕可以被點擊
+        const btnContainer = new GUI.Rectangle();
+        btnContainer.width = "100%";
+        btnContainer.height = "40px";
+        btnContainer.thickness = 0;
+        btnContainer.isPointerBlocker = false;
+        panel.addControl(btnContainer);
+
+        const acceptBtn = GUI.Button.CreateSimpleButton(`acceptBtn_${questId}`, "接受任務");
         acceptBtn.width = "120px";
-        acceptBtn.height = "30px";
+        acceptBtn.height = "35px";
         acceptBtn.color = "white";
         acceptBtn.background = "#1E90FF";
         acceptBtn.cornerRadius = 5;
         acceptBtn.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        acceptBtn.isPointerBlocker = true; // 確保按鈕可以接收點擊
         acceptBtn.onPointerUpObservable.add(() => {
+            console.log(`📋 Accepting quest: ${questId}`);
             this.room.send("acceptQuest", questId);
         });
-        panel.addControl(acceptBtn);
+        btnContainer.addControl(acceptBtn);
 
         return container;
     }

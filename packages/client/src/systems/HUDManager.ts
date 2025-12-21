@@ -354,11 +354,18 @@ export class HUDManager {
                     // Add to UI texture but hidden by default
                     this.uiTexture.addControl(this.popupRoot);
                     this.popupRoot.isVisible = false;
+                    // Phase 10.1: 設置高 zIndex 確保 popup 在其他 UI 之上
+                    this.popupRoot.zIndex = 100;
 
                     // Cache popup elements
                     this.popupContainer = this.findControlInContainer<GUI.Rectangle>(this.popupRoot, "PopupContainer");
                     this.popupTitle = this.findControlInContainer<GUI.TextBlock>(this.popupRoot, "txt_title");
                     this.popupScrollViewer = this.findControlInContainer<GUI.ScrollViewer>(this.popupRoot, "ScrollViewer");
+
+                    // Phase 10.1: 確保 ScrollViewer 可以正確處理點擊事件
+                    if (this.popupScrollViewer) {
+                        this.popupScrollViewer.isPointerBlocker = true;
+                    }
 
                     // Create content container inside scroll viewer
                     if (this.popupScrollViewer) {
