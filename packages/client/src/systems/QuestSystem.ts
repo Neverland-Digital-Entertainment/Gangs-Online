@@ -5,16 +5,12 @@ import { IQuestDef, IQuestState } from "@gangs-online/shared";
 /**
  * 任務系統 (Phase 10: Data-Driven Quest System)
  * 負責管理客戶端的任務 UI 和交互
+ * 任務進度直接顯示在 popup 中
  */
 export class QuestSystem {
     private room: Room;
     private uiTexture: GUI.AdvancedDynamicTexture;
     private popupContent: GUI.StackPanel | null = null;
-
-    // 任務追蹤器 UI
-    private questTrackerPanel: GUI.StackPanel | null = null;
-    private questTrackerTitle: GUI.TextBlock | null = null;
-    private questTrackerProgress: GUI.TextBlock | null = null;
 
     // 當前任務狀態
     private currentQuest: IQuestState | null = null;
@@ -26,7 +22,6 @@ export class QuestSystem {
     constructor(room: Room, uiTexture: GUI.AdvancedDynamicTexture) {
         this.room = room;
         this.uiTexture = uiTexture;
-        this.setupQuestTracker();
         this.setupMessageHandlers();
     }
 
@@ -35,39 +30,6 @@ export class QuestSystem {
      */
     setHidePopupCallback(callback: () => void): void {
         this.hidePopupCallback = callback;
-    }
-
-    /**
-     * 設置任務追蹤器 UI（左側固定顯示）
-     */
-    private setupQuestTracker(): void {
-        // 創建任務追蹤面板
-        this.questTrackerPanel = new GUI.StackPanel("QuestTracker");
-        this.questTrackerPanel.width = "220px";
-        this.questTrackerPanel.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        this.questTrackerPanel.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-        this.questTrackerPanel.top = "150px";
-        this.questTrackerPanel.left = "10px";
-        this.questTrackerPanel.isVertical = true;
-        this.questTrackerPanel.isVisible = false; // 默認隱藏
-        this.uiTexture.addControl(this.questTrackerPanel);
-
-        // 任務標題
-        this.questTrackerTitle = new GUI.TextBlock("QuestTitle", "");
-        this.questTrackerTitle.color = "#ffd700";
-        this.questTrackerTitle.fontSize = 16;
-        this.questTrackerTitle.fontWeight = "bold";
-        this.questTrackerTitle.height = "25px";
-        this.questTrackerTitle.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        this.questTrackerPanel.addControl(this.questTrackerTitle);
-
-        // 任務進度
-        this.questTrackerProgress = new GUI.TextBlock("QuestProgress", "");
-        this.questTrackerProgress.color = "#ffffff";
-        this.questTrackerProgress.fontSize = 14;
-        this.questTrackerProgress.height = "20px";
-        this.questTrackerProgress.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        this.questTrackerPanel.addControl(this.questTrackerProgress);
     }
 
     /**
@@ -86,31 +48,13 @@ export class QuestSystem {
      */
     updateQuestState(quest: IQuestState | null): void {
         this.currentQuest = quest;
-        this.updateQuestTracker();
     }
 
     /**
-     * 更新任務追蹤器顯示
+     * 獲取當前任務狀態
      */
-    private updateQuestTracker(): void {
-        if (!this.questTrackerPanel || !this.questTrackerTitle || !this.questTrackerProgress) {
-            return;
-        }
-
-        if (this.currentQuest) {
-            this.questTrackerPanel.isVisible = true;
-            this.questTrackerTitle.text = `📋 ${this.currentQuest.name}`;
-
-            if (this.currentQuest.completed) {
-                this.questTrackerProgress.text = "✅ 任務完成！返回找浩南哥";
-                this.questTrackerProgress.color = "#00ff00";
-            } else {
-                this.questTrackerProgress.text = `進度: ${this.currentQuest.currentCount}/${this.currentQuest.requiredCount}`;
-                this.questTrackerProgress.color = "#ffffff";
-            }
-        } else {
-            this.questTrackerPanel.isVisible = false;
-        }
+    getCurrentQuest(): IQuestState | null {
+        return this.currentQuest;
     }
 
     /**
@@ -120,7 +64,7 @@ export class QuestSystem {
         const controls: GUI.Control[] = [];
 
         if (this.currentQuest) {
-            // 顯示當前任務
+            // 顯示當前任務進度
             controls.push(this.createCurrentQuestPanel());
         } else {
             // 顯示可接任務
@@ -131,7 +75,7 @@ export class QuestSystem {
     }
 
     /**
-     * 創建當前任務面板
+     * 創建當前任務面板（顯示進度）
      */
     private createCurrentQuestPanel(): GUI.Container {
         const panel = new GUI.StackPanel();
@@ -139,7 +83,7 @@ export class QuestSystem {
         panel.width = "100%";
         panel.spacing = 10;
         panel.paddingTop = "20px";
-        panel.isPointerBlocker = false; // 讓點擊事件可以穿透到子元素
+        panel.isPointerBlocker = false;
 
         const quest = this.currentQuest!;
 
@@ -173,19 +117,27 @@ export class QuestSystem {
         descBlock.paddingTop = "10px";
         panel.addControl(descBlock);
 
-        // 任務進度
+        // 任務進度 - 重點顯示
+        const progressContainer = new GUI.Rectangle();
+        progressContainer.width = "100%";
+        progressContainer.height = "50px";
+        progressContainer.background = quest.completed ? "rgba(34, 139, 34, 0.3)" : "rgba(30, 144, 255, 0.3)";
+        progressContainer.thickness = 2;
+        progressContainer.color = quest.completed ? "#00ff00" : "#1E90FF";
+        progressContainer.cornerRadius = 8;
+        panel.addControl(progressContainer);
+
         const progressBlock = new GUI.TextBlock();
         if (quest.completed) {
-            progressBlock.text = "✅ 任務目標已達成！";
+            progressBlock.text = "✅ 任務完成！可以領取獎勵";
             progressBlock.color = "#00ff00";
         } else {
-            progressBlock.text = `進度: ${quest.currentCount} / ${quest.requiredCount}`;
+            progressBlock.text = `🎯 進度: ${quest.currentCount} / ${quest.requiredCount}`;
             progressBlock.color = "#ffffff";
         }
-        progressBlock.fontSize = 18;
-        progressBlock.height = "30px";
-        progressBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        panel.addControl(progressBlock);
+        progressBlock.fontSize = 20;
+        progressBlock.fontWeight = "bold";
+        progressContainer.addControl(progressBlock);
 
         // 獎勵信息
         const rewardTitle = new GUI.TextBlock();
@@ -211,22 +163,23 @@ export class QuestSystem {
         buttonPanel.height = "50px";
         buttonPanel.paddingTop = "20px";
         buttonPanel.spacing = 20;
-        buttonPanel.isPointerBlocker = false; // 讓點擊事件可以穿透到按鈕
+        buttonPanel.isPointerBlocker = false;
         panel.addControl(buttonPanel);
 
         if (quest.completed) {
             // 完成任務按鈕
-            const completeBtn = GUI.Button.CreateSimpleButton("completeBtn", "領取獎勵");
-            completeBtn.width = "140px";
-            completeBtn.height = "40px";
+            const completeBtn = GUI.Button.CreateSimpleButton("completeBtn", "🎁 領取獎勵");
+            completeBtn.width = "160px";
+            completeBtn.height = "45px";
             completeBtn.color = "white";
             completeBtn.background = "#228B22";
-            completeBtn.cornerRadius = 5;
+            completeBtn.cornerRadius = 8;
+            completeBtn.fontSize = 18;
+            completeBtn.fontWeight = "bold";
             completeBtn.isPointerBlocker = true;
             completeBtn.onPointerUpObservable.add(() => {
                 console.log("📋 Completing quest");
                 this.room.send("completeQuest");
-                // 領取獎勵後關閉 popup
                 if (this.hidePopupCallback) {
                     this.hidePopupCallback();
                 }
@@ -245,7 +198,6 @@ export class QuestSystem {
         abandonBtn.onPointerUpObservable.add(() => {
             console.log("📋 Abandoning quest");
             this.room.send("abandonQuest");
-            // 放棄任務後關閉 popup
             if (this.hidePopupCallback) {
                 this.hidePopupCallback();
             }
@@ -264,7 +216,7 @@ export class QuestSystem {
         panel.width = "100%";
         panel.spacing = 10;
         panel.paddingTop = "20px";
-        panel.isPointerBlocker = false; // 讓點擊事件可以穿透到子元素
+        panel.isPointerBlocker = false;
 
         // 請求可用任務信息
         this.room.send("getQuestInfo");
@@ -297,16 +249,6 @@ export class QuestSystem {
         );
         panel.addControl(quest1Panel);
 
-        // 提示信息
-        const tipBlock = new GUI.TextBlock();
-        tipBlock.text = "💡 提示: 走近浩南哥 (紫色 NPC) 接取任務";
-        tipBlock.color = "#888888";
-        tipBlock.fontSize = 14;
-        tipBlock.height = "30px";
-        tipBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        tipBlock.paddingTop = "20px";
-        panel.addControl(tipBlock);
-
         return panel;
     }
 
@@ -322,28 +264,28 @@ export class QuestSystem {
     ): GUI.Container {
         const container = new GUI.Rectangle();
         container.width = "100%";
-        container.height = "150px";
+        container.height = "180px";
         container.background = "rgba(50, 50, 50, 0.8)";
         container.thickness = 1;
         container.color = "#666666";
-        container.cornerRadius = 5;
+        container.cornerRadius = 8;
         container.paddingTop = "10px";
-        container.isPointerBlocker = false; // 讓點擊事件可以穿透到子元素
+        container.isPointerBlocker = false;
 
         const panel = new GUI.StackPanel();
         panel.isVertical = true;
         panel.width = "95%";
-        panel.spacing = 5;
-        panel.isPointerBlocker = false; // 讓點擊事件可以穿透到子元素
+        panel.spacing = 8;
+        panel.isPointerBlocker = false;
         container.addControl(panel);
 
         // 任務名稱
         const nameBlock = new GUI.TextBlock();
-        nameBlock.text = name;
+        nameBlock.text = `📋 ${name}`;
         nameBlock.color = "#ffd700";
-        nameBlock.fontSize = 18;
+        nameBlock.fontSize = 20;
         nameBlock.fontWeight = "bold";
-        nameBlock.height = "25px";
+        nameBlock.height = "30px";
         nameBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
         panel.addControl(nameBlock);
 
@@ -353,39 +295,49 @@ export class QuestSystem {
         descBlock.color = "#cccccc";
         descBlock.fontSize = 14;
         descBlock.textWrapping = true;
-        descBlock.height = "40px";
+        descBlock.height = "45px";
         descBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
         panel.addControl(descBlock);
 
+        // 任務目標
+        const targetBlock = new GUI.TextBlock();
+        targetBlock.text = "🎯 目標: 擊敗 3 個小混混";
+        targetBlock.color = "#1E90FF";
+        targetBlock.fontSize = 14;
+        targetBlock.height = "22px";
+        targetBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        panel.addControl(targetBlock);
+
         // 獎勵
         const rewardBlock = new GUI.TextBlock();
-        rewardBlock.text = `獎勵: 💰 $${money}  ⭐ ${xp} XP`;
+        rewardBlock.text = `🎁 獎勵: 💰 $${money}  ⭐ ${xp} XP`;
         rewardBlock.color = "#aaaaaa";
         rewardBlock.fontSize = 14;
-        rewardBlock.height = "20px";
+        rewardBlock.height = "22px";
         rewardBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
         panel.addControl(rewardBlock);
 
-        // 接受按鈕 - 使用獨立的容器確保按鈕可以被點擊
+        // 接受按鈕
         const btnContainer = new GUI.Rectangle();
         btnContainer.width = "100%";
-        btnContainer.height = "40px";
+        btnContainer.height = "45px";
         btnContainer.thickness = 0;
         btnContainer.isPointerBlocker = false;
         panel.addControl(btnContainer);
 
-        const acceptBtn = GUI.Button.CreateSimpleButton(`acceptBtn_${questId}`, "接受任務");
-        acceptBtn.width = "120px";
-        acceptBtn.height = "35px";
+        const acceptBtn = GUI.Button.CreateSimpleButton(`acceptBtn_${questId}`, "✅ 接受任務");
+        acceptBtn.width = "140px";
+        acceptBtn.height = "40px";
         acceptBtn.color = "white";
         acceptBtn.background = "#1E90FF";
-        acceptBtn.cornerRadius = 5;
+        acceptBtn.cornerRadius = 8;
+        acceptBtn.fontSize = 16;
+        acceptBtn.fontWeight = "bold";
         acceptBtn.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        acceptBtn.isPointerBlocker = true; // 確保按鈕可以接收點擊
+        acceptBtn.isPointerBlocker = true;
         acceptBtn.onPointerUpObservable.add(() => {
             console.log(`📋 Accepting quest: ${questId}`);
             this.room.send("acceptQuest", questId);
-            // 接受任務後關閉 popup
             if (this.hidePopupCallback) {
                 this.hidePopupCallback();
             }
@@ -406,8 +358,6 @@ export class QuestSystem {
      * 釋放資源
      */
     dispose(): void {
-        if (this.questTrackerPanel) {
-            this.uiTexture.removeControl(this.questTrackerPanel);
-        }
+        // 無需清理左側追蹤器，因為已移除
     }
 }
