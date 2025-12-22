@@ -3,7 +3,16 @@ import { Room } from "colyseus.js";
 import { SHOP_ITEMS, IItem } from "@gangs-online/shared";
 
 /**
- * 商店 Popup 系統 (Phase 10.1)
+ * 最近獲得的物品記錄 (Phase 11)
+ */
+interface IRecentlyAcquired {
+    item: IItem;
+    timestamp: number;
+    isCurrency: boolean;
+}
+
+/**
+ * 商店 Popup 系統 (Phase 10.1, Updated in Phase 11)
  * 整合商店和道具到統一的 popup 介面
  */
 export class ShopPopupSystem {
@@ -11,9 +20,50 @@ export class ShopPopupSystem {
     private currentTab: "shop" | "inventory" = "shop";
     private playerMoney: number = 0;
     private playerInventory: IItem[] = [];
+    private recentlyAcquired: IRecentlyAcquired[] = []; // Phase 11: 最近獲得的物品
+    private static readonly MAX_RECENT_ITEMS = 5; // 最多顯示 5 個最近獲得的物品
+    private static readonly RECENT_ITEM_DURATION = 60000; // 60 秒後自動移除
 
     constructor(room: Room) {
         this.room = room;
+    }
+
+    /**
+     * 添加最近獲得的物品 (Phase 11)
+     */
+    addRecentlyAcquired(item: IItem, isCurrency: boolean = false): void {
+        // 移除過期的物品
+        this.cleanupExpiredItems();
+
+        // 添加新物品
+        this.recentlyAcquired.unshift({
+            item,
+            timestamp: Date.now(),
+            isCurrency,
+        });
+
+        // 限制數量
+        if (this.recentlyAcquired.length > ShopPopupSystem.MAX_RECENT_ITEMS) {
+            this.recentlyAcquired.pop();
+        }
+    }
+
+    /**
+     * 清理過期的物品記錄 (Phase 11)
+     */
+    private cleanupExpiredItems(): void {
+        const now = Date.now();
+        this.recentlyAcquired = this.recentlyAcquired.filter(
+            (record) => now - record.timestamp < ShopPopupSystem.RECENT_ITEM_DURATION
+        );
+    }
+
+    /**
+     * 獲取最近獲得的物品 (Phase 11)
+     */
+    getRecentlyAcquired(): IRecentlyAcquired[] {
+        this.cleanupExpiredItems();
+        return [...this.recentlyAcquired];
     }
 
     /**
@@ -219,6 +269,21 @@ export class ShopPopupSystem {
         panel.width = "100%";
         panel.spacing = 8;
 
+        // === Phase 11: 最近獲得的物品區域 ===
+        const recentItems = this.getRecentlyAcquired();
+        if (recentItems.length > 0) {
+            const recentSection = this.createRecentlyAcquiredSection(recentItems);
+            panel.addControl(recentSection);
+
+            // 分隔線
+            const separator = new GUI.Rectangle();
+            separator.width = "100%";
+            separator.height = "2px";
+            separator.background = "#444444";
+            separator.thickness = 0;
+            panel.addControl(separator);
+        }
+
         // 背包標題
         const title = new GUI.TextBlock();
         title.text = `🎒 背包 (${this.playerInventory.length} 件物品)`;
@@ -247,6 +312,99 @@ export class ShopPopupSystem {
         }
 
         return panel;
+    }
+
+    /**
+     * 創建最近獲得物品區域 (Phase 11)
+     */
+    private createRecentlyAcquiredSection(recentItems: IRecentlyAcquired[]): GUI.Container {
+        const panel = new GUI.StackPanel();
+        panel.isVertical = true;
+        panel.width = "100%";
+        panel.spacing = 5;
+
+        // 標題
+        const title = new GUI.TextBlock();
+        title.text = "✨ 最近獲得";
+        title.color = "#00ffaa";
+        title.fontSize = 18;
+        title.fontWeight = "bold";
+        title.height = "30px";
+        title.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        panel.addControl(title);
+
+        // 最近獲得的物品列表
+        recentItems.forEach((record) => {
+            const itemPanel = this.createRecentItemPanel(record);
+            panel.addControl(itemPanel);
+        });
+
+        return panel;
+    }
+
+    /**
+     * 創建單個最近獲得物品面板 (Phase 11)
+     */
+    private createRecentItemPanel(record: IRecentlyAcquired): GUI.Container {
+        const container = new GUI.Rectangle();
+        container.width = "100%";
+        container.height = "45px";
+        container.background = record.isCurrency ? "rgba(255, 215, 0, 0.15)" : "rgba(0, 255, 170, 0.15)";
+        container.thickness = 1;
+        container.color = record.isCurrency ? "#ffd700" : "#00ffaa";
+        container.cornerRadius = 5;
+
+        const contentPanel = new GUI.StackPanel();
+        contentPanel.isVertical = false;
+        contentPanel.width = "100%";
+        container.addControl(contentPanel);
+
+        // 物品圖示
+        const icon = new GUI.TextBlock();
+        icon.text = record.isCurrency ? "💰" : "📦";
+        icon.fontSize = 20;
+        icon.width = "40px";
+        icon.height = "40px";
+        contentPanel.addControl(icon);
+
+        // 物品名稱和描述
+        const infoPanel = new GUI.StackPanel();
+        infoPanel.isVertical = true;
+        infoPanel.width = "calc(100% - 80px)";
+        contentPanel.addControl(infoPanel);
+
+        const nameText = new GUI.TextBlock();
+        nameText.text = record.item.name;
+        nameText.color = "white";
+        nameText.fontSize = 14;
+        nameText.height = "20px";
+        nameText.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        infoPanel.addControl(nameText);
+
+        const descText = new GUI.TextBlock();
+        if (record.isCurrency) {
+            descText.text = `+$${record.item.value}`;
+            descText.color = "#ffd700";
+        } else {
+            descText.text = record.item.type === "consumable" ? `❤️ +${record.item.value} HP` : record.item.name;
+            descText.color = "#90EE90";
+        }
+        descText.fontSize = 12;
+        descText.height = "18px";
+        descText.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        infoPanel.addControl(descText);
+
+        // 時間戳
+        const timeText = new GUI.TextBlock();
+        const secondsAgo = Math.floor((Date.now() - record.timestamp) / 1000);
+        timeText.text = secondsAgo < 5 ? "剛剛" : `${secondsAgo}秒前`;
+        timeText.color = "#888888";
+        timeText.fontSize = 11;
+        timeText.width = "50px";
+        timeText.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        contentPanel.addControl(timeText);
+
+        return container;
     }
 
     /**

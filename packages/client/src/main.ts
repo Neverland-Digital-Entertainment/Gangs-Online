@@ -18,6 +18,8 @@ import { CityGenerator } from "./world/CityGenerator";
 import { PlayerManager } from "./entities/PlayerManager";
 import { EnemyManager } from "./entities/EnemyManager";
 import { LootManager } from "./entities/LootManager"; // Phase 8
+import { SoundManager } from "./systems/SoundManager"; // Phase 11
+import { ParticleSystem } from "./systems/ParticleSystem"; // Phase 11
 import { createEngine, createIsometricCamera, setupScene, updateCameraFollow, updateCameraOrtho } from "./utils/BabylonUtils";
 import { getRankTitle } from "./utils/progression";
 
@@ -108,6 +110,10 @@ const createScene = async (): Promise<BABYLON.Scene> => {
     const playerManager = new PlayerManager(scene, uiSystem, weaponSystem);
     const enemyManager = new EnemyManager(scene, uiSystem); // 敵人管理系統
 
+    // === Phase 11: 初始化音效和粒子系統 ===
+    const soundManager = new SoundManager(scene);
+    const particleSystem = new ParticleSystem(scene);
+
     let mySessionId: string | null = null;
     let lootManager: LootManager | null = null; // Phase 8
     // Phase 10.1: shopSystem 已整合到 hudManager
@@ -136,9 +142,20 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         // Phase 9.1: 舊的 createChatInput 已移除，改用 HUD 中的聊天輸入
 
         // === Phase 8: 初始化戰利品系統 ===
-        lootManager = new LootManager(scene, room);
+        lootManager = new LootManager(scene, room, soundManager, particleSystem); // Phase 11: 傳入音效和粒子系統
         // Phase 9.1: 舊的 InventorySystem UI 已移除，金錢改為在 HUD 顯示
         // Phase 10.1: ShopSystem 已整合到 HUDManager 的 Popup 系統
+
+        // === Phase 11: 初始化音效系統並播放背景音樂 ===
+        await soundManager.initialize();
+        // 背景音樂在用戶互動後播放（點擊後）
+        const startBGM = () => {
+            soundManager.playBGM();
+            document.removeEventListener("click", startBGM);
+            document.removeEventListener("touchstart", startBGM);
+        };
+        document.addEventListener("click", startBGM, { once: true });
+        document.addEventListener("touchstart", startBGM, { once: true });
 
         // === Phase 9.1: 初始化 HUD 管理器 ===
         hudManager = new HUDManager(uiTexture);
@@ -158,6 +175,32 @@ const createScene = async (): Promise<BABYLON.Scene> => {
             }
         });
 
+        // === Phase 11: 監聽通知訊息（用於追蹤拾取的物品）===
+        room.onMessage("notification", (msg: string) => {
+            console.log("📢 Notification:", msg);
+
+            // 解析拾取訊息並添加到最近獲得列表
+            if (hudManager && msg.startsWith("執到")) {
+                // 金錢拾取：「執到 $100」
+                const moneyMatch = msg.match(/執到 \$(\d+)/);
+                if (moneyMatch) {
+                    const value = parseInt(moneyMatch[1], 10);
+                    hudManager.addRecentlyAcquired(
+                        { id: "currency", name: `$${value}`, type: "currency", value },
+                        true
+                    );
+                }
+                // 物品拾取：「執到 魚蛋 (Fishball)」
+                else {
+                    const itemName = msg.replace("執到 ", "");
+                    hudManager.addRecentlyAcquired(
+                        { id: itemName, name: itemName, type: "consumable", value: 0 },
+                        false
+                    );
+                }
+            }
+        });
+
         // 添加玩家
         (room.state as any).players.onAdd(async (player: PlayerData, sessionId: string) => {
             const isSelf = sessionId === room.sessionId;
@@ -174,8 +217,22 @@ const createScene = async (): Promise<BABYLON.Scene> => {
             });
 
             // 同步血量
+            let prevHp = player.hp; // Phase 11: 記錄之前的 HP 用於傷害反饋
             player.listen("hp", (currentHp: number) => {
                 playerManager.updateHealth(sessionId, currentHp, player.maxHp);
+
+                // === Phase 11: 傷害反饋效果 ===
+                const entity = playerManager.getEntity(sessionId);
+                if (entity && currentHp < prevHp && currentHp > 0) {
+                    // 被傷害時的效果
+                    soundManager.playHitSound();
+                    particleSystem.createBloodEffect(entity.mesh.position);
+                    particleSystem.flashDamage(entity.mesh);
+                } else if (entity && currentHp <= 0 && prevHp > 0) {
+                    // 死亡時的效果
+                    particleSystem.createDeathEffect(entity.mesh.position);
+                }
+                prevHp = currentHp;
             });
 
             // 同步戰鬥狀態
@@ -188,8 +245,20 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 playerManager.updateXP(sessionId, currentXP, player.maxXp);
             });
 
+            // Phase 11: 記錄之前的等級用於升級反饋
+            let prevLevel = player.level;
             player.listen("level", (newLevel: number) => {
                 playerManager.updateLevel(sessionId, newLevel, player.name);
+
+                // === Phase 11: 升級效果 ===
+                if (newLevel > prevLevel) {
+                    const entity = playerManager.getEntity(sessionId);
+                    if (entity) {
+                        soundManager.playLevelUpSound();
+                        particleSystem.createLevelUpEffect(entity.mesh);
+                    }
+                }
+                prevLevel = newLevel;
             });
 
             // === Phase 9.1: 同步 HUD（僅限自己的角色）===
@@ -417,12 +486,14 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
             if (target.type === 'enemy' && target.id) {
                 console.log("🗡️ Attacking enemy:", target.id);
+                soundManager.playMissSound(); // Phase 11: 攻擊音效（揮空聲）
                 room.send("attack", { targetId: target.id, type: "enemy" as EntityType });
                 return;
             }
 
             if (target.type === 'player' && target.id) {
                 console.log("🗡️ Attacking player:", target.id);
+                soundManager.playMissSound(); // Phase 11: 攻擊音效（揮空聲）
                 room.send("attack", { targetId: target.id, type: "player" as EntityType });
                 return;
             }

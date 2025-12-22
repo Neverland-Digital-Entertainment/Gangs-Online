@@ -844,6 +844,15 @@ export class HUDManager {
     }
 
     /**
+     * 添加最近獲得的物品 (Phase 11)
+     */
+    addRecentlyAcquired(item: IItem, isCurrency: boolean = false): void {
+        if (this.shopPopupSystem) {
+            this.shopPopupSystem.addRecentlyAcquired(item, isCurrency);
+        }
+    }
+
+    /**
      * 釋放資源
      */
     dispose(): void {

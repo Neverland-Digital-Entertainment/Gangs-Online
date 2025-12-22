@@ -203,6 +203,6 @@ export const getRankTitle = (level: number): string => {
 };
 
 /**
- * 遊戲版本（0.10.0 - Data-Driven Quest System）
+ * 遊戲版本（0.11.0 - Audio & Visual Effects (Juice)）
  */
-export const GAME_VERSION = "0.10.0";
+export const GAME_VERSION = "0.11.0";
