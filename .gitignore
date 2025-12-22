@@ -7,3 +7,4 @@ packages/*/dist/
 .env.local
 .env.production
 logo.png
+main-bg.png
