@@ -324,10 +324,14 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
         // --- Phase 10.1: 滑鼠 hover 時改變 cursor ---
         const canvas = scene.getEngine().getRenderingCanvas();
-        scene.onPointerMove = (evt, pickResult) => {
+        scene.onPointerObservable.add((pointerInfo) => {
             if (!canvas) return;
+            if (pointerInfo.type !== BABYLON.PointerEventTypes.POINTERMOVE) return;
 
-            if (pickResult.hit && pickResult.pickedMesh) {
+            // 手動進行 pick 檢測
+            const pickResult = scene.pick(scene.pointerX, scene.pointerY);
+
+            if (pickResult && pickResult.hit && pickResult.pickedMesh) {
                 // 檢查是否 hover 在戰利品上
                 if (lootManager && lootManager.isLootMesh(pickResult.pickedMesh)) {
                     canvas.style.cursor = "pointer";
@@ -361,7 +365,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
             // 預設 cursor
             canvas.style.cursor = "default";
-        };
+        });
 
         // --- 輸入處理：點擊攻擊、拾取戰利品或移動 (Phase 8 更新) ---
         scene.onPointerDown = (evt, pickResult) => {
