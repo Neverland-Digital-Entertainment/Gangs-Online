@@ -171,19 +171,28 @@ export class GameRoom extends Room<GameState> {
 
         // --- PHASE 10: QUEST HANDLERS ---
         this.onMessage("acceptQuest", (client, questId: string) => {
+            console.log("📋 [Server] acceptQuest received, questId:", questId);
             const player = this.state.players.get(client.sessionId);
+            console.log("📋 [Server] Player found:", player ? player.name : "NOT FOUND");
             if (player && player.hp > 0) {
                 // 檢查是否靠近任務 NPC
                 const questNpc = this.state.enemies.get("npc_quest");
+                console.log("📋 [Server] questNpc:", questNpc ? `found at (${questNpc.x}, ${questNpc.z})` : "NOT FOUND");
                 if (questNpc) {
                     const dist = Math.sqrt(
                         Math.pow(player.x - questNpc.x, 2) + Math.pow(player.z - questNpc.z, 2)
                     );
+                    console.log("📋 [Server] Distance:", dist, "Max allowed:", GAME_CONSTANTS.SHOP_INTERACTION_RANGE);
                     if (dist <= GAME_CONSTANTS.SHOP_INTERACTION_RANGE) {
+                        console.log("📋 [Server] Calling questManager.acceptQuest...");
                         this.questManager.acceptQuest(client, player, questId);
                     } else {
+                        console.log("📋 [Server] Too far from NPC!");
                         client.send("notification", "離浩南哥太遠了！");
                     }
+                } else {
+                    console.log("📋 [Server] ERROR: npc_quest not found in enemies!");
+                    console.log("📋 [Server] Available enemies:", Array.from(this.state.enemies.keys()));
                 }
             }
         });
