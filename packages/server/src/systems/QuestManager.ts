@@ -1,37 +1,8 @@
 import { Client } from "colyseus";
 import { Player, Quest } from "../rooms/schema/GameState";
 import { IQuestDef, getRankTitle } from "@gangs-online/shared";
-
-/**
- * 任務數據（直接嵌入避免文件路徑問題）
- */
-const QUEST_DATA: IQuestDef[] = [
-    {
-        id: "q1_first_blood",
-        name: "清理門戶",
-        description: "浩南哥話最近有班廢青係銅鑼灣搞事，你去教訓下 3 個小混混 (Street Thug)。",
-        type: "kill",
-        targetId: "mob_thug",
-        requiredCount: 3,
-        reward: {
-            xp: 300,
-            money: 500
-        },
-        nextQuestId: "q2_delivery"
-    },
-    {
-        id: "q2_delivery",
-        name: "運送私貨",
-        description: "十三叔有批貨要運去碼頭，你去幫手。(尚未實裝)",
-        type: "talk",
-        targetId: "npc_shop",
-        requiredCount: 1,
-        reward: {
-            xp: 100,
-            money: 100
-        }
-    }
-];
+// 使用 TypeScript resolveJsonModule 從外部 JSON 文件加載任務數據
+import questData from "../data/quests.json";
 
 /**
  * 任務管理器 (Phase 10: Data-Driven Quest System)
@@ -45,13 +16,14 @@ export class QuestManager {
     }
 
     /**
-     * 加載任務數據
+     * 從外部 JSON 文件加載任務數據
      */
     private loadQuestData(): void {
-        QUEST_DATA.forEach((quest) => {
+        const quests = questData as IQuestDef[];
+        quests.forEach((quest) => {
             this.questDefinitions.set(quest.id, quest);
         });
-        console.log(`✅ QuestManager: Loaded ${this.questDefinitions.size} quests`);
+        console.log(`✅ QuestManager: Loaded ${this.questDefinitions.size} quests from quests.json`);
     }
 
     /**

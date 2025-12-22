@@ -34,7 +34,8 @@ export class EnemyManager {
      */
     spawnEnemy(): Enemy {
         const enemy = new Enemy();
-        enemy.id = `enemy_${this.enemyIdCounter++}`;
+        // 使用 mob_thug 前綴方便任務系統匹配
+        enemy.id = `mob_thug_${this.enemyIdCounter++}`;
         enemy.x = Math.random() * 40 - 20;
         enemy.z = Math.random() * 40 - 20;
         enemy.name = "街頭混混";
