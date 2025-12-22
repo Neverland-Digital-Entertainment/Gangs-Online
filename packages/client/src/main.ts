@@ -324,7 +324,18 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
         // --- Helper: 找到可互動物件（穿透建築物）---
         const findInteractiveTarget = (x: number, y: number): { type: 'loot' | 'npc' | 'enemy' | 'player' | null, mesh: BABYLON.AbstractMesh | null, id?: string } => {
-            const pickResults = scene.multiPick(x, y);
+            // 創建射線
+            const ray = scene.createPickingRay(x, y, BABYLON.Matrix.Identity(), camera);
+
+            // 使用 multiPickWithRay 並設定 predicate 跳過建築物
+            const pickResults = scene.multiPickWithRay(ray, (mesh) => {
+                // 跳過建築物（名稱以 b_ 開頭）
+                if (mesh.name.startsWith("b_")) return false;
+                // 跳過地面
+                if (mesh.name === "ground") return false;
+                return true;
+            });
+
             if (!pickResults) return { type: null, mesh: null };
 
             for (const pickResult of pickResults) {
