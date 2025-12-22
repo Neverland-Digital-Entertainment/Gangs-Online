@@ -24,6 +24,21 @@ export interface IEntityData {
     type: EntityType;
 }
 
+/**
+ * Quest Data Schema (Phase 10: Data-Driven Quest System)
+ * 任務狀態同步 Schema
+ */
+export class QuestData extends Schema implements IQuestState {
+    @type("string") id: string = "";
+    @type("string") name: string = "";
+    @type("string") description: string = "";
+    @type("number") currentCount: number = 0;
+    @type("number") requiredCount: number = 0;
+    @type("boolean") completed: boolean = false;
+    @type("number") rewardXp: number = 0;
+    @type("number") rewardMoney: number = 0;
+}
+
 // Player Data Structure for Sync (Colyseus Schema)
 export class PlayerData extends Schema implements IEntityData {
     @type("string") id: string = "";
@@ -46,6 +61,9 @@ export class PlayerData extends Schema implements IEntityData {
 
     // Economy System (Phase 8)
     @type("number") money: number = 0;
+
+    // Quest System (Phase 10)
+    @type(QuestData) activeQuest: QuestData | null = null;
 }
 
 // Enemy Data (for PVE)
@@ -55,6 +73,43 @@ export interface IEnemyData extends IEntityData {
 
 // Item Types (Phase 8)
 export type ItemType = 'currency' | 'consumable';
+
+// Quest Types (Phase 10)
+export type QuestType = 'kill' | 'talk' | 'collect';
+
+/**
+ * 任務定義（靜態數據，從 JSON 加載）
+ * Phase 10: Data-Driven Quest System
+ */
+export interface IQuestDef {
+    id: string;
+    name: string;
+    description: string;
+    type: QuestType;
+    targetId: string;
+    requiredCount: number;
+    reward: {
+        xp: number;
+        money: number;
+        itemId?: string;
+    };
+    nextQuestId?: string;
+}
+
+/**
+ * 任務狀態（動態數據，同步到客戶端）
+ * Phase 10: Data-Driven Quest System
+ */
+export interface IQuestState {
+    id: string;
+    name: string;
+    description: string;
+    currentCount: number;
+    requiredCount: number;
+    completed: boolean;
+    rewardXp: number;
+    rewardMoney: number;
+}
 
 // Item Interface (Phase 8)
 export interface IItem {
@@ -72,7 +127,7 @@ export interface ILootData {
     item: IItem;
 }
 
-// Player Data Interface (Extended for Phase 8)
+// Player Data Interface (Extended for Phase 10)
 export interface IPlayerData extends IEntityData {
     sessionId: string;
     role: PlayerRole;
@@ -81,6 +136,8 @@ export interface IPlayerData extends IEntityData {
     maxXp: number;
     money: number;
     inventory: IItem[];
+    // Phase 10: Active Quest State
+    activeQuest: IQuestState | null;
 }
 
 // Game Constants
@@ -146,6 +203,6 @@ export const getRankTitle = (level: number): string => {
 };
 
 /**
- * 遊戲版本（0.9.0 - Safe Zone & Shop）
+ * 遊戲版本（0.10.0 - Data-Driven Quest System）
  */
-export const GAME_VERSION = "0.9.1";
+export const GAME_VERSION = "0.10.0";

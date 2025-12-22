@@ -10,7 +10,8 @@
         "emitDecoratorMetadata": true,
         "moduleResolution": "node",
         "skipLibCheck": true,
-        "declaration": true
+        "declaration": true,
+        "resolveJsonModule": true
     },
     "include": [
         "src/**/*"

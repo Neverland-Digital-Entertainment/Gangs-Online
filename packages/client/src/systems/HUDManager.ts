@@ -1,5 +1,8 @@
 import * as GUI from "@babylonjs/gui";
 import { Room } from "colyseus.js";
+import { QuestSystem } from "./QuestSystem";
+import { ShopPopupSystem } from "./ShopPopupSystem";
+import { IQuestState, IItem } from "@gangs-online/shared";
 
 /**
  * HUD 管理器 - 使用 JSON 定義的 UI
@@ -47,6 +50,12 @@ export class HUDManager {
     private popupScrollViewer: GUI.ScrollViewer | null = null;
     private popupContent: GUI.StackPanel | null = null;
 
+    // Quest System (Phase 10)
+    private questSystem: QuestSystem | null = null;
+
+    // Shop Popup System (Phase 10.1)
+    private shopPopupSystem: ShopPopupSystem | null = null;
+
     constructor(uiTexture: GUI.AdvancedDynamicTexture) {
         this.uiTexture = uiTexture;
     }
@@ -65,6 +74,17 @@ export class HUDManager {
 
         // Setup event handlers
         this.setupEventHandlers();
+
+        // Initialize Quest System (Phase 10)
+        this.questSystem = new QuestSystem(room, this.uiTexture);
+        this.questSystem.setPopupContent(this.popupContent);
+        // 設置關閉 popup 的回調
+        this.questSystem.setHidePopupCallback(() => {
+            this.hidePopup();
+        });
+
+        // Initialize Shop Popup System (Phase 10.1)
+        this.shopPopupSystem = new ShopPopupSystem(room);
 
         console.log("✅ HUD Manager initialized");
     }
@@ -338,11 +358,18 @@ export class HUDManager {
                     // Add to UI texture but hidden by default
                     this.uiTexture.addControl(this.popupRoot);
                     this.popupRoot.isVisible = false;
+                    // Phase 10.1: 設置高 zIndex 確保 popup 在其他 UI 之上
+                    this.popupRoot.zIndex = 100;
 
                     // Cache popup elements
                     this.popupContainer = this.findControlInContainer<GUI.Rectangle>(this.popupRoot, "PopupContainer");
                     this.popupTitle = this.findControlInContainer<GUI.TextBlock>(this.popupRoot, "txt_title");
                     this.popupScrollViewer = this.findControlInContainer<GUI.ScrollViewer>(this.popupRoot, "ScrollViewer");
+
+                    // Phase 10.1: 確保 ScrollViewer 可以正確處理點擊事件
+                    if (this.popupScrollViewer) {
+                        this.popupScrollViewer.isPointerBlocker = true;
+                    }
 
                     // Create content container inside scroll viewer
                     if (this.popupScrollViewer) {
@@ -709,13 +736,28 @@ export class HUDManager {
         if (this.popupContent) {
             this.popupContent.clearControls();
 
-            // Add placeholder content based on type
-            const placeholder = new GUI.TextBlock();
-            placeholder.text = `${title}功能開發中...`;
-            placeholder.color = "#666666";
-            placeholder.fontSize = 18;
-            placeholder.height = "50px";
-            this.popupContent.addControl(placeholder);
+            // Phase 10: Handle quest popup with QuestSystem
+            if (type === "quest" && this.questSystem) {
+                const questControls = this.questSystem.createQuestPopupContent();
+                questControls.forEach((control) => {
+                    this.popupContent!.addControl(control);
+                });
+            }
+            // Phase 10.1: Handle inventory/shop popup with ShopPopupSystem
+            else if (type === "inventory" && this.shopPopupSystem) {
+                const shopControls = this.shopPopupSystem.createInventoryPopupContent();
+                shopControls.forEach((control) => {
+                    this.popupContent!.addControl(control);
+                });
+            } else {
+                // Add placeholder content based on type
+                const placeholder = new GUI.TextBlock();
+                placeholder.text = `${title}功能開發中...`;
+                placeholder.color = "#666666";
+                placeholder.fontSize = 18;
+                placeholder.height = "50px";
+                this.popupContent.addControl(placeholder);
+            }
         }
 
         this.popupRoot.isVisible = true;
@@ -758,6 +800,50 @@ export class HUDManager {
     }
 
     /**
+     * 更新任務狀態 (Phase 10)
+     */
+    updateQuestState(quest: IQuestState | null): void {
+        if (this.questSystem) {
+            this.questSystem.updateQuestState(quest);
+        }
+    }
+
+    /**
+     * 獲取任務系統 (Phase 10)
+     */
+    getQuestSystem(): QuestSystem | null {
+        return this.questSystem;
+    }
+
+    /**
+     * 更新商店系統的金錢 (Phase 10.1)
+     */
+    updateShopMoney(money: number): void {
+        if (this.shopPopupSystem) {
+            this.shopPopupSystem.updateMoney(money);
+        }
+    }
+
+    /**
+     * 更新商店系統的背包 (Phase 10.1)
+     */
+    updateShopInventory(inventory: IItem[]): void {
+        if (this.shopPopupSystem) {
+            this.shopPopupSystem.updateInventory(inventory);
+        }
+    }
+
+    /**
+     * 顯示商店 popup (Phase 10.1) - 供 NPC 點擊使用
+     */
+    showShopPopup(): void {
+        if (this.shopPopupSystem) {
+            this.shopPopupSystem.setTab("shop");
+        }
+        this.showPopup("道具", "inventory");
+    }
+
+    /**
      * 釋放資源
      */
     dispose(): void {
@@ -766,6 +852,10 @@ export class HUDManager {
         }
         if (this.popupRoot) {
             this.uiTexture.removeControl(this.popupRoot);
+        }
+        // Phase 10: Dispose Quest System
+        if (this.questSystem) {
+            this.questSystem.dispose();
         }
     }
 }

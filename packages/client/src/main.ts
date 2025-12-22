@@ -12,7 +12,7 @@ import { ChatSystem } from "./systems/ChatSystem";
 import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
 // Phase 9.1: InventorySystem UI 已移除，金錢改為在 HUD 顯示
-import { ShopSystem } from "./systems/ShopSystem"; // Phase 9
+// Phase 10.1: ShopSystem 已整合到 HUDManager 的 Popup 系統
 import { HUDManager } from "./systems/HUDManager"; // Phase 9.1
 import { CityGenerator } from "./world/CityGenerator";
 import { PlayerManager } from "./entities/PlayerManager";
@@ -110,7 +110,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
     let mySessionId: string | null = null;
     let lootManager: LootManager | null = null; // Phase 8
-    let shopSystem: ShopSystem | null = null; // Phase 9
+    // Phase 10.1: shopSystem 已整合到 hudManager
     let hudManager: HUDManager | null = null; // Phase 9.1
 
     try {
@@ -138,9 +138,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         // === Phase 8: 初始化戰利品系統 ===
         lootManager = new LootManager(scene, room);
         // Phase 9.1: 舊的 InventorySystem UI 已移除，金錢改為在 HUD 顯示
-
-        // === Phase 9: 初始化商店系統 ===
-        shopSystem = new ShopSystem(room, uiTexture);
+        // Phase 10.1: ShopSystem 已整合到 HUDManager 的 Popup 系統
 
         // === Phase 9.1: 初始化 HUD 管理器 ===
         hudManager = new HUDManager(uiTexture);
@@ -220,7 +218,46 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 // 監聽金錢變化
                 player.listen("money", (money: number) => {
                     hudManager?.updateMoney(money);
+                    // Phase 10.1: 同步到商店 popup 系統
+                    hudManager?.updateShopMoney(money);
                 });
+
+                // Phase 10.1: 初始化商店系統的金錢
+                hudManager?.updateShopMoney(player.money || 0);
+
+                // Phase 10: 監聽任務狀態變化
+                player.listen("activeQuest", (quest: any) => {
+                    console.log("📋 Quest state changed:", quest);
+                    if (quest) {
+                        hudManager?.updateQuestState({
+                            id: quest.id,
+                            name: quest.name,
+                            description: quest.description,
+                            currentCount: quest.currentCount,
+                            requiredCount: quest.requiredCount,
+                            completed: quest.completed,
+                            rewardXp: quest.rewardXp,
+                            rewardMoney: quest.rewardMoney,
+                        });
+                    } else {
+                        hudManager?.updateQuestState(null);
+                    }
+                });
+
+                // Phase 10: 初始化任務狀態
+                if ((player as any).activeQuest) {
+                    const quest = (player as any).activeQuest;
+                    hudManager?.updateQuestState({
+                        id: quest.id,
+                        name: quest.name,
+                        description: quest.description,
+                        currentCount: quest.currentCount,
+                        requiredCount: quest.requiredCount,
+                        completed: quest.completed,
+                        rewardXp: quest.rewardXp,
+                        rewardMoney: quest.rewardMoney,
+                    });
+                }
             }
         });
 
@@ -285,98 +322,144 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         // 延遲執行以確保房間狀態完全初始化
         setTimeout(setupEnemySystem, 100);
 
+        // --- Helper: 找到可互動物件（穿透建築物）---
+        const findInteractiveTarget = (x: number, y: number): { type: 'loot' | 'npc' | 'enemy' | 'player' | null, mesh: BABYLON.AbstractMesh | null, id?: string } => {
+            // 創建射線
+            const ray = scene.createPickingRay(x, y, BABYLON.Matrix.Identity(), camera);
+
+            // 使用 multiPickWithRay 並設定 predicate 跳過建築物
+            const pickResults = scene.multiPickWithRay(ray, (mesh) => {
+                // 跳過建築物（名稱以 b_ 開頭）
+                if (mesh.name.startsWith("b_")) return false;
+                // 跳過地面
+                if (mesh.name === "ground") return false;
+                return true;
+            });
+
+            if (!pickResults) return { type: null, mesh: null };
+
+            for (const pickResult of pickResults) {
+                if (!pickResult.hit || !pickResult.pickedMesh) continue;
+
+                // 檢查戰利品
+                if (lootManager && lootManager.isLootMesh(pickResult.pickedMesh)) {
+                    return { type: 'loot', mesh: pickResult.pickedMesh, id: lootManager.getLootId(pickResult.pickedMesh) || undefined };
+                }
+
+                // 找到根節點
+                let rootMesh: BABYLON.Node = pickResult.pickedMesh;
+                while (rootMesh.parent) {
+                    rootMesh = rootMesh.parent;
+                }
+
+                if (rootMesh instanceof BABYLON.AbstractMesh && rootMesh.metadata) {
+                    // NPC
+                    if (rootMesh.metadata.type === "npc") {
+                        return { type: 'npc', mesh: rootMesh, id: rootMesh.metadata.id };
+                    }
+                    // 敵人
+                    if (rootMesh.metadata.type === "enemy") {
+                        return { type: 'enemy', mesh: rootMesh, id: rootMesh.metadata.id };
+                    }
+                    // 其他玩家
+                    if (rootMesh.metadata.sessionId && rootMesh.metadata.sessionId !== mySessionId) {
+                        return { type: 'player', mesh: rootMesh, id: rootMesh.metadata.sessionId };
+                    }
+                }
+            }
+            return { type: null, mesh: null };
+        };
+
+        // --- Phase 10.1: 滑鼠 hover 時改變 cursor ---
+        const canvas = scene.getEngine().getRenderingCanvas();
+        scene.onPointerObservable.add((pointerInfo) => {
+            if (!canvas) return;
+            if (pointerInfo.type !== BABYLON.PointerEventTypes.POINTERMOVE) return;
+
+            const target = findInteractiveTarget(scene.pointerX, scene.pointerY);
+
+            switch (target.type) {
+                case 'loot':
+                case 'npc':
+                    canvas.style.cursor = "pointer";
+                    break;
+                case 'enemy':
+                case 'player':
+                    canvas.style.cursor = "crosshair";
+                    break;
+                default:
+                    canvas.style.cursor = "default";
+            }
+        });
+
         // --- 輸入處理：點擊攻擊、拾取戰利品或移動 (Phase 8 更新) ---
         scene.onPointerDown = (evt, pickResult) => {
-            if (pickResult.hit && pickResult.pickedMesh) {
-                // === Phase 8: 檢查是否點擊了戰利品 ===
-                if (lootManager && lootManager.isLootMesh(pickResult.pickedMesh)) {
-                    const lootId = lootManager.getLootId(pickResult.pickedMesh);
-                    if (lootId) {
-                        console.log("📦 Picking up loot:", lootId);
-                        room.send("pickup", lootId);
-                        return;
-                    }
+            // 先用 multiPick 找可互動物件（穿透建築物）
+            const target = findInteractiveTarget(scene.pointerX, scene.pointerY);
+
+            if (target.type === 'loot' && target.id) {
+                console.log("📦 Picking up loot:", target.id);
+                room.send("pickup", target.id);
+                return;
+            }
+
+            if (target.type === 'npc' && target.id && hudManager) {
+                console.log("👔 Clicked NPC:", target.id);
+                if (target.id === "npc_quest") {
+                    hudManager.showPopup("任務", "quest");
+                } else if (target.id === "npc_shopkeeper") {
+                    hudManager.showShopPopup();
+                } else {
+                    hudManager.showShopPopup();
                 }
+                return;
+            }
 
-                // 檢查是否點擊了玩家或敵人
-                let clickedMesh: BABYLON.Node = pickResult.pickedMesh;
-                while (clickedMesh.parent) {
-                    clickedMesh = clickedMesh.parent;
-                }
+            if (target.type === 'enemy' && target.id) {
+                console.log("🗡️ Attacking enemy:", target.id);
+                room.send("attack", { targetId: target.id, type: "enemy" as EntityType });
+                return;
+            }
 
-                if (
-                    clickedMesh instanceof BABYLON.AbstractMesh &&
-                    clickedMesh.metadata
-                ) {
-                    // 檢查是否點擊了玩家
-                    if (clickedMesh.metadata.sessionId) {
-                        const targetId = clickedMesh.metadata.sessionId;
-                        if (targetId !== mySessionId) {
-                            console.log("🗡️ Attacking player:", targetId);
-                            room.send("attack", { targetId: targetId, type: "player" as EntityType });
-                            return;
-                        }
-                    }
+            if (target.type === 'player' && target.id) {
+                console.log("🗡️ Attacking player:", target.id);
+                room.send("attack", { targetId: target.id, type: "player" as EntityType });
+                return;
+            }
 
-                    // Phase 9: 檢查是否點擊了 NPC
-                    if (clickedMesh.metadata.type === "npc" && clickedMesh.metadata.id) {
-                        console.log("👔 Clicked NPC:", clickedMesh.metadata.id);
-                        if (shopSystem) {
-                            shopSystem.toggle();
-                        }
-                        return;
-                    }
+            // 點擊地面 -> 移動（支持穿透建筑物）
+            if (pickResult.hit && pickResult.pickedMesh && pickResult.pickedPoint) {
+                let targetPoint = null;
 
-                    // 檢查是否點擊了敵人
-                    if (clickedMesh.metadata.type === "enemy" && clickedMesh.metadata.id) {
-                        const enemyId = clickedMesh.metadata.id;
-                        console.log("🗡️ Attacking enemy:", enemyId, "metadata:", clickedMesh.metadata);
-                        room.send("attack", { targetId: enemyId, type: "enemy" as EntityType });
-                        return;
-                    }
+                // 如果點擊了建筑物，嘗試穿透找到後面的道路
+                if (pickResult.pickedMesh.name.startsWith("b_")) {
+                    const ray = scene.createPickingRay(
+                        scene.pointerX,
+                        scene.pointerY,
+                        BABYLON.Matrix.Identity(),
+                        camera
+                    );
 
-                    // 診斷：顯示點擊的物體資訊
-                    console.log("❓ Clicked mesh:", clickedMesh.name, "metadata:", clickedMesh.metadata);
-                }
-
-                // 點擊地面 -> 移動（支持穿透建筑物）
-                if (pickResult.pickedPoint) {
-                    let targetPoint = null;
-
-                    // 如果點擊了建筑物，嘗試穿透找到後面的道路
-                    if (pickResult.pickedMesh.name.startsWith("b_")) {
-                        // 使用射線檢測獲取所有擊中的物體
-                        const ray = scene.createPickingRay(
-                            scene.pointerX,
-                            scene.pointerY,
-                            BABYLON.Matrix.Identity(),
-                            camera
-                        );
-
-                        const hits = scene.multiPickWithRay(ray);
-                        if (hits) {
-                            // 遍歷所有擊中的物體，找到第一個不是建筑物的地面
-                            for (const hit of hits) {
-                                if (hit.pickedMesh &&
-                                    !hit.pickedMesh.name.startsWith("b_") &&
-                                    hit.pickedPoint) {
-                                    targetPoint = hit.pickedPoint;
-                                    break;
-                                }
+                    const hits = scene.multiPickWithRay(ray);
+                    if (hits) {
+                        for (const hit of hits) {
+                            if (hit.pickedMesh &&
+                                !hit.pickedMesh.name.startsWith("b_") &&
+                                hit.pickedPoint) {
+                                targetPoint = hit.pickedPoint;
+                                break;
                             }
                         }
-                    } else {
-                        // 直接點擊了地面
-                        targetPoint = pickResult.pickedPoint;
                     }
+                } else {
+                    targetPoint = pickResult.pickedPoint;
+                }
 
-                    // 如果找到了有效的目標點，發送移動命令
-                    if (targetPoint) {
-                        room.send("move", {
-                            x: targetPoint.x,
-                            z: targetPoint.z,
-                        });
-                    }
+                if (targetPoint) {
+                    room.send("move", {
+                        x: targetPoint.x,
+                        z: targetPoint.z,
+                    });
                 }
             }
         };
