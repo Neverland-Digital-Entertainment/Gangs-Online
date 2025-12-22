@@ -322,6 +322,47 @@ const createScene = async (): Promise<BABYLON.Scene> => {
         // 延遲執行以確保房間狀態完全初始化
         setTimeout(setupEnemySystem, 100);
 
+        // --- Phase 10.1: 滑鼠 hover 時改變 cursor ---
+        const canvas = scene.getEngine().getRenderingCanvas();
+        scene.onPointerMove = (evt, pickResult) => {
+            if (!canvas) return;
+
+            if (pickResult.hit && pickResult.pickedMesh) {
+                // 檢查是否 hover 在戰利品上
+                if (lootManager && lootManager.isLootMesh(pickResult.pickedMesh)) {
+                    canvas.style.cursor = "pointer";
+                    return;
+                }
+
+                // 找到根節點
+                let hoveredMesh: BABYLON.Node = pickResult.pickedMesh;
+                while (hoveredMesh.parent) {
+                    hoveredMesh = hoveredMesh.parent;
+                }
+
+                if (hoveredMesh instanceof BABYLON.AbstractMesh && hoveredMesh.metadata) {
+                    // Hover 在 NPC 上
+                    if (hoveredMesh.metadata.type === "npc") {
+                        canvas.style.cursor = "pointer";
+                        return;
+                    }
+                    // Hover 在敵人上
+                    if (hoveredMesh.metadata.type === "enemy") {
+                        canvas.style.cursor = "crosshair";
+                        return;
+                    }
+                    // Hover 在其他玩家上
+                    if (hoveredMesh.metadata.sessionId && hoveredMesh.metadata.sessionId !== mySessionId) {
+                        canvas.style.cursor = "crosshair";
+                        return;
+                    }
+                }
+            }
+
+            // 預設 cursor
+            canvas.style.cursor = "default";
+        };
+
         // --- 輸入處理：點擊攻擊、拾取戰利品或移動 (Phase 8 更新) ---
         scene.onPointerDown = (evt, pickResult) => {
             if (pickResult.hit && pickResult.pickedMesh) {
