@@ -22,7 +22,9 @@ export class QuestSystem {
     constructor(room: Room, uiTexture: GUI.AdvancedDynamicTexture) {
         this.room = room;
         this.uiTexture = uiTexture;
+        console.log("📋 [QuestSystem] Constructor called, setting up message handlers...");
         this.setupMessageHandlers();
+        console.log("📋 [QuestSystem] Message handlers set up complete");
     }
 
     /**
@@ -36,6 +38,8 @@ export class QuestSystem {
      * 設置消息處理器
      */
     private setupMessageHandlers(): void {
+        console.log("📋 [QuestSystem] Setting up onMessage handlers for room:", this.room.id);
+
         // 接收可用任務信息
         this.room.onMessage("questInfo", (quest: IQuestDef) => {
             this.availableQuest = quest;
@@ -47,6 +51,11 @@ export class QuestSystem {
             console.log("📋 [QuestSystem] questStateUpdate received:", quest);
             this.currentQuest = quest;
             console.log("📋 [QuestSystem] currentQuest is now:", this.currentQuest);
+        });
+
+        // 監聽所有通知消息，確認連接正常
+        this.room.onMessage("notification", (msg: string) => {
+            console.log("📋 [QuestSystem] notification received:", msg);
         });
     }
 
@@ -347,8 +356,9 @@ export class QuestSystem {
         acceptBtn.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
         acceptBtn.isPointerBlocker = true;
         acceptBtn.onPointerUpObservable.add(() => {
-            console.log(`📋 Accepting quest: ${questId}`);
+            console.log(`📋 Accepting quest: ${questId}, sending to room:`, this.room.id);
             this.room.send("acceptQuest", questId);
+            console.log(`📋 Message sent to server`);
             if (this.hidePopupCallback) {
                 this.hidePopupCallback();
             }
