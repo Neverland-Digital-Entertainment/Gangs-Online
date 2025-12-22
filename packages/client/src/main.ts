@@ -477,10 +477,10 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 if (target.id === "npc_quest") {
                     hudManager.showPopup("任務", "quest");
                 } else if (target.id === "npc_shopkeeper") {
-                    hudManager.showShopPopup();
-                } else {
+                    // Phase 11: 只有點擊商店 NPC 才會顯示商店
                     hudManager.showShopPopup();
                 }
+                // 其他 NPC 不開啟商店
                 return;
             }
 

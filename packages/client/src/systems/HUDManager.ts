@@ -743,10 +743,17 @@ export class HUDManager {
                     this.popupContent!.addControl(control);
                 });
             }
-            // Phase 10.1: Handle inventory/shop popup with ShopPopupSystem
-            else if (type === "inventory" && this.shopPopupSystem) {
-                const shopControls = this.shopPopupSystem.createInventoryPopupContent();
+            // Phase 11: Handle shop popup (only when interacting with shop NPC)
+            else if (type === "shop" && this.shopPopupSystem) {
+                const shopControls = this.shopPopupSystem.createShopPopupContent();
                 shopControls.forEach((control) => {
+                    this.popupContent!.addControl(control);
+                });
+            }
+            // Phase 11: Handle inventory popup (only shows picked up items)
+            else if (type === "inventory" && this.shopPopupSystem) {
+                const inventoryControls = this.shopPopupSystem.createInventoryPopupContent();
+                inventoryControls.forEach((control) => {
                     this.popupContent!.addControl(control);
                 });
             } else {
@@ -834,12 +841,16 @@ export class HUDManager {
     }
 
     /**
-     * 顯示商店 popup (Phase 10.1) - 供 NPC 點擊使用
+     * 顯示商店 popup (Phase 11) - 只有跟商店 NPC 互動才會顯示
      */
     showShopPopup(): void {
-        if (this.shopPopupSystem) {
-            this.shopPopupSystem.setTab("shop");
-        }
+        this.showPopup("商店", "shop");
+    }
+
+    /**
+     * 顯示道具 popup (Phase 11) - 只顯示拾取的道具
+     */
+    showInventoryPopup(): void {
         this.showPopup("道具", "inventory");
     }
 

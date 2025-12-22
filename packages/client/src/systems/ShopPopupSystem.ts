@@ -13,11 +13,10 @@ interface IRecentlyAcquired {
 
 /**
  * 商店 Popup 系統 (Phase 10.1, Updated in Phase 11)
- * 整合商店和道具到統一的 popup 介面
+ * 商店和道具分開為兩個獨立的 UI
  */
 export class ShopPopupSystem {
     private room: Room;
-    private currentTab: "shop" | "inventory" = "shop";
     private playerMoney: number = 0;
     private playerInventory: IItem[] = [];
     private recentlyAcquired: IRecentlyAcquired[] = []; // Phase 11: 最近獲得的物品
@@ -81,7 +80,73 @@ export class ShopPopupSystem {
     }
 
     /**
-     * 創建道具 Popup 內容（包含商店和背包分頁）
+     * 創建商店 Popup 內容（獨立的商店 UI，只有跟 NPC 互動才會顯示）
+     */
+    createShopPopupContent(): GUI.Control[] {
+        const controls: GUI.Control[] = [];
+
+        // 主容器
+        const mainPanel = new GUI.StackPanel();
+        mainPanel.isVertical = true;
+        mainPanel.width = "100%";
+        mainPanel.spacing = 10;
+        mainPanel.paddingTop = "10px";
+
+        // 金錢顯示
+        const moneyPanel = new GUI.Rectangle();
+        moneyPanel.width = "100%";
+        moneyPanel.height = "40px";
+        moneyPanel.background = "rgba(50, 50, 50, 0.8)";
+        moneyPanel.thickness = 0;
+        moneyPanel.cornerRadius = 5;
+        mainPanel.addControl(moneyPanel);
+
+        const moneyText = new GUI.TextBlock();
+        moneyText.text = `💰 現金: $${this.playerMoney.toLocaleString()}`;
+        moneyText.color = "#ffd700";
+        moneyText.fontSize = 18;
+        moneyText.fontWeight = "bold";
+        moneyPanel.addControl(moneyText);
+
+        // 商店標題
+        const title = new GUI.TextBlock();
+        title.text = "🏪 十三叔雜貨鋪";
+        title.color = "#ffd700";
+        title.fontSize = 22;
+        title.fontWeight = "bold";
+        title.height = "40px";
+        title.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        mainPanel.addControl(title);
+
+        // 提示信息
+        const tip = new GUI.TextBlock();
+        tip.text = "歡迎光臨！有咩可以幫到你？";
+        tip.color = "#888888";
+        tip.fontSize = 14;
+        tip.height = "25px";
+        tip.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        mainPanel.addControl(tip);
+
+        // 分隔線
+        const separator = new GUI.Rectangle();
+        separator.width = "100%";
+        separator.height = "2px";
+        separator.background = "#444444";
+        separator.thickness = 0;
+        mainPanel.addControl(separator);
+
+        // 商品列表
+        SHOP_ITEMS.forEach((item) => {
+            const itemPanel = this.createShopItemPanel(item);
+            mainPanel.addControl(itemPanel);
+        });
+
+        controls.push(mainPanel);
+        return controls;
+    }
+
+    /**
+     * 創建道具 Popup 內容（獨立的背包 UI，只顯示拾取的道具）
      */
     createInventoryPopupContent(): GUI.Control[] {
         const controls: GUI.Control[] = [];
@@ -109,95 +174,58 @@ export class ShopPopupSystem {
         moneyText.fontWeight = "bold";
         moneyPanel.addControl(moneyText);
 
-        // 分頁按鈕
-        const tabPanel = new GUI.StackPanel();
-        tabPanel.isVertical = false;
-        tabPanel.height = "45px";
-        tabPanel.spacing = 10;
-        mainPanel.addControl(tabPanel);
+        // === Phase 11: 最近獲得的物品區域 ===
+        const recentItems = this.getRecentlyAcquired();
+        if (recentItems.length > 0) {
+            const recentSection = this.createRecentlyAcquiredSection(recentItems);
+            mainPanel.addControl(recentSection);
 
-        const shopTab = GUI.Button.CreateSimpleButton("shopTab", "🏪 商店");
-        shopTab.width = "120px";
-        shopTab.height = "40px";
-        shopTab.color = "white";
-        shopTab.background = this.currentTab === "shop" ? "#1E90FF" : "#444444";
-        shopTab.cornerRadius = 5;
-        shopTab.fontSize = 16;
-        shopTab.onPointerUpObservable.add(() => {
-            this.currentTab = "shop";
-            // 需要重新渲染
-        });
-        tabPanel.addControl(shopTab);
-
-        const inventoryTab = GUI.Button.CreateSimpleButton("inventoryTab", "🎒 背包");
-        inventoryTab.width = "120px";
-        inventoryTab.height = "40px";
-        inventoryTab.color = "white";
-        inventoryTab.background = this.currentTab === "inventory" ? "#1E90FF" : "#444444";
-        inventoryTab.cornerRadius = 5;
-        inventoryTab.fontSize = 16;
-        inventoryTab.onPointerUpObservable.add(() => {
-            this.currentTab = "inventory";
-            // 需要重新渲染
-        });
-        tabPanel.addControl(inventoryTab);
-
-        // 分隔線
-        const separator = new GUI.Rectangle();
-        separator.width = "100%";
-        separator.height = "2px";
-        separator.background = "#444444";
-        separator.thickness = 0;
-        mainPanel.addControl(separator);
-
-        // 內容區域
-        if (this.currentTab === "shop") {
-            const shopContent = this.createShopContent();
-            mainPanel.addControl(shopContent);
-        } else {
-            const inventoryContent = this.createInventoryContent();
-            mainPanel.addControl(inventoryContent);
+            // 分隔線
+            const separator = new GUI.Rectangle();
+            separator.width = "100%";
+            separator.height = "2px";
+            separator.background = "#444444";
+            separator.thickness = 0;
+            mainPanel.addControl(separator);
         }
 
-        controls.push(mainPanel);
-        return controls;
-    }
-
-    /**
-     * 創建商店內容
-     */
-    private createShopContent(): GUI.Container {
-        const panel = new GUI.StackPanel();
-        panel.isVertical = true;
-        panel.width = "100%";
-        panel.spacing = 8;
-
-        // 商店標題
+        // 背包標題
         const title = new GUI.TextBlock();
-        title.text = "十三叔雜貨鋪";
+        title.text = `🎒 背包 (${this.playerInventory.length} 件物品)`;
         title.color = "#ffd700";
         title.fontSize = 20;
         title.fontWeight = "bold";
         title.height = "35px";
         title.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        panel.addControl(title);
+        mainPanel.addControl(title);
 
-        // 提示信息
-        const tip = new GUI.TextBlock();
-        tip.text = "💡 走近十三叔 (藍色 NPC) 才能購買";
-        tip.color = "#888888";
-        tip.fontSize = 14;
-        tip.height = "25px";
-        tip.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        panel.addControl(tip);
+        if (this.playerInventory.length === 0 && recentItems.length === 0) {
+            // 空背包提示
+            const emptyText = new GUI.TextBlock();
+            emptyText.text = "背包是空的...\n去打怪掉落道具吧！";
+            emptyText.color = "#888888";
+            emptyText.fontSize = 16;
+            emptyText.height = "80px";
+            emptyText.textWrapping = true;
+            mainPanel.addControl(emptyText);
+        } else if (this.playerInventory.length === 0) {
+            // 有最近獲得但背包是空的
+            const emptyText = new GUI.TextBlock();
+            emptyText.text = "背包目前是空的";
+            emptyText.color = "#888888";
+            emptyText.fontSize = 14;
+            emptyText.height = "30px";
+            mainPanel.addControl(emptyText);
+        } else {
+            // 物品列表
+            this.playerInventory.forEach((item, index) => {
+                const itemPanel = this.createInventoryItemPanel(item, index);
+                mainPanel.addControl(itemPanel);
+            });
+        }
 
-        // 商品列表
-        SHOP_ITEMS.forEach((item) => {
-            const itemPanel = this.createShopItemPanel(item);
-            panel.addControl(itemPanel);
-        });
-
-        return panel;
+        controls.push(mainPanel);
+        return controls;
     }
 
     /**
@@ -258,60 +286,6 @@ export class ShopPopupSystem {
         contentPanel.addControl(buyBtn);
 
         return container;
-    }
-
-    /**
-     * 創建背包內容
-     */
-    private createInventoryContent(): GUI.Container {
-        const panel = new GUI.StackPanel();
-        panel.isVertical = true;
-        panel.width = "100%";
-        panel.spacing = 8;
-
-        // === Phase 11: 最近獲得的物品區域 ===
-        const recentItems = this.getRecentlyAcquired();
-        if (recentItems.length > 0) {
-            const recentSection = this.createRecentlyAcquiredSection(recentItems);
-            panel.addControl(recentSection);
-
-            // 分隔線
-            const separator = new GUI.Rectangle();
-            separator.width = "100%";
-            separator.height = "2px";
-            separator.background = "#444444";
-            separator.thickness = 0;
-            panel.addControl(separator);
-        }
-
-        // 背包標題
-        const title = new GUI.TextBlock();
-        title.text = `🎒 背包 (${this.playerInventory.length} 件物品)`;
-        title.color = "#ffd700";
-        title.fontSize = 20;
-        title.fontWeight = "bold";
-        title.height = "35px";
-        title.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        panel.addControl(title);
-
-        if (this.playerInventory.length === 0) {
-            // 空背包提示
-            const emptyText = new GUI.TextBlock();
-            emptyText.text = "背包是空的...\n去打怪或商店買點東西吧！";
-            emptyText.color = "#888888";
-            emptyText.fontSize = 16;
-            emptyText.height = "80px";
-            emptyText.textWrapping = true;
-            panel.addControl(emptyText);
-        } else {
-            // 物品列表
-            this.playerInventory.forEach((item, index) => {
-                const itemPanel = this.createInventoryItemPanel(item, index);
-                panel.addControl(itemPanel);
-            });
-        }
-
-        return panel;
     }
 
     /**
@@ -466,19 +440,5 @@ export class ShopPopupSystem {
         }
 
         return container;
-    }
-
-    /**
-     * 設置當前分頁
-     */
-    setTab(tab: "shop" | "inventory"): void {
-        this.currentTab = tab;
-    }
-
-    /**
-     * 獲取當前分頁
-     */
-    getTab(): "shop" | "inventory" {
-        return this.currentTab;
     }
 }
