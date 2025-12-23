@@ -49,6 +49,7 @@ export class HUDManager {
     private popupTitle: GUI.TextBlock | null = null;
     private popupScrollViewer: GUI.ScrollViewer | null = null;
     private popupContent: GUI.StackPanel | null = null;
+    private currentPopupType: string | null = null; // Phase 11: 追蹤當前打開的 popup 類型
 
     // Quest System (Phase 10)
     private questSystem: QuestSystem | null = null;
@@ -743,10 +744,17 @@ export class HUDManager {
                     this.popupContent!.addControl(control);
                 });
             }
-            // Phase 10.1: Handle inventory/shop popup with ShopPopupSystem
-            else if (type === "inventory" && this.shopPopupSystem) {
-                const shopControls = this.shopPopupSystem.createInventoryPopupContent();
+            // Phase 11: Handle shop popup (only when interacting with shop NPC)
+            else if (type === "shop" && this.shopPopupSystem) {
+                const shopControls = this.shopPopupSystem.createShopPopupContent();
                 shopControls.forEach((control) => {
+                    this.popupContent!.addControl(control);
+                });
+            }
+            // Phase 11: Handle inventory popup (only shows picked up items)
+            else if (type === "inventory" && this.shopPopupSystem) {
+                const inventoryControls = this.shopPopupSystem.createInventoryPopupContent();
+                inventoryControls.forEach((control) => {
                     this.popupContent!.addControl(control);
                 });
             } else {
@@ -761,6 +769,7 @@ export class HUDManager {
         }
 
         this.popupRoot.isVisible = true;
+        this.currentPopupType = type; // Phase 11: 記錄當前 popup 類型
         console.log(`📋 Popup opened: ${type}`);
     }
 
@@ -770,6 +779,21 @@ export class HUDManager {
     hidePopup(): void {
         if (this.popupRoot) {
             this.popupRoot.isVisible = false;
+        }
+        this.currentPopupType = null; // Phase 11: 清除 popup 類型
+    }
+
+    /**
+     * 刷新當前打開的 Popup (Phase 11)
+     */
+    private refreshCurrentPopup(): void {
+        if (this.currentPopupType && this.popupRoot?.isVisible) {
+            // 重新生成 popup 內容
+            if (this.currentPopupType === "inventory") {
+                this.showPopup("道具", "inventory");
+            } else if (this.currentPopupType === "shop") {
+                this.showPopup("商店", "shop");
+            }
         }
     }
 
@@ -830,17 +854,32 @@ export class HUDManager {
     updateShopInventory(inventory: IItem[]): void {
         if (this.shopPopupSystem) {
             this.shopPopupSystem.updateInventory(inventory);
+            // Phase 11: 如果道具 popup 正在顯示，刷新它
+            this.refreshCurrentPopup();
         }
     }
 
     /**
-     * 顯示商店 popup (Phase 10.1) - 供 NPC 點擊使用
+     * 顯示商店 popup (Phase 11) - 只有跟商店 NPC 互動才會顯示
      */
     showShopPopup(): void {
-        if (this.shopPopupSystem) {
-            this.shopPopupSystem.setTab("shop");
-        }
+        this.showPopup("商店", "shop");
+    }
+
+    /**
+     * 顯示道具 popup (Phase 11) - 只顯示拾取的道具
+     */
+    showInventoryPopup(): void {
         this.showPopup("道具", "inventory");
+    }
+
+    /**
+     * 添加最近獲得的物品 (Phase 11)
+     */
+    addRecentlyAcquired(item: IItem, isCurrency: boolean = false): void {
+        if (this.shopPopupSystem) {
+            this.shopPopupSystem.addRecentlyAcquired(item, isCurrency);
+        }
     }
 
     /**
