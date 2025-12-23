@@ -1,7 +1,7 @@
 import * as BABYLON from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import * as Client from "colyseus.js";
-import { PlayerData, IEnemyData, EntityType } from "@gangs-online/shared";
+import { PlayerData, IEnemyData, EntityType, GAME_CONSTANTS } from "@gangs-online/shared";
 import "@babylonjs/loaders";
 import { GAME_VERSION } from "./version";
 
@@ -118,6 +118,9 @@ const createScene = async (): Promise<BABYLON.Scene> => {
     let lootManager: LootManager | null = null; // Phase 8
     // Phase 10.1: shopSystem 已整合到 hudManager
     let hudManager: HUDManager | null = null; // Phase 9.1
+
+    // Phase 11: 自動走路拾取的目標
+    let pendingPickup: { lootId: string; x: number; z: number } | null = null;
 
     try {
         // 連接遊戲房間前，先檢查版本（0.7.1）
@@ -294,6 +297,36 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 // Phase 10.1: 初始化商店系統的金錢
                 hudManager?.updateShopMoney(player.money || 0);
 
+                // Phase 11: 監聽背包變化並同步到 HUD
+                const playerInventory = (player as any).inventory;
+                const syncInventory = () => {
+                    if (hudManager && playerInventory) {
+                        const items = Array.from(playerInventory).map((item: any) => ({
+                            id: item.id,
+                            name: item.name,
+                            type: item.type,
+                            value: item.value,
+                        }));
+                        hudManager.updateShopInventory(items);
+                    }
+                };
+
+                // 初始化背包
+                if (playerInventory) {
+                    syncInventory();
+
+                    // 監聽背包變化
+                    playerInventory.onAdd(() => {
+                        syncInventory();
+                    });
+                    playerInventory.onRemove(() => {
+                        syncInventory();
+                    });
+                    playerInventory.onChange(() => {
+                        syncInventory();
+                    });
+                }
+
                 // Phase 10: 監聽任務狀態變化
                 player.listen("activeQuest", (quest: any) => {
                     console.log("📋 Quest state changed:", quest);
@@ -466,9 +499,31 @@ const createScene = async (): Promise<BABYLON.Scene> => {
             // 先用 multiPick 找可互動物件（穿透建築物）
             const target = findInteractiveTarget(scene.pointerX, scene.pointerY);
 
-            if (target.type === 'loot' && target.id) {
-                console.log("📦 Picking up loot:", target.id);
-                room.send("pickup", target.id);
+            if (target.type === 'loot' && target.id && target.mesh) {
+                const myEntity = playerManager.getEntity(mySessionId!);
+                if (myEntity) {
+                    // 計算玩家到戰利品的距離
+                    const lootPos = target.mesh.position;
+                    const dx = myEntity.mesh.position.x - lootPos.x;
+                    const dz = myEntity.mesh.position.z - lootPos.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+
+                    if (dist <= GAME_CONSTANTS.LOOT_PICKUP_RANGE) {
+                        // 在拾取範圍內，直接拾取
+                        console.log("📦 Picking up loot:", target.id);
+                        room.send("pickup", target.id);
+                        pendingPickup = null;
+                    } else {
+                        // 太遠了，先走過去
+                        console.log("🚶 Walking to loot:", target.id, `(距離: ${dist.toFixed(2)})`);
+                        pendingPickup = { lootId: target.id, x: lootPos.x, z: lootPos.z };
+                        room.send("move", { x: lootPos.x, z: lootPos.z });
+                    }
+                } else {
+                    // 玩家實體不存在，直接嘗試拾取
+                    console.log("📦 Picking up loot:", target.id);
+                    room.send("pickup", target.id);
+                }
                 return;
             }
 
@@ -499,6 +554,9 @@ const createScene = async (): Promise<BABYLON.Scene> => {
             }
 
             // 點擊地面 -> 移動（支持穿透建筑物）
+            // Phase 11: 取消待執行的拾取
+            pendingPickup = null;
+
             if (pickResult.hit && pickResult.pickedMesh && pickResult.pickedPoint) {
                 let targetPoint = null;
 
@@ -534,30 +592,44 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 }
             }
         };
+
+        // --- 遊戲迴圈（動畫 & 移動）---
+        scene.registerBeforeRender(() => {
+            // 更新所有玩家
+            playerManager.updateAll();
+
+            // 更新所有敵人
+            enemyManager.updateAll();
+
+            // Phase 10: 更新建築物遮擋效果
+            if (mySessionId) {
+                const myEntity = playerManager.getEntity(mySessionId);
+                if (myEntity) {
+                    // 相機跟隨
+                    updateCameraFollow(camera, myEntity.mesh);
+
+                    // 檢查並更新建築物透明度（當玩家在建築物後面時）
+                    cityGenerator.updateBuildingOcclusion(myEntity.mesh.position, camera);
+
+                    // Phase 11: 自動走路拾取
+                    if (pendingPickup) {
+                        const dx = myEntity.mesh.position.x - pendingPickup.x;
+                        const dz = myEntity.mesh.position.z - pendingPickup.z;
+                        const dist = Math.sqrt(dx * dx + dz * dz);
+
+                        if (dist <= GAME_CONSTANTS.LOOT_PICKUP_RANGE) {
+                            // 到達拾取範圍，執行拾取
+                            console.log("📦 Auto-picking up loot:", pendingPickup.lootId);
+                            room.send("pickup", pendingPickup.lootId);
+                            pendingPickup = null;
+                        }
+                    }
+                }
+            }
+        });
     } catch (e) {
         console.error("Connection Failed:", e);
     }
-
-    // --- 遊戲迴圈（動畫 & 移動）---
-    scene.registerBeforeRender(() => {
-        // 更新所有玩家
-        playerManager.updateAll();
-
-        // 更新所有敵人
-        enemyManager.updateAll();
-
-        // Phase 10: 更新建築物遮擋效果
-        if (mySessionId) {
-            const myEntity = playerManager.getEntity(mySessionId);
-            if (myEntity) {
-                // 相機跟隨
-                updateCameraFollow(camera, myEntity.mesh);
-
-                // 檢查並更新建築物透明度（當玩家在建築物後面時）
-                cityGenerator.updateBuildingOcclusion(myEntity.mesh.position, camera);
-            }
-        }
-    });
 
     return scene;
 };
