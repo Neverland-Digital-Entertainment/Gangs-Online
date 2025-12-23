@@ -122,6 +122,9 @@ const createScene = async (): Promise<BABYLON.Scene> => {
     // Phase 11: 自動走路拾取的目標
     let pendingPickup: { lootId: string; x: number; z: number } | null = null;
 
+    // Phase 11: 自動走路攻擊的目標
+    let pendingAttack: { targetId: string; targetType: EntityType; x: number; z: number } | null = null;
+
     try {
         // 連接遊戲房間前，先檢查版本（0.7.1）
         loadingScreen.updateText("正在檢查版本...");
@@ -539,23 +542,66 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 return;
             }
 
-            if (target.type === 'enemy' && target.id) {
-                console.log("🗡️ Attacking enemy:", target.id);
-                soundManager.playMissSound(); // Phase 11: 攻擊音效（揮空聲）
-                room.send("attack", { targetId: target.id, type: "enemy" as EntityType });
+            if (target.type === 'enemy' && target.id && target.mesh) {
+                const myEntity = playerManager.getEntity(mySessionId!);
+                if (myEntity) {
+                    const targetPos = target.mesh.position;
+                    const dx = myEntity.mesh.position.x - targetPos.x;
+                    const dz = myEntity.mesh.position.z - targetPos.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+
+                    if (dist <= GAME_CONSTANTS.ATTACK_RANGE) {
+                        // 在攻擊範圍內，直接攻擊
+                        console.log("🗡️ Attacking enemy:", target.id);
+                        soundManager.playMissSound();
+                        room.send("attack", { targetId: target.id, type: "enemy" as EntityType });
+                        pendingAttack = null;
+                    } else {
+                        // 太遠了，先走過去
+                        console.log("🚶 Walking to enemy:", target.id, `(距離: ${dist.toFixed(2)})`);
+                        pendingAttack = { targetId: target.id, targetType: "enemy", x: targetPos.x, z: targetPos.z };
+                        room.send("move", { x: targetPos.x, z: targetPos.z });
+                    }
+                } else {
+                    console.log("🗡️ Attacking enemy:", target.id);
+                    soundManager.playMissSound();
+                    room.send("attack", { targetId: target.id, type: "enemy" as EntityType });
+                }
                 return;
             }
 
-            if (target.type === 'player' && target.id) {
-                console.log("🗡️ Attacking player:", target.id);
-                soundManager.playMissSound(); // Phase 11: 攻擊音效（揮空聲）
-                room.send("attack", { targetId: target.id, type: "player" as EntityType });
+            if (target.type === 'player' && target.id && target.mesh) {
+                const myEntity = playerManager.getEntity(mySessionId!);
+                if (myEntity) {
+                    const targetPos = target.mesh.position;
+                    const dx = myEntity.mesh.position.x - targetPos.x;
+                    const dz = myEntity.mesh.position.z - targetPos.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+
+                    if (dist <= GAME_CONSTANTS.ATTACK_RANGE) {
+                        // 在攻擊範圍內，直接攻擊
+                        console.log("🗡️ Attacking player:", target.id);
+                        soundManager.playMissSound();
+                        room.send("attack", { targetId: target.id, type: "player" as EntityType });
+                        pendingAttack = null;
+                    } else {
+                        // 太遠了，先走過去
+                        console.log("🚶 Walking to player:", target.id, `(距離: ${dist.toFixed(2)})`);
+                        pendingAttack = { targetId: target.id, targetType: "player", x: targetPos.x, z: targetPos.z };
+                        room.send("move", { x: targetPos.x, z: targetPos.z });
+                    }
+                } else {
+                    console.log("🗡️ Attacking player:", target.id);
+                    soundManager.playMissSound();
+                    room.send("attack", { targetId: target.id, type: "player" as EntityType });
+                }
                 return;
             }
 
             // 點擊地面 -> 移動（支持穿透建筑物）
-            // Phase 11: 取消待執行的拾取
+            // Phase 11: 取消待執行的拾取和攻擊
             pendingPickup = null;
+            pendingAttack = null;
 
             if (pickResult.hit && pickResult.pickedMesh && pickResult.pickedPoint) {
                 let targetPoint = null;
@@ -622,6 +668,21 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                             console.log("📦 Auto-picking up loot:", pendingPickup.lootId);
                             room.send("pickup", pendingPickup.lootId);
                             pendingPickup = null;
+                        }
+                    }
+
+                    // Phase 11: 自動走路攻擊
+                    if (pendingAttack) {
+                        const dx = myEntity.mesh.position.x - pendingAttack.x;
+                        const dz = myEntity.mesh.position.z - pendingAttack.z;
+                        const dist = Math.sqrt(dx * dx + dz * dz);
+
+                        if (dist <= GAME_CONSTANTS.ATTACK_RANGE) {
+                            // 到達攻擊範圍，執行攻擊
+                            console.log("🗡️ Auto-attacking:", pendingAttack.targetId);
+                            soundManager.playMissSound();
+                            room.send("attack", { targetId: pendingAttack.targetId, type: pendingAttack.targetType });
+                            pendingAttack = null;
                         }
                     }
                 }

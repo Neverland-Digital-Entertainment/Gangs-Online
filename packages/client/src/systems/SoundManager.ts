@@ -3,12 +3,12 @@ import * as BABYLON from "@babylonjs/core";
 /**
  * SoundManager - Phase 11: Audio System
  * 管理遊戲中的背景音樂和音效
+ * 使用 Web Audio API 生成音效，確保可靠播放
  */
 export class SoundManager {
     private scene: BABYLON.Scene;
-    private sounds: { [key: string]: BABYLON.Sound } = {};
+    private audioContext: AudioContext | null = null;
     private isInitialized: boolean = false;
-    private pendingSounds: string[] = [];
 
     // 音量設置
     private masterVolume: number = 1.0;
@@ -21,163 +21,158 @@ export class SoundManager {
 
     /**
      * 初始化音效系統
-     * 因為瀏覽器安全策略，需要在用戶互動後才能播放音效
      */
     async initialize(): Promise<void> {
         if (this.isInitialized) return;
 
         try {
-            // 預載入音效
-            await this.preloadSounds();
+            this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             this.isInitialized = true;
-            console.log("🔊 SoundManager initialized");
-
-            // 播放等待中的音效
-            this.pendingSounds.forEach((soundName) => this.play(soundName));
-            this.pendingSounds = [];
+            console.log("🔊 SoundManager initialized with Web Audio API");
         } catch (error) {
             console.error("❌ Failed to initialize SoundManager:", error);
         }
     }
 
     /**
-     * 預載入所有音效
+     * 確保 AudioContext 已啟動（需要用戶互動）
      */
-    private async preloadSounds(): Promise<void> {
-        // 使用 Babylon.js playground 的免費音效
-        const soundDefs: { name: string; url: string; options: BABYLON.ISoundOptions }[] = [
-            {
-                name: "punch",
-                url: "https://playground.babylonjs.com/sounds/gunshot.wav",
-                options: { volume: 0.5 * this.sfxVolume * this.masterVolume },
-            },
-            {
-                name: "whoosh",
-                url: "https://playground.babylonjs.com/sounds/cell_fire.wav",
-                options: { volume: 0.3 * this.sfxVolume * this.masterVolume },
-            },
-            {
-                name: "levelup",
-                url: "https://playground.babylonjs.com/sounds/powerup.wav",
-                options: { volume: 0.8 * this.sfxVolume * this.masterVolume },
-            },
-            {
-                name: "pickup",
-                url: "https://playground.babylonjs.com/sounds/coin.wav",
-                options: { volume: 0.6 * this.sfxVolume * this.masterVolume },
-            },
-            {
-                name: "bgm",
-                url: "https://playground.babylonjs.com/sounds/violons11.wav",
-                options: {
-                    loop: true,
-                    autoplay: false,
-                    volume: this.bgmVolume * this.masterVolume,
-                },
-            },
-        ];
+    private ensureAudioContext(): boolean {
+        if (!this.audioContext) return false;
 
-        // 使用 Promise.allSettled 來載入所有音效，即使部分失敗也不會阻塞
-        const loadPromises = soundDefs.map(
-            (def) =>
-                new Promise<void>((resolve) => {
-                    try {
-                        this.sounds[def.name] = new BABYLON.Sound(
-                            def.name,
-                            def.url,
-                            this.scene,
-                            () => {
-                                console.log(`🔊 Sound loaded: ${def.name}`);
-                                resolve();
-                            },
-                            def.options
-                        );
-                    } catch (error) {
-                        console.warn(`⚠️ Failed to load sound: ${def.name}`, error);
-                        resolve(); // 繼續載入其他音效
-                    }
-                })
-        );
-
-        await Promise.allSettled(loadPromises);
+        if (this.audioContext.state === "suspended") {
+            this.audioContext.resume();
+        }
+        return true;
     }
 
     /**
-     * 播放指定音效
+     * 播放簡單的合成音效
      */
-    play(name: string): void {
-        // 如果尚未初始化，加入等待列表
-        if (!this.isInitialized) {
-            this.pendingSounds.push(name);
-            return;
-        }
+    private playTone(frequency: number, duration: number, type: OscillatorType = "sine", volume: number = 0.5): void {
+        if (!this.ensureAudioContext() || !this.audioContext) return;
 
-        const sound = this.sounds[name];
-        if (sound) {
-            // 如果是可以重疊播放的音效，克隆一份來播放
-            if (name !== "bgm") {
-                sound.play();
-            } else {
-                // BGM 不重疊
-                if (!sound.isPlaying) {
-                    sound.play();
-                }
-            }
-        } else {
-            console.warn(`⚠️ Sound not found: ${name}`);
-        }
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+
+        oscillator.frequency.value = frequency;
+        oscillator.type = type;
+
+        const finalVolume = volume * this.sfxVolume * this.masterVolume;
+        gainNode.gain.setValueAtTime(finalVolume, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+
+        oscillator.start(this.audioContext.currentTime);
+        oscillator.stop(this.audioContext.currentTime + duration);
     }
 
     /**
-     * 停止指定音效
+     * 播放噪音（用於打擊音效）
      */
-    stop(name: string): void {
-        const sound = this.sounds[name];
-        if (sound && sound.isPlaying) {
-            sound.stop();
+    private playNoise(duration: number, volume: number = 0.3): void {
+        if (!this.ensureAudioContext() || !this.audioContext) return;
+
+        const bufferSize = this.audioContext.sampleRate * duration;
+        const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
         }
+
+        const noise = this.audioContext.createBufferSource();
+        const gainNode = this.audioContext.createGain();
+        const filter = this.audioContext.createBiquadFilter();
+
+        noise.buffer = buffer;
+        filter.type = "lowpass";
+        filter.frequency.value = 1000;
+
+        noise.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+
+        const finalVolume = volume * this.sfxVolume * this.masterVolume;
+        gainNode.gain.setValueAtTime(finalVolume, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+
+        noise.start();
     }
 
     /**
-     * 播放背景音樂
+     * 播放背景音樂（簡單的環境音）
      */
     playBGM(): void {
-        this.play("bgm");
+        // BGM 需要更複雜的實現，暫時略過
+        console.log("🎵 BGM would play here (not implemented for Web Audio)");
     }
 
     /**
      * 停止背景音樂
      */
     stopBGM(): void {
-        this.stop("bgm");
+        // 略過
     }
 
     /**
      * 播放攻擊命中音效
      */
     playHitSound(): void {
-        this.play("punch");
+        // 打擊音效：低頻噪音 + 中頻音
+        this.playNoise(0.1, 0.4);
+        this.playTone(150, 0.1, "square", 0.3);
     }
 
     /**
      * 播放攻擊揮空音效
      */
     playMissSound(): void {
-        this.play("whoosh");
+        // 揮空音效：快速下滑音
+        if (!this.ensureAudioContext() || !this.audioContext) return;
+
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+
+        oscillator.type = "sawtooth";
+        oscillator.frequency.setValueAtTime(400, this.audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(100, this.audioContext.currentTime + 0.15);
+
+        const finalVolume = 0.2 * this.sfxVolume * this.masterVolume;
+        gainNode.gain.setValueAtTime(finalVolume, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.15);
+
+        oscillator.start();
+        oscillator.stop(this.audioContext.currentTime + 0.15);
     }
 
     /**
      * 播放升級音效
      */
     playLevelUpSound(): void {
-        this.play("levelup");
+        // 升級音效：上升的琶音
+        const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
+        notes.forEach((freq, i) => {
+            setTimeout(() => {
+                this.playTone(freq, 0.2, "sine", 0.4);
+            }, i * 100);
+        });
     }
 
     /**
      * 播放拾取音效
      */
     playPickupSound(): void {
-        this.play("pickup");
+        // 拾取音效：短促的高音
+        this.playTone(880, 0.1, "sine", 0.3);
+        setTimeout(() => {
+            this.playTone(1100, 0.1, "sine", 0.25);
+        }, 50);
     }
 
     /**
@@ -185,7 +180,6 @@ export class SoundManager {
      */
     setMasterVolume(volume: number): void {
         this.masterVolume = Math.max(0, Math.min(1, volume));
-        this.updateAllVolumes();
     }
 
     /**
@@ -193,9 +187,6 @@ export class SoundManager {
      */
     setBGMVolume(volume: number): void {
         this.bgmVolume = Math.max(0, Math.min(1, volume));
-        if (this.sounds["bgm"]) {
-            this.sounds["bgm"].setVolume(this.bgmVolume * this.masterVolume);
-        }
     }
 
     /**
@@ -203,20 +194,6 @@ export class SoundManager {
      */
     setSFXVolume(volume: number): void {
         this.sfxVolume = Math.max(0, Math.min(1, volume));
-        this.updateAllVolumes();
-    }
-
-    /**
-     * 更新所有音效音量
-     */
-    private updateAllVolumes(): void {
-        Object.entries(this.sounds).forEach(([name, sound]) => {
-            if (name === "bgm") {
-                sound.setVolume(this.bgmVolume * this.masterVolume);
-            } else {
-                sound.setVolume(this.sfxVolume * this.masterVolume);
-            }
-        });
     }
 
     /**
@@ -225,10 +202,10 @@ export class SoundManager {
     toggleMute(): boolean {
         if (this.masterVolume > 0) {
             this.setMasterVolume(0);
-            return true; // 已靜音
+            return true;
         } else {
             this.setMasterVolume(1);
-            return false; // 已取消靜音
+            return false;
         }
     }
 
@@ -236,10 +213,10 @@ export class SoundManager {
      * 釋放資源
      */
     dispose(): void {
-        Object.values(this.sounds).forEach((sound) => {
-            sound.dispose();
-        });
-        this.sounds = {};
+        if (this.audioContext) {
+            this.audioContext.close();
+            this.audioContext = null;
+        }
         this.isInitialized = false;
     }
 }
