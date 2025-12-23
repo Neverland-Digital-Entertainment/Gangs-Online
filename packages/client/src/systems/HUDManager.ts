@@ -49,6 +49,7 @@ export class HUDManager {
     private popupTitle: GUI.TextBlock | null = null;
     private popupScrollViewer: GUI.ScrollViewer | null = null;
     private popupContent: GUI.StackPanel | null = null;
+    private currentPopupType: string | null = null; // Phase 11: 追蹤當前打開的 popup 類型
 
     // Quest System (Phase 10)
     private questSystem: QuestSystem | null = null;
@@ -768,6 +769,7 @@ export class HUDManager {
         }
 
         this.popupRoot.isVisible = true;
+        this.currentPopupType = type; // Phase 11: 記錄當前 popup 類型
         console.log(`📋 Popup opened: ${type}`);
     }
 
@@ -777,6 +779,21 @@ export class HUDManager {
     hidePopup(): void {
         if (this.popupRoot) {
             this.popupRoot.isVisible = false;
+        }
+        this.currentPopupType = null; // Phase 11: 清除 popup 類型
+    }
+
+    /**
+     * 刷新當前打開的 Popup (Phase 11)
+     */
+    private refreshCurrentPopup(): void {
+        if (this.currentPopupType && this.popupRoot?.isVisible) {
+            // 重新生成 popup 內容
+            if (this.currentPopupType === "inventory") {
+                this.showPopup("道具", "inventory");
+            } else if (this.currentPopupType === "shop") {
+                this.showPopup("商店", "shop");
+            }
         }
     }
 
@@ -837,6 +854,8 @@ export class HUDManager {
     updateShopInventory(inventory: IItem[]): void {
         if (this.shopPopupSystem) {
             this.shopPopupSystem.updateInventory(inventory);
+            // Phase 11: 如果道具 popup 正在顯示，刷新它
+            this.refreshCurrentPopup();
         }
     }
 
