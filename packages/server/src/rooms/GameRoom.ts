@@ -1,6 +1,6 @@
 import { Room, Client } from "colyseus";
 import { GameState, Player, Item } from "./schema/GameState";
-import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle } from "@gangs-online/shared";
+import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle, IQuestDef } from "@gangs-online/shared";
 import { EnemyManager } from "../systems/EnemyManager";
 import { ProgressionSystem } from "../systems/ProgressionSystem";
 import { LootSystem } from "../systems/LootSystem"; // Phase 8
@@ -8,6 +8,8 @@ import { SafeZoneSystem } from "../systems/SafeZoneSystem"; // Phase 9
 import { ShopSystem } from "../systems/ShopSystem"; // Phase 9
 import { NPCManager } from "../systems/NPCManager"; // Phase 9
 import { QuestManager } from "../systems/QuestManager"; // Phase 10
+import { initializeFirebase } from "../services/FirebaseService"; // Phase 12
+import { savePlayer, loadPlayer } from "../data/persistence"; // Phase 12
 
 export class GameRoom extends Room<GameState> {
     maxClients = 50;
@@ -23,6 +25,9 @@ export class GameRoom extends Room<GameState> {
     onCreate(options: any) {
         console.log("Gangs Online: Room Created");
         this.setState(new GameState());
+
+        // Phase 12: 初始化 Firebase
+        initializeFirebase();
 
         // 初始化敵人管理系統
         this.enemyManager = new EnemyManager(this.state.enemies, this.state.players);
@@ -487,8 +492,12 @@ export class GameRoom extends Room<GameState> {
         }
     }
 
-    onJoin(client: Client, options: any) {
-        console.log(`Player ${client.sessionId} joined Gangs Online`);
+    async onJoin(client: Client, options: any) {
+        // Phase 12: 取得 Firebase UID 和用戶名
+        const firebaseUid = options.userId || "";
+        const username = options.username || `玩家${client.sessionId.substring(0, 6)}`;
+
+        console.log(`Player ${username} (UID: ${firebaseUid}) joined Gangs Online`);
 
         // Track first player for special advantage
         if (!this.firstPlayerSessionId) {
@@ -498,33 +507,53 @@ export class GameRoom extends Room<GameState> {
 
         const player = new Player();
         player.sessionId = client.sessionId;
-        // 設置玩家名字（使用 sessionId 前 6 位作為暱稱）
-        player.name = `玩家${client.sessionId.substring(0, 6)}`;
-        // Random Spawn
-        player.x = Math.random() * 10 - 5;
-        player.z = Math.random() * 10 - 5;
-        // Initialize HP
-        player.hp = 100;
-        player.maxHp = 100;
-        player.inCombatWith = "";
-        player.inCombatWithEnemy = ""; // 0.7.1
+        player.firebaseUid = firebaseUid; // Phase 12: 儲存 Firebase UID
+        player.name = username;
 
-        // === Phase 7: 初始化進度系統 ===
-        this.progressionSystem.initializePlayer(player);
+        // Phase 12: 嘗試從 Firebase 載入已儲存的玩家資料
+        let loaded = false;
+        if (firebaseUid) {
+            loaded = await loadPlayer(player, firebaseUid, this.questManager.getQuestDefinitions());
+        }
 
-        // === Phase 8: 初始化背包系統 ===
-        player.money = 0;
+        if (!loaded) {
+            // 新玩家：使用預設值
+            player.x = Math.random() * 10 - 5;
+            player.z = Math.random() * 10 - 5;
+            player.hp = 100;
+            player.maxHp = 100;
+            player.inCombatWith = "";
+            player.inCombatWithEnemy = "";
+
+            // === Phase 7: 初始化進度系統 ===
+            this.progressionSystem.initializePlayer(player);
+
+            // === Phase 8: 初始化背包系統 ===
+            player.money = 0;
+        } else {
+            // 已載入的玩家：確保戰鬥狀態清空
+            player.inCombatWith = "";
+            player.inCombatWithEnemy = "";
+        }
 
         this.state.players.set(client.sessionId, player);
     }
 
-    onLeave(client: Client, consented: boolean) {
-        // If player was in combat, end combat for opponent
+    async onLeave(client: Client, consented: boolean) {
         const leavingPlayer = this.state.players.get(client.sessionId);
-        if (leavingPlayer && leavingPlayer.inCombatWith) {
-            const opponent = this.state.players.get(leavingPlayer.inCombatWith);
-            if (opponent) {
-                opponent.inCombatWith = "";
+
+        if (leavingPlayer) {
+            // If player was in combat, end combat for opponent
+            if (leavingPlayer.inCombatWith) {
+                const opponent = this.state.players.get(leavingPlayer.inCombatWith);
+                if (opponent) {
+                    opponent.inCombatWith = "";
+                }
+            }
+
+            // Phase 12: 儲存玩家資料到 Firebase
+            if (leavingPlayer.firebaseUid) {
+                await savePlayer(leavingPlayer, leavingPlayer.firebaseUid);
             }
         }
 

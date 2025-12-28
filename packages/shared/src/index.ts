@@ -203,6 +203,6 @@ export const getRankTitle = (level: number): string => {
 };
 
 /**
- * 遊戲版本（0.11.0 - Audio & Visual Effects (Juice)）
+ * 遊戲版本（0.12.0 - Firebase Persistence & Auth）
  */
-export const GAME_VERSION = "0.11.0";
+export const GAME_VERSION = "0.12.0";

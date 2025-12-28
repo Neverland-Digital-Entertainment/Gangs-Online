@@ -11,6 +11,7 @@ import { LoadingScreen } from "./systems/LoadingScreen";
 import { ChatSystem } from "./systems/ChatSystem";
 import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
+import { firebaseService } from "./services/FirebaseService"; // Phase 12
 // Phase 9.1: InventorySystem UI 已移除，金錢改為在 HUD 顯示
 // Phase 10.1: ShopSystem 已整合到 HUDManager 的 Popup 系統
 import { HUDManager } from "./systems/HUDManager"; // Phase 9.1
@@ -136,9 +137,20 @@ const createScene = async (): Promise<BABYLON.Scene> => {
             loadingScreen.showVersionInfo(GAME_VERSION, "unknown");
         }
 
+        // Phase 12: Firebase 認證
+        loadingScreen.updateText("正在連接 Firebase...");
+        firebaseService.initialize();
+        const firebaseUser = await firebaseService.loginAnonymous();
+        const userId = firebaseUser?.uid || "";
+        console.log("Firebase UID:", userId);
+
         // 連接遊戲房間
         loadingScreen.updateText("正在連接遊戲房間...");
-        const room = await client.joinOrCreate("game_room");
+        // Phase 12: 傳送 userId 到伺服器
+        const room = await client.joinOrCreate("game_room", {
+            userId: userId,
+            username: `玩家${userId.substring(0, 6)}`
+        });
         mySessionId = room.sessionId;
         console.log("Connected! My ID:", mySessionId);
 
