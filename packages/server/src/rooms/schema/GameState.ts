@@ -31,6 +31,7 @@ export class Quest extends Schema implements IQuestState {
 export class Player extends Schema {
     @type("string") id: string = "";
     @type("string") sessionId: string = "";
+    @type("string") firebaseUid: string = ""; // Phase 12: Firebase User ID for persistence
     @type("number") x: number = 0;
     @type("number") y: number = 0;
     @type("number") z: number = 0;

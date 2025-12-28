@@ -8,3 +8,6 @@ packages/*/dist/
 .env.production
 logo.png
 main-bg.png
+
+# Phase 12: Firebase credentials
+packages/server/src/config/service-account.json

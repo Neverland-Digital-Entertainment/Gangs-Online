@@ -41,6 +41,13 @@ export class QuestManager {
     }
 
     /**
+     * 獲取任務定義 Map (Phase 12: 用於持久化系統)
+     */
+    getQuestDefinitions(): Map<string, IQuestDef> {
+        return this.questDefinitions;
+    }
+
+    /**
      * 獲取第一個可接任務（沒有前置任務的）
      */
     getFirstAvailableQuest(): IQuestDef | undefined {
