@@ -18,13 +18,15 @@ export const savePlayer = async (player: Player, firebaseUid: string): Promise<b
         return false;
     }
 
-    // 序列化背包
-    const inventory = Array.from(player.inventory).map((item: Item) => ({
-        id: item.id,
-        name: item.name,
-        type: item.type,
-        value: item.value
-    }));
+    // 序列化背包 (過濾掉 undefined 值)
+    const inventory = Array.from(player.inventory)
+        .filter((item): item is Item => item !== undefined)
+        .map((item) => ({
+            id: item.id,
+            name: item.name,
+            type: item.type,
+            value: item.value
+        }));
 
     // 序列化任務
     let activeQuest: any = null;
