@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: gangs-online-server
+    name: gangs-online
     runtime: node
     buildCommand: bash build.sh
     startCommand: node packages/server/dist/index.js

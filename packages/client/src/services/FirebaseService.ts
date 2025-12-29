@@ -14,12 +14,12 @@ import {
 // Firebase 配置 - 從 Firebase Console 取得
 // 注意：這些是公開的客戶端配置，不是機密資訊
 const firebaseConfig = {
-    apiKey: "AIzaSyBJLqhGS5OahmqCEWgS8_aFVrHmxvdEKYQ",
-    authDomain: "gangsonline-3f93c.firebaseapp.com",
-    projectId: "gangsonline-3f93c",
-    storageBucket: "gangsonline-3f93c.firebasestorage.app",
-    messagingSenderId: "702851039951",
-    appId: "1:702851039951:web:b63e73d6bf0b0a83c6f4d7"
+    apiKey: "AIzaSyBs03duOjrZLZ74NgFPxMYOD6vaYAmwrOg",
+    authDomain: "gangs-online.firebaseapp.com",
+    projectId: "gangs-online",
+    storageBucket: "gangs-online.firebasestorage.app",
+    messagingSenderId: "564210253310",
+    appId: "1:564210253310:web:f070f3f5da448ee2c194af"
 };
 
 let app: FirebaseApp | null = null;
