@@ -45,7 +45,7 @@ VITE_SERVER_URL=wss://your-server-name.onrender.com
 3. 配置如下：
 
 **基本設置**
-- **Name**: `gangs-online-server` （可自定義）
+- **Name**: `gangs-online` （可自定義）
 - **Region**: Singapore（新加坡，速度較快）
 - **Branch**: `claude/phase-5-development-0132L6eh8SDDuwTumKtBtwBi`
 - **Root Directory**: 留空（使用項目根目錄）
@@ -60,7 +60,7 @@ VITE_SERVER_URL=wss://your-server-name.onrender.com
 ### 2.3 部署
 1. 點擊 "Create Web Service"
 2. 等待構建完成（約 3-5 分鐘）
-3. 記下你的伺服器 URL：`https://gangs-online-server.onrender.com`
+3. 記下你的伺服器 URL：`https://gangs-online.onrender.com`
 
 **⚠️ 重要**：Render 免費方案會在 15 分鐘無活動後休眠。首次訪問會慢一些（約 30 秒喚醒）。
 
