@@ -4,7 +4,8 @@ import { GameConfig } from "./types";
  * 遊戲配置
  */
 export const config: GameConfig = {
-    serverUrl: import.meta.env.VITE_SERVER_URL || "ws://localhost:2567",
+    // Phase 12: 預設使用生產環境 server URL
+    serverUrl: import.meta.env.VITE_SERVER_URL || "wss://gangs-online.onrender.com",
     moveSpeed: 0.15,
 };
 
