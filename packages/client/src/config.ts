@@ -38,3 +38,4 @@ export const weaponConfig = {
         emissiveColor: { r: 0.2, g: 0.1, b: 0.05 },
     },
 };
+
