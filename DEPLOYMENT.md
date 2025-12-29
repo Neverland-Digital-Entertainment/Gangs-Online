@@ -172,3 +172,4 @@ VITE_SERVER_URL=wss://your-server-name.onrender.com
 3. 確認所有環境變量正確設置
 
 祝你部署順利！🎮
+# Force rebuild Mon Dec 29 14:09:41 UTC 2025
