@@ -119,7 +119,7 @@ export class LoginScreen {
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                z-index: 9998;
+                z-index: 10000;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             }
 

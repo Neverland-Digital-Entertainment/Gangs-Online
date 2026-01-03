@@ -711,25 +711,24 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 // --- 啟動應用 ---
 console.log("🚀 Starting application...");
 
-// Phase 12.1: 先隱藏載入畫面，顯示登入畫面
-loadingScreen.hide();
+// Phase 12.1: 隱藏載入畫面的文字，顯示登入畫面
+loadingScreen.updateText(""); // 清空文字但保留背景
 
 const loginScreen = new LoginScreen();
 loginScreen.show()
     .then((loginResult) => {
         console.log("✅ Login successful:", loginResult);
 
-        // 重新顯示載入畫面
-        const newLoadingScreen = new LoadingScreen();
-        newLoadingScreen.updateText("正在初始化遊戲...");
+        // 登入成功後，恢復載入畫面文字
+        loadingScreen.updateText("正在初始化遊戲...");
 
         return createScene(loginResult).then((scene) => {
             console.log("✅ Scene created successfully!");
-            newLoadingScreen.updateText("即將進入遊戲...");
+            loadingScreen.updateText("即將進入遊戲...");
 
             // 延遲隱藏載入螢幕，確保一切就緒
             setTimeout(() => {
-                newLoadingScreen.hide();
+                loadingScreen.hide();
             }, 1000);
 
             engine.runRenderLoop(() => {
