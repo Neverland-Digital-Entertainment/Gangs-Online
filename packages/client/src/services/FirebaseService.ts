@@ -1,18 +1,23 @@
 /**
- * Firebase Client Service (Phase 12: Firebase Persistence & Auth)
- * 負責客戶端的 Firebase 認證
+ * Firebase Client Service (Phase 12.1: Full Auth System)
+ * 支援 Google、Apple、Email 登入和註冊
  */
 import { initializeApp, FirebaseApp } from "firebase/app";
 import {
     getAuth,
     signInAnonymously,
+    signInWithPopup,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    GoogleAuthProvider,
+    OAuthProvider,
     onAuthStateChanged,
+    signOut,
     User,
     Auth
 } from "firebase/auth";
 
 // Firebase 配置 - 從 Firebase Console 取得
-// 注意：這些是公開的客戶端配置，不是機密資訊
 const firebaseConfig = {
     apiKey: "AIzaSyBs03duOjrZLZ74NgFPxMYOD6vaYAmwrOg",
     authDomain: "gangs-online.firebaseapp.com",
@@ -24,6 +29,18 @@ const firebaseConfig = {
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
+
+// Auth Providers
+const googleProvider = new GoogleAuthProvider();
+const appleProvider = new OAuthProvider('apple.com');
+
+// 登入結果類型
+export interface AuthResult {
+    success: boolean;
+    user: User | null;
+    error?: string;
+    isNewUser?: boolean;
+}
 
 /**
  * Firebase 客戶端服務類
@@ -48,26 +65,136 @@ export class FirebaseService {
     }
 
     /**
-     * 匿名登入
-     * @returns Firebase User 或 null
+     * 檢查是否已登入
      */
-    async loginAnonymous(): Promise<User | null> {
-        if (!this.initialized) {
-            this.initialize();
-        }
+    isLoggedIn(): boolean {
+        return auth?.currentUser !== null;
+    }
 
-        if (!auth) {
-            console.error("[Firebase] Auth not initialized.");
-            return null;
+    /**
+     * 等待認證狀態初始化
+     */
+    waitForAuthReady(): Promise<User | null> {
+        return new Promise((resolve) => {
+            if (!this.initialized) {
+                this.initialize();
+            }
+            if (!auth) {
+                resolve(null);
+                return;
+            }
+            const unsubscribe = onAuthStateChanged(auth, (user) => {
+                unsubscribe();
+                resolve(user);
+            });
+        });
+    }
+
+    /**
+     * Google 登入
+     */
+    async loginWithGoogle(): Promise<AuthResult> {
+        if (!this.initialized) this.initialize();
+        if (!auth) return { success: false, user: null, error: "Auth not initialized" };
+
+        try {
+            const result = await signInWithPopup(auth, googleProvider);
+            const isNewUser = result.user.metadata.creationTime === result.user.metadata.lastSignInTime;
+            console.log("[Firebase] Google login successful:", result.user.uid);
+            return { success: true, user: result.user, isNewUser };
+        } catch (error: any) {
+            console.error("[Firebase] Google login failed:", error);
+            return { success: false, user: null, error: error.message };
         }
+    }
+
+    /**
+     * Apple 登入
+     */
+    async loginWithApple(): Promise<AuthResult> {
+        if (!this.initialized) this.initialize();
+        if (!auth) return { success: false, user: null, error: "Auth not initialized" };
+
+        try {
+            appleProvider.addScope('email');
+            appleProvider.addScope('name');
+            const result = await signInWithPopup(auth, appleProvider);
+            const isNewUser = result.user.metadata.creationTime === result.user.metadata.lastSignInTime;
+            console.log("[Firebase] Apple login successful:", result.user.uid);
+            return { success: true, user: result.user, isNewUser };
+        } catch (error: any) {
+            console.error("[Firebase] Apple login failed:", error);
+            return { success: false, user: null, error: error.message };
+        }
+    }
+
+    /**
+     * Email 登入
+     */
+    async loginWithEmail(email: string, password: string): Promise<AuthResult> {
+        if (!this.initialized) this.initialize();
+        if (!auth) return { success: false, user: null, error: "Auth not initialized" };
+
+        try {
+            const result = await signInWithEmailAndPassword(auth, email, password);
+            console.log("[Firebase] Email login successful:", result.user.uid);
+            return { success: true, user: result.user, isNewUser: false };
+        } catch (error: any) {
+            console.error("[Firebase] Email login failed:", error);
+            let errorMsg = "登入失敗";
+            if (error.code === "auth/user-not-found") errorMsg = "找不到此帳號";
+            if (error.code === "auth/wrong-password") errorMsg = "密碼錯誤";
+            if (error.code === "auth/invalid-email") errorMsg = "Email 格式錯誤";
+            if (error.code === "auth/invalid-credential") errorMsg = "帳號或密碼錯誤";
+            return { success: false, user: null, error: errorMsg };
+        }
+    }
+
+    /**
+     * Email 註冊
+     */
+    async registerWithEmail(email: string, password: string): Promise<AuthResult> {
+        if (!this.initialized) this.initialize();
+        if (!auth) return { success: false, user: null, error: "Auth not initialized" };
+
+        try {
+            const result = await createUserWithEmailAndPassword(auth, email, password);
+            console.log("[Firebase] Email registration successful:", result.user.uid);
+            return { success: true, user: result.user, isNewUser: true };
+        } catch (error: any) {
+            console.error("[Firebase] Email registration failed:", error);
+            let errorMsg = "註冊失敗";
+            if (error.code === "auth/email-already-in-use") errorMsg = "此 Email 已被使用";
+            if (error.code === "auth/weak-password") errorMsg = "密碼太弱（至少 6 個字元）";
+            if (error.code === "auth/invalid-email") errorMsg = "Email 格式錯誤";
+            return { success: false, user: null, error: errorMsg };
+        }
+    }
+
+    /**
+     * 匿名登入（訪客模式）
+     */
+    async loginAnonymous(): Promise<AuthResult> {
+        if (!this.initialized) this.initialize();
+        if (!auth) return { success: false, user: null, error: "Auth not initialized" };
 
         try {
             const result = await signInAnonymously(auth);
             console.log("[Firebase] Anonymous login successful:", result.user.uid);
-            return result.user;
-        } catch (error) {
+            return { success: true, user: result.user, isNewUser: true };
+        } catch (error: any) {
             console.error("[Firebase] Anonymous login failed:", error);
-            return null;
+            return { success: false, user: null, error: error.message };
+        }
+    }
+
+    /**
+     * 登出
+     */
+    async logout(): Promise<void> {
+        if (auth) {
+            await signOut(auth);
+            console.log("[Firebase] Logged out.");
         }
     }
 
@@ -80,7 +207,6 @@ export class FirebaseService {
 
     /**
      * 監聽認證狀態變化
-     * @param callback 回調函數
      */
     onAuthChange(callback: (user: User | null) => void): void {
         if (!auth) {

@@ -8,10 +8,10 @@ import { GAME_VERSION } from "./version";
 // Import our modular systems
 import { config } from "./config";
 import { LoadingScreen } from "./systems/LoadingScreen";
+import { LoginScreen, LoginResult } from "./systems/LoginScreen"; // Phase 12.1
 import { ChatSystem } from "./systems/ChatSystem";
 import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
-import { firebaseService } from "./services/FirebaseService"; // Phase 12
 // Phase 9.1: InventorySystem UI 已移除，金錢改為在 HUD 顯示
 // Phase 10.1: ShopSystem 已整合到 HUDManager 的 Popup 系統
 import { HUDManager } from "./systems/HUDManager"; // Phase 9.1
@@ -81,8 +81,9 @@ const checkServerVersion = async (): Promise<string> => {
 
 /**
  * 創建遊戲場景
+ * @param loginResult - 登入結果（包含 userId 和 characterName）
  */
-const createScene = async (): Promise<BABYLON.Scene> => {
+const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => {
     console.log("🌍 Creating scene...");
     loadingScreen.updateText("正在創建遊戲世界...");
 
@@ -137,19 +138,19 @@ const createScene = async (): Promise<BABYLON.Scene> => {
             loadingScreen.showVersionInfo(GAME_VERSION, "unknown");
         }
 
-        // Phase 12: Firebase 認證
-        loadingScreen.updateText("正在連接 Firebase...");
-        firebaseService.initialize();
-        const firebaseUser = await firebaseService.loginAnonymous();
-        const userId = firebaseUser?.uid || "";
-        console.log("Firebase UID:", userId);
+        // Phase 12.1: 使用登入結果
+        const userId = loginResult.userId;
+        const characterName = loginResult.characterName;
+        const isNewUser = loginResult.isNewUser;
+        console.log("Firebase UID:", userId, "Character:", characterName, "New:", isNewUser);
 
         // 連接遊戲房間
         loadingScreen.updateText("正在連接遊戲房間...");
-        // Phase 12: 傳送 userId 到伺服器
+        // Phase 12.1: 傳送 userId 和 characterName 到伺服器
         const room = await client.joinOrCreate("game_room", {
             userId: userId,
-            username: `玩家${userId.substring(0, 6)}`
+            username: characterName || `玩家${userId.substring(0, 6)}`,
+            isNewUser: isNewUser
         });
         mySessionId = room.sessionId;
         console.log("Connected! My ID:", mySessionId);
@@ -709,20 +710,33 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
 // --- 啟動應用 ---
 console.log("🚀 Starting application...");
-createScene()
-    .then((scene) => {
-        console.log("✅ Scene created successfully!");
-        loadingScreen.updateText("即將進入遊戲...");
 
-        // 延遲隱藏載入螢幕，確保一切就緒
-        setTimeout(() => {
-            loadingScreen.hide();
-        }, 1000);
+// Phase 12.1: 先隱藏載入畫面，顯示登入畫面
+loadingScreen.hide();
 
-        engine.runRenderLoop(() => {
-            scene.render();
+const loginScreen = new LoginScreen();
+loginScreen.show()
+    .then((loginResult) => {
+        console.log("✅ Login successful:", loginResult);
+
+        // 重新顯示載入畫面
+        const newLoadingScreen = new LoadingScreen();
+        newLoadingScreen.updateText("正在初始化遊戲...");
+
+        return createScene(loginResult).then((scene) => {
+            console.log("✅ Scene created successfully!");
+            newLoadingScreen.updateText("即將進入遊戲...");
+
+            // 延遲隱藏載入螢幕，確保一切就緒
+            setTimeout(() => {
+                newLoadingScreen.hide();
+            }, 1000);
+
+            engine.runRenderLoop(() => {
+                scene.render();
+            });
+            console.log("✅ Render loop started!");
         });
-        console.log("✅ Render loop started!");
     })
     .catch((error) => {
         console.error("❌ Failed to create scene:", error);

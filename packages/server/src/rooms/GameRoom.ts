@@ -493,11 +493,12 @@ export class GameRoom extends Room<GameState> {
     }
 
     async onJoin(client: Client, options: any) {
-        // Phase 12: 取得 Firebase UID 和用戶名
+        // Phase 12.1: 取得 Firebase UID、角色名和新用戶標記
         const firebaseUid = options.userId || "";
-        const username = options.username || `玩家${client.sessionId.substring(0, 6)}`;
+        const characterName = options.username || "";
+        const isNewUser = options.isNewUser === true;
 
-        console.log(`Player ${username} (UID: ${firebaseUid}) joined Gangs Online`);
+        console.log(`Player joining (UID: ${firebaseUid}, Name: ${characterName}, New: ${isNewUser})`);
 
         // Track first player for special advantage
         if (!this.firstPlayerSessionId) {
@@ -508,16 +509,16 @@ export class GameRoom extends Room<GameState> {
         const player = new Player();
         player.sessionId = client.sessionId;
         player.firebaseUid = firebaseUid; // Phase 12: 儲存 Firebase UID
-        player.name = username;
 
-        // Phase 12: 嘗試從 Firebase 載入已儲存的玩家資料
+        // Phase 12.1: 嘗試從 Firebase 載入已儲存的玩家資料
         let loaded = false;
-        if (firebaseUid) {
+        if (firebaseUid && !isNewUser) {
             loaded = await loadPlayer(player, firebaseUid, this.questManager.getQuestDefinitions());
         }
 
         if (!loaded) {
-            // 新玩家：使用預設值
+            // 新玩家：使用客戶端提供的角色名稱
+            player.name = characterName || `玩家${client.sessionId.substring(0, 6)}`;
             player.x = Math.random() * 10 - 5;
             player.z = Math.random() * 10 - 5;
             player.hp = 100;
@@ -530,10 +531,18 @@ export class GameRoom extends Room<GameState> {
 
             // === Phase 8: 初始化背包系統 ===
             player.money = 0;
+
+            // Phase 12.1: 新玩家立即儲存
+            if (firebaseUid) {
+                savePlayer(player, firebaseUid);
+            }
+
+            console.log(`New player created: ${player.name} (UID: ${firebaseUid})`);
         } else {
             // 已載入的玩家：確保戰鬥狀態清空
             player.inCombatWith = "";
             player.inCombatWithEnemy = "";
+            console.log(`Returning player loaded: ${player.name} (UID: ${firebaseUid})`);
         }
 
         this.state.players.set(client.sessionId, player);
