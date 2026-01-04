@@ -58,14 +58,6 @@ export class LoginScreen {
                             <button id="btnEmailRegister" class="login-btn register-btn">註冊</button>
                         </div>
                     </div>
-
-                    <div class="divider">
-                        <span>或</span>
-                    </div>
-
-                    <button id="btnGuest" class="login-btn guest-btn">
-                        訪客模式（不保存進度）
-                    </button>
                 </div>
 
                 <!-- 角色名稱輸入（新玩家）-->

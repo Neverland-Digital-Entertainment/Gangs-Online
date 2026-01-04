@@ -66,8 +66,8 @@ export class PlayerManager {
 
         if (idle) idle.play(true); // Start Idle by default
 
-        // UI (Name + HP Bar) - 只為其他玩家創建頭頂 UI，自己的狀態會顯示在 HUD 上
-        const ui = isSelf ? null : this.uiSystem.createPlayerUI(root, "Target");
+        // UI (Name + HP Bar) - 為所有玩家創建頭頂 UI，顯示名字和血條
+        const ui = this.uiSystem.createPlayerUI(root, player.name);
 
         const entity: PlayerEntity = {
             mesh: root,
