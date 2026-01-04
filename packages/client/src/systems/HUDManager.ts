@@ -34,6 +34,7 @@ export class HUDManager {
     private chatInput: GUI.InputText | null = null;
     private chatContent: GUI.StackPanel | null = null;
     private currentChatChannel: string = "all";
+    private channelIndicator: GUI.TextBlock | null = null; // Phase 13: 頻道指示器
 
     // Shortcut Bar
     private shortcutSlots: GUI.Button[] = [];
@@ -99,6 +100,12 @@ export class HUDManager {
         this.guildSystem.setPopupContent(this.popupContent);
         this.guildSystem.setHidePopupCallback(() => {
             this.hidePopup();
+        });
+        // 設置刷新回調，當收到幫會列表時刷新 popup
+        this.guildSystem.setRefreshPopupCallback(() => {
+            if (this.currentPopupType === "social") {
+                this.refreshGuildPopup();
+            }
         });
 
         console.log("✅ HUD Manager initialized");
@@ -339,6 +346,22 @@ export class HUDManager {
             this.chatContent.width = "100%";
             this.chatContent.adaptHeightToChildren = true;
             this.chatScroll.addControl(this.chatContent);
+        }
+
+        // Phase 13: 創建頻道指示器（在聊天輸入框旁邊）
+        if (this.chatContainer) {
+            this.channelIndicator = new GUI.TextBlock("channelIndicator");
+            this.channelIndicator.text = "[全部]";
+            this.channelIndicator.color = "#888888";
+            this.channelIndicator.fontSize = 12;
+            this.channelIndicator.width = "50px";
+            this.channelIndicator.height = "25px";
+            this.channelIndicator.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+            this.channelIndicator.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+            this.channelIndicator.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+            this.channelIndicator.left = "5px";
+            this.channelIndicator.top = "-30px"; // 在輸入框上方
+            this.chatContainer.addControl(this.channelIndicator);
         }
 
         // Shortcut slots
@@ -648,6 +671,24 @@ export class HUDManager {
             }
         });
 
+        // Phase 13: 更新頻道指示器
+        if (this.channelIndicator) {
+            const channelNames: { [key: string]: string } = {
+                "all": "[全部]",
+                "world": "[世界]",
+                "guild": "[幫會]",
+                "private": "[私聊]"
+            };
+            const channelColors: { [key: string]: string } = {
+                "all": "#888888",
+                "world": "#FFFFFF",
+                "guild": "#00FF00",
+                "private": "#FF69B4"
+            };
+            this.channelIndicator.text = channelNames[channel] || "[全部]";
+            this.channelIndicator.color = channelColors[channel] || "#888888";
+        }
+
         // Phase 13: 通知聊天頻道切換
         if (this.onChatChannelChange) {
             let chatType: ChatMessageType = "GLOBAL";
@@ -668,13 +709,22 @@ export class HUDManager {
     }
 
     /**
-     * 發送聊天訊息
+     * 發送聊天訊息 (Phase 13: 支援頻道)
      */
     private sendChatMessage(text: string): void {
         if (!this.room) return;
 
-        // 服務器期望純字符串格式
-        this.room.send("chat", text);
+        // Phase 13: 根據當前頻道發送訊息
+        let chatType: ChatMessageType = "GLOBAL";
+        if (this.currentChatChannel === "world") chatType = "GLOBAL";
+        else if (this.currentChatChannel === "guild") chatType = "GUILD";
+        else if (this.currentChatChannel === "private") chatType = "PRIVATE";
+        else if (this.currentChatChannel === "all") chatType = "GLOBAL"; // all 預設用 GLOBAL
+
+        this.room.send("chat", {
+            text: text,
+            type: chatType
+        });
     }
 
     /**
@@ -830,6 +880,22 @@ export class HUDManager {
                 this.showPopup("道具", "inventory");
             } else if (this.currentPopupType === "shop") {
                 this.showPopup("商店", "shop");
+            }
+        }
+    }
+
+    /**
+     * 刷新幫會 Popup (Phase 13)
+     */
+    private refreshGuildPopup(): void {
+        if (this.currentPopupType === "social" && this.popupRoot?.isVisible && this.guildSystem) {
+            // 清除並重新生成幫會 popup 內容
+            if (this.popupContent) {
+                this.popupContent.clearControls();
+                const guildControls = this.guildSystem.createGuildPopupContent();
+                guildControls.forEach((control) => {
+                    this.popupContent!.addControl(control);
+                });
             }
         }
     }

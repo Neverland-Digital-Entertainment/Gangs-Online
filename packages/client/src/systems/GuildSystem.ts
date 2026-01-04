@@ -26,6 +26,9 @@ export class GuildSystem {
     // 當前幫會資料
     private currentGuildData: IGuildData | null = null;
 
+    // 刷新 popup 的回調
+    private refreshPopupCallback: (() => void) | null = null;
+
     constructor(room: Room, uiTexture: GUI.AdvancedDynamicTexture) {
         this.room = room;
         this.uiTexture = uiTexture;
@@ -47,6 +50,13 @@ export class GuildSystem {
     }
 
     /**
+     * 設置刷新 Popup 的回調
+     */
+    setRefreshPopupCallback(callback: () => void): void {
+        this.refreshPopupCallback = callback;
+    }
+
+    /**
      * 設置訊息處理器
      */
     private setupMessageHandlers(): void {
@@ -58,16 +68,24 @@ export class GuildSystem {
             console.log(`[GuildSystem] 幫會更新: ${data.guildName} (${data.role})`);
         });
 
-        // 幫會列表
+        // 幫會列表 - 收到後刷新 popup
         this.room.onMessage("guildList", (guilds: IGuildData[]) => {
             this.guildList = guilds;
             console.log(`[GuildSystem] 收到幫會列表: ${guilds.length} 個幫會`);
+            // 刷新 popup 以顯示新列表
+            if (this.refreshPopupCallback) {
+                this.refreshPopupCallback();
+            }
         });
 
-        // 幫會詳細資訊
+        // 幫會詳細資訊 - 收到後刷新 popup
         this.room.onMessage("guildInfo", (guild: IGuildData) => {
             this.currentGuildData = guild;
             console.log(`[GuildSystem] 收到幫會資訊: ${guild.name}`);
+            // 刷新 popup 以顯示成員列表
+            if (this.refreshPopupCallback) {
+                this.refreshPopupCallback();
+            }
         });
     }
 
