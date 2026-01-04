@@ -566,9 +566,9 @@ export class HUDManager {
     /**
      * 更新等級顯示
      */
-    updateLevel(level: number, rankTitle?: string): void {
+    updateLevel(level: number): void {
         if (this.levelText) {
-            this.levelText.text = rankTitle ? `LV ${level} ${rankTitle}` : `LV ${level}`;
+            this.levelText.text = `Lv ${level}`;
         }
     }
 

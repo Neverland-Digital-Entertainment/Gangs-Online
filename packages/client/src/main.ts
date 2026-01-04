@@ -22,7 +22,6 @@ import { LootManager } from "./entities/LootManager"; // Phase 8
 import { SoundManager } from "./systems/SoundManager"; // Phase 11
 import { ParticleSystem } from "./systems/ParticleSystem"; // Phase 11
 import { createEngine, createIsometricCamera, setupScene, updateCameraFollow, updateCameraOrtho } from "./utils/BabylonUtils";
-import { getRankTitle } from "./utils/progression";
 
 /**
  * 主入口 - 遊戲初始化和場景創建
@@ -278,7 +277,7 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 // 初始化 HUD 狀態
                 hudManager.updateHP(player.hp, player.maxHp);
                 hudManager.updateExp(player.xp, player.maxXp);
-                hudManager.updateLevel(player.level, getRankTitle(player.level));
+                hudManager.updateLevel(player.level);
                 hudManager.updateMoney(player.money || 0);
 
                 // 監聽血量變化
@@ -293,7 +292,7 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
                 // 監聽等級變化
                 player.listen("level", (newLevel: number) => {
-                    hudManager?.updateLevel(newLevel, getRankTitle(newLevel));
+                    hudManager?.updateLevel(newLevel);
                 });
 
                 // 監聽金錢變化
