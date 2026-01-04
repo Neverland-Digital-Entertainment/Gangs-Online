@@ -1,10 +1,10 @@
 import { GameConfig } from "./types";
 
 /**
- * 遊戲配置
+ * 遊戲配置 (Phase 12: Firebase Integration)
  */
 export const config: GameConfig = {
-    // Phase 12: 預設使用生產環境 server URL
+    // Production server URL - DO NOT CHANGE
     serverUrl: import.meta.env.VITE_SERVER_URL || "wss://gangs-online.onrender.com",
     moveSpeed: 0.15,
 };

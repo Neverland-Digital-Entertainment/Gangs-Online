@@ -66,8 +66,8 @@ export class PlayerManager {
 
         if (idle) idle.play(true); // Start Idle by default
 
-        // UI (Name + HP Bar) - 只為其他玩家創建頭頂 UI，自己的狀態會顯示在 HUD 上
-        const ui = isSelf ? null : this.uiSystem.createPlayerUI(root, "Target");
+        // UI (Name + HP Bar) - 為所有玩家創建頭頂 UI，顯示名字和血條
+        const ui = this.uiSystem.createPlayerUI(root, player.name);
 
         const entity: PlayerEntity = {
             mesh: root,
@@ -143,26 +143,6 @@ export class PlayerManager {
         const entity = this.playerEntities[sessionId];
         if (entity?.ui) {
             this.uiSystem.setCombatIndicator(entity.ui, inCombat);
-        }
-    }
-
-    /**
-     * 更新經驗值條（Phase 7）
-     */
-    updateXP(sessionId: string, currentXP: number, maxXP: number): void {
-        const entity = this.playerEntities[sessionId];
-        if (entity?.ui?.xpFg) {
-            this.uiSystem.updateXPBar(entity.ui.xpFg, currentXP, maxXP);
-        }
-    }
-
-    /**
-     * 更新等級和頭銜（Phase 7）
-     */
-    updateLevel(sessionId: string, level: number, playerName: string): void {
-        const entity = this.playerEntities[sessionId];
-        if (entity?.ui?.nameLabel) {
-            this.uiSystem.updatePlayerTitle(entity.ui.nameLabel, playerName, level);
         }
     }
 

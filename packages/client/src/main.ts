@@ -8,10 +8,10 @@ import { GAME_VERSION } from "./version";
 // Import our modular systems
 import { config } from "./config";
 import { LoadingScreen } from "./systems/LoadingScreen";
+import { LoginScreen, LoginResult } from "./systems/LoginScreen"; // Phase 12.1
 import { ChatSystem } from "./systems/ChatSystem";
 import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
-import { firebaseService } from "./services/FirebaseService"; // Phase 12
 // Phase 9.1: InventorySystem UI 已移除，金錢改為在 HUD 顯示
 // Phase 10.1: ShopSystem 已整合到 HUDManager 的 Popup 系統
 import { HUDManager } from "./systems/HUDManager"; // Phase 9.1
@@ -22,7 +22,6 @@ import { LootManager } from "./entities/LootManager"; // Phase 8
 import { SoundManager } from "./systems/SoundManager"; // Phase 11
 import { ParticleSystem } from "./systems/ParticleSystem"; // Phase 11
 import { createEngine, createIsometricCamera, setupScene, updateCameraFollow, updateCameraOrtho } from "./utils/BabylonUtils";
-import { getRankTitle } from "./utils/progression";
 
 /**
  * 主入口 - 遊戲初始化和場景創建
@@ -81,8 +80,9 @@ const checkServerVersion = async (): Promise<string> => {
 
 /**
  * 創建遊戲場景
+ * @param loginResult - 登入結果（包含 userId 和 characterName）
  */
-const createScene = async (): Promise<BABYLON.Scene> => {
+const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => {
     console.log("🌍 Creating scene...");
     loadingScreen.updateText("正在創建遊戲世界...");
 
@@ -137,19 +137,19 @@ const createScene = async (): Promise<BABYLON.Scene> => {
             loadingScreen.showVersionInfo(GAME_VERSION, "unknown");
         }
 
-        // Phase 12: Firebase 認證
-        loadingScreen.updateText("正在連接 Firebase...");
-        firebaseService.initialize();
-        const firebaseUser = await firebaseService.loginAnonymous();
-        const userId = firebaseUser?.uid || "";
-        console.log("Firebase UID:", userId);
+        // Phase 12.1: 使用登入結果
+        const userId = loginResult.userId;
+        const characterName = loginResult.characterName;
+        const isNewUser = loginResult.isNewUser;
+        console.log("Firebase UID:", userId, "Character:", characterName, "New:", isNewUser);
 
         // 連接遊戲房間
         loadingScreen.updateText("正在連接遊戲房間...");
-        // Phase 12: 傳送 userId 到伺服器
+        // Phase 12.1: 傳送 userId 和 characterName 到伺服器
         const room = await client.joinOrCreate("game_room", {
             userId: userId,
-            username: `玩家${userId.substring(0, 6)}`
+            username: characterName || `玩家${userId.substring(0, 6)}`,
+            isNewUser: isNewUser
         });
         mySessionId = room.sessionId;
         console.log("Connected! My ID:", mySessionId);
@@ -258,16 +258,9 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 playerManager.updateCombatState(sessionId, !!(targetId && targetId !== ""));
             });
 
-            // === Phase 7: 同步經驗值和等級 ===
-            player.listen("xp", (currentXP: number) => {
-                playerManager.updateXP(sessionId, currentXP, player.maxXp);
-            });
-
             // Phase 11: 記錄之前的等級用於升級反饋
             let prevLevel = player.level;
             player.listen("level", (newLevel: number) => {
-                playerManager.updateLevel(sessionId, newLevel, player.name);
-
                 // === Phase 11: 升級效果 ===
                 if (newLevel > prevLevel) {
                     const entity = playerManager.getEntity(sessionId);
@@ -284,7 +277,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
                 // 初始化 HUD 狀態
                 hudManager.updateHP(player.hp, player.maxHp);
                 hudManager.updateExp(player.xp, player.maxXp);
-                hudManager.updateLevel(player.level, getRankTitle(player.level));
+                hudManager.updateLevel(player.level);
                 hudManager.updateMoney(player.money || 0);
 
                 // 監聽血量變化
@@ -299,7 +292,7 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
                 // 監聽等級變化
                 player.listen("level", (newLevel: number) => {
-                    hudManager?.updateLevel(newLevel, getRankTitle(newLevel));
+                    hudManager?.updateLevel(newLevel);
                 });
 
                 // 監聽金錢變化
@@ -709,20 +702,32 @@ const createScene = async (): Promise<BABYLON.Scene> => {
 
 // --- 啟動應用 ---
 console.log("🚀 Starting application...");
-createScene()
-    .then((scene) => {
-        console.log("✅ Scene created successfully!");
-        loadingScreen.updateText("即將進入遊戲...");
 
-        // 延遲隱藏載入螢幕，確保一切就緒
-        setTimeout(() => {
-            loadingScreen.hide();
-        }, 1000);
+// Phase 12.1: 隱藏載入畫面的文字，顯示登入畫面
+loadingScreen.updateText(""); // 清空文字但保留背景
 
-        engine.runRenderLoop(() => {
-            scene.render();
+const loginScreen = new LoginScreen();
+loginScreen.show()
+    .then((loginResult) => {
+        console.log("✅ Login successful:", loginResult);
+
+        // 登入成功後，恢復載入畫面文字
+        loadingScreen.updateText("正在初始化遊戲...");
+
+        return createScene(loginResult).then((scene) => {
+            console.log("✅ Scene created successfully!");
+            loadingScreen.updateText("即將進入遊戲...");
+
+            // 延遲隱藏載入螢幕，確保一切就緒
+            setTimeout(() => {
+                loadingScreen.hide();
+            }, 1000);
+
+            engine.runRenderLoop(() => {
+                scene.render();
+            });
+            console.log("✅ Render loop started!");
         });
-        console.log("✅ Render loop started!");
     })
     .catch((error) => {
         console.error("❌ Failed to create scene:", error);
