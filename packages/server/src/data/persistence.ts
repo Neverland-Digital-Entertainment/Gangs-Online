@@ -49,6 +49,9 @@ export const savePlayer = async (player: Player, firebaseUid: string): Promise<b
         z: player.z,
         inventory: inventory,
         activeQuest: activeQuest,
+        // Phase 13: Guild data
+        guildId: player.guildId || "",
+        guildName: player.guildName || "",
         lastOnline: getFieldValue().serverTimestamp()
     };
 
@@ -126,6 +129,10 @@ export const loadPlayer = async (
                     player.activeQuest = quest;
                 }
             }
+
+            // Phase 13: 還原幫會資料
+            player.guildId = saved.guildId || "";
+            player.guildName = saved.guildName || "";
 
             console.log(`[Persistence] Player ${saved.name} restored successfully.`);
             return true;

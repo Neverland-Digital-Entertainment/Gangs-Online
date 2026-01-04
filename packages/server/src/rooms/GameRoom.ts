@@ -1,6 +1,6 @@
 import { Room, Client } from "colyseus";
 import { GameState, Player, Item } from "./schema/GameState";
-import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle, IQuestDef } from "@gangs-online/shared";
+import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle, IQuestDef, ChatMessageType, IChatMessage } from "@gangs-online/shared";
 import { EnemyManager } from "../systems/EnemyManager";
 import { ProgressionSystem } from "../systems/ProgressionSystem";
 import { LootSystem } from "../systems/LootSystem"; // Phase 8
@@ -10,6 +10,8 @@ import { NPCManager } from "../systems/NPCManager"; // Phase 9
 import { QuestManager } from "../systems/QuestManager"; // Phase 10
 import { initializeFirebase } from "../services/FirebaseService"; // Phase 12
 import { savePlayer, loadPlayer } from "../data/persistence"; // Phase 12
+import { guildService } from "../services/GuildService"; // Phase 13
+import { chatService } from "../services/ChatService"; // Phase 13
 
 export class GameRoom extends Room<GameState> {
     maxClients = 50;
@@ -107,13 +109,192 @@ export class GameRoom extends Room<GameState> {
             }
         });
 
-        // --- NEW: CHAT HANDLER ---
-        this.onMessage("chat", (client, message: string) => {
+        // --- Phase 13: Enhanced Chat Handler with Channels ---
+        this.onMessage("chat", (client, payload: { text: string; type?: ChatMessageType; targetId?: string }) => {
             const player = this.state.players.get(client.sessionId);
-            if (player) {
-                // Broadcast to everyone including sender
-                this.broadcast("chat", { sessionId: client.sessionId, text: message });
+            if (!player) return;
+
+            // 支援舊格式（純字串）和新格式（物件）
+            const text = typeof payload === "string" ? payload : payload.text;
+            const chatType: ChatMessageType = typeof payload === "string" ? "GLOBAL" : (payload.type || "GLOBAL");
+            const targetId = typeof payload === "string" ? undefined : payload.targetId;
+
+            const chatMessage: IChatMessage = {
+                senderId: player.firebaseUid || client.sessionId,
+                senderName: player.name,
+                text: text,
+                type: chatType,
+                targetId: targetId,
+                timestamp: Date.now()
+            };
+
+            // 根據頻道類型廣播
+            switch (chatType) {
+                case "GLOBAL":
+                    // 全服廣播
+                    this.broadcast("chat", {
+                        sessionId: client.sessionId,
+                        text: text,
+                        type: "GLOBAL",
+                        senderName: player.name
+                    });
+                    break;
+
+                case "GUILD":
+                    // 幫會頻道：只廣播給同幫會成員
+                    if (player.guildId) {
+                        this.clients.forEach((c) => {
+                            const p = this.state.players.get(c.sessionId);
+                            if (p && p.guildId === player.guildId) {
+                                c.send("chat", {
+                                    sessionId: client.sessionId,
+                                    text: text,
+                                    type: "GUILD",
+                                    senderName: player.name
+                                });
+                            }
+                        });
+                    }
+                    break;
+
+                case "PRIVATE":
+                    // 私聊：只發送給目標玩家和自己
+                    if (targetId) {
+                        const targetClient = this.clients.find((c) => {
+                            const p = this.state.players.get(c.sessionId);
+                            return p && (p.firebaseUid === targetId || c.sessionId === targetId);
+                        });
+                        if (targetClient) {
+                            targetClient.send("chat", {
+                                sessionId: client.sessionId,
+                                text: text,
+                                type: "PRIVATE",
+                                senderName: player.name
+                            });
+                        }
+                        // 也發送給自己
+                        client.send("chat", {
+                            sessionId: client.sessionId,
+                            text: text,
+                            type: "PRIVATE",
+                            senderName: player.name
+                        });
+                    }
+                    break;
             }
+
+            // 儲存到 Firebase（非同步，不阻塞）
+            chatService.saveMessage(chatMessage);
+        });
+
+        // --- Phase 13: Guild Handlers ---
+        this.onMessage("createGuild", async (client, payload: { name: string }) => {
+            const player = this.state.players.get(client.sessionId);
+            if (!player || !player.firebaseUid) {
+                client.send("notification", "請先登入才能創建幫會");
+                return;
+            }
+
+            const result = await guildService.createGuild(payload.name, player.firebaseUid, player.name);
+            if (result.success && result.guildId) {
+                player.guildId = result.guildId;
+                player.guildName = payload.name;
+                client.send("notification", `幫會「${payload.name}」創建成功！你現在是龍頭！`);
+                client.send("guildUpdate", { guildId: result.guildId, guildName: payload.name, role: "龍頭" });
+
+                // 儲存更新
+                if (player.firebaseUid) {
+                    savePlayer(player, player.firebaseUid);
+                }
+            } else {
+                client.send("notification", result.error || "創建幫會失敗");
+            }
+        });
+
+        this.onMessage("joinGuild", async (client, payload: { guildId: string }) => {
+            const player = this.state.players.get(client.sessionId);
+            if (!player || !player.firebaseUid) {
+                client.send("notification", "請先登入才能加入幫會");
+                return;
+            }
+
+            const result = await guildService.joinGuild(payload.guildId, player.firebaseUid, player.name);
+            if (result.success && result.guildName) {
+                player.guildId = payload.guildId;
+                player.guildName = result.guildName;
+                client.send("notification", `成功加入幫會「${result.guildName}」！`);
+                client.send("guildUpdate", { guildId: payload.guildId, guildName: result.guildName, role: "成員" });
+
+                // 儲存更新
+                if (player.firebaseUid) {
+                    savePlayer(player, player.firebaseUid);
+                }
+            } else {
+                client.send("notification", result.error || "加入幫會失敗");
+            }
+        });
+
+        this.onMessage("leaveGuild", async (client) => {
+            const player = this.state.players.get(client.sessionId);
+            if (!player || !player.firebaseUid) {
+                client.send("notification", "請先登入");
+                return;
+            }
+
+            const guildName = player.guildName;
+            const result = await guildService.leaveGuild(player.firebaseUid);
+            if (result.success) {
+                player.guildId = "";
+                player.guildName = "";
+                client.send("notification", `已離開幫會「${guildName}」`);
+                client.send("guildUpdate", { guildId: "", guildName: "", role: "" });
+
+                // 儲存更新
+                if (player.firebaseUid) {
+                    savePlayer(player, player.firebaseUid);
+                }
+            } else {
+                client.send("notification", result.error || "離開幫會失敗");
+            }
+        });
+
+        this.onMessage("getGuildList", async (client) => {
+            const guilds = await guildService.getGuildList();
+            client.send("guildList", guilds);
+        });
+
+        this.onMessage("getGuildInfo", async (client, payload: { guildId: string }) => {
+            const guild = await guildService.getGuild(payload.guildId);
+            if (guild) {
+                client.send("guildInfo", guild);
+            } else {
+                client.send("notification", "幫會不存在");
+            }
+        });
+
+        this.onMessage("getChatHistory", async (client, payload: { type: ChatMessageType; targetId?: string }) => {
+            const player = this.state.players.get(client.sessionId);
+            if (!player) return;
+
+            let history: IChatMessage[] = [];
+
+            switch (payload.type) {
+                case "GLOBAL":
+                    history = await chatService.getGlobalChatHistory();
+                    break;
+                case "GUILD":
+                    if (player.guildId) {
+                        history = await chatService.getGuildChatHistory(player.guildId);
+                    }
+                    break;
+                case "PRIVATE":
+                    if (payload.targetId && player.firebaseUid) {
+                        history = await chatService.getPrivateChatHistory(player.firebaseUid, payload.targetId);
+                    }
+                    break;
+            }
+
+            client.send("chatHistory", { type: payload.type, messages: history });
         });
 
         // --- PHASE 8: PICKUP ITEM HANDLER ---

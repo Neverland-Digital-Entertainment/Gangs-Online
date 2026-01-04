@@ -1,9 +1,10 @@
 import * as BABYLON from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import * as Client from "colyseus.js";
+import { ChatMessageType } from "@gangs-online/shared";
 
 /**
- * 聊天系統
+ * 聊天系統 (Phase 13: 支援多頻道)
  * 負責聊天輸入框和聊天氣泡的顯示
  */
 export class ChatSystem {
@@ -11,10 +12,54 @@ export class ChatSystem {
     private scene: BABYLON.Scene;
     private uiTexture: GUI.AdvancedDynamicTexture;
 
+    // Phase 13: 當前頻道
+    private currentChannel: ChatMessageType = "GLOBAL";
+
+    // Phase 13: 幫會 ID（用於判斷是否可以使用幫會頻道）
+    private guildId: string = "";
+
     constructor(room: Client.Room, scene: BABYLON.Scene, uiTexture: GUI.AdvancedDynamicTexture) {
         this.room = room;
         this.scene = scene;
         this.uiTexture = uiTexture;
+    }
+
+    /**
+     * 設置當前頻道
+     */
+    setChannel(channel: ChatMessageType): void {
+        // 如果沒有幫會，不能切換到幫會頻道
+        if (channel === "GUILD" && !this.guildId) {
+            console.log("[ChatSystem] 無法切換到幫會頻道：你不在任何幫會中");
+            return;
+        }
+        this.currentChannel = channel;
+        console.log(`[ChatSystem] 切換到 ${channel} 頻道`);
+    }
+
+    /**
+     * 獲取當前頻道
+     */
+    getChannel(): ChatMessageType {
+        return this.currentChannel;
+    }
+
+    /**
+     * 更新幫會 ID
+     */
+    updateGuildId(guildId: string): void {
+        this.guildId = guildId;
+        // 如果離開幫會，自動切回全服頻道
+        if (!guildId && this.currentChannel === "GUILD") {
+            this.currentChannel = "GLOBAL";
+        }
+    }
+
+    /**
+     * 檢查是否有幫會
+     */
+    hasGuild(): boolean {
+        return this.guildId !== "";
     }
 
     /**
@@ -60,10 +105,14 @@ export class ChatSystem {
         }
         sendButton.top = isMobile ? "-10px" : "-20px";
 
-        // 發送訊息的共用函數
+        // Phase 13: 發送訊息的共用函數（支援頻道）
         const sendMessage = () => {
             if (input.text.trim()) {
-                this.room.send("chat", input.text);
+                // 根據當前頻道發送不同格式的訊息
+                this.room.send("chat", {
+                    text: input.text,
+                    type: this.currentChannel
+                });
                 input.text = "";
             }
         };

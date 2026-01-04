@@ -179,17 +179,21 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
         hudManager = new HUDManager(uiTexture);
         await hudManager.initialize(room);
 
-        // 監聽聊天訊息
-        room.onMessage("chat", (msg: { sessionId: string; text: string; channel?: string }) => {
+        // 監聽聊天訊息 (Phase 13: 支援多頻道)
+        room.onMessage("chat", (msg: { sessionId: string; text: string; type?: string; senderName?: string }) => {
             const entity = playerManager.getEntity(msg.sessionId);
             if (entity) {
                 chatSystem.createChatBubble(entity.mesh, msg.text);
             }
-            // Phase 9.1: 同步到 HUD 聊天系統
+            // Phase 13: 同步到 HUD 聊天系統，支援頻道類型
             if (hudManager) {
                 const player = (room.state as any).players.get(msg.sessionId);
-                const senderName = player?.name || "Unknown";
-                hudManager.addChatMessage(senderName, msg.text, msg.channel || "world");
+                const senderName = msg.senderName || player?.name || "Unknown";
+                // 轉換頻道類型：GLOBAL -> world, GUILD -> guild, PRIVATE -> private
+                let channel = "world";
+                if (msg.type === "GUILD") channel = "guild";
+                else if (msg.type === "PRIVATE") channel = "private";
+                hudManager.addChatMessage(senderName, msg.text, channel);
             }
         });
 
@@ -368,6 +372,29 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                         rewardMoney: quest.rewardMoney,
                     });
                 }
+
+                // Phase 13: 監聽幫會狀態變化
+                player.listen("guildId", (guildId: string) => {
+                    hudManager?.updateGuildState(guildId, (player as any).guildName || "");
+                    chatSystem.updateGuildId(guildId);
+                });
+
+                player.listen("guildName", (guildName: string) => {
+                    hudManager?.updateGuildState((player as any).guildId || "", guildName);
+                });
+
+                // Phase 13: 初始化幫會狀態
+                const initialGuildId = (player as any).guildId || "";
+                const initialGuildName = (player as any).guildName || "";
+                if (initialGuildId) {
+                    hudManager?.updateGuildState(initialGuildId, initialGuildName);
+                    chatSystem.updateGuildId(initialGuildId);
+                }
+
+                // Phase 13: 連接 HUD 聊天頻道切換到 ChatSystem
+                hudManager?.setOnChatChannelChange((channel) => {
+                    chatSystem.setChannel(channel);
+                });
             }
         });
 

@@ -10,6 +10,65 @@ export interface IPlayerInput {
 // Player Roles (Based on GDD)
 export type PlayerRole = 'citizen' | 'triad' | 'police';
 
+// ==================== Phase 13: Guild System ====================
+
+/**
+ * 幫會職位（Phase 13）
+ * 目前只有龍頭和成員，預留未來擴展
+ */
+export type GuildRole = '龍頭' | '副幫主' | '堂主' | '護法' | '成員';
+
+/**
+ * 幫會成員資料
+ */
+export interface IGuildMember {
+    userId: string;
+    role: GuildRole;
+    joinTime: number; // timestamp
+}
+
+/**
+ * 幫會資料結構（對應 Firestore）
+ */
+export interface IGuildData {
+    id: string;
+    name: string;
+    leaderId: string;
+    createdAt: number; // timestamp
+    memberCount: number;
+    description: string;
+    members: { [userId: string]: IGuildMember };
+}
+
+/**
+ * 聊天訊息類型（Phase 13）
+ */
+export type ChatMessageType = 'GLOBAL' | 'GUILD' | 'PRIVATE' | 'SYSTEM';
+
+/**
+ * 聊天訊息結構
+ */
+export interface IChatMessage {
+    id?: string;
+    senderId: string;
+    senderName: string;
+    text: string;
+    type: ChatMessageType;
+    targetId?: string; // 幫會 ID 或私聊對象 ID
+    timestamp: number;
+}
+
+/**
+ * 幫會系統常數
+ */
+export const GUILD_CONSTANTS = {
+    MAX_GUILD_NAME_LENGTH: 20,
+    MIN_GUILD_NAME_LENGTH: 2,
+    MAX_GUILD_DESCRIPTION_LENGTH: 100,
+    MAX_GUILD_MEMBERS: 50,
+    CHAT_HISTORY_LIMIT: 50, // 進入房間時載入的歷史訊息數量
+};
+
 // Entity Type (Phase 9: 增加 NPC)
 export type EntityType = 'player' | 'enemy' | 'npc';
 
@@ -64,6 +123,10 @@ export class PlayerData extends Schema implements IEntityData {
 
     // Quest System (Phase 10)
     @type(QuestData) activeQuest: QuestData | null = null;
+
+    // Guild System (Phase 13)
+    @type("string") guildId: string = "";
+    @type("string") guildName: string = "";
 }
 
 // Enemy Data (for PVE)
@@ -127,7 +190,7 @@ export interface ILootData {
     item: IItem;
 }
 
-// Player Data Interface (Extended for Phase 10)
+// Player Data Interface (Extended for Phase 13)
 export interface IPlayerData extends IEntityData {
     sessionId: string;
     role: PlayerRole;
@@ -138,6 +201,9 @@ export interface IPlayerData extends IEntityData {
     inventory: IItem[];
     // Phase 10: Active Quest State
     activeQuest: IQuestState | null;
+    // Phase 13: Guild System
+    guildId: string;
+    guildName: string;
 }
 
 // Game Constants
@@ -203,6 +269,6 @@ export const getRankTitle = (level: number): string => {
 };
 
 /**
- * 遊戲版本（0.12.0 - Firebase Persistence & Auth）
+ * 遊戲版本（0.13.0 - Guild System & Chat Migration）
  */
-export const GAME_VERSION = "0.12.0";
+export const GAME_VERSION = "0.13.0";

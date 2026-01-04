@@ -2,7 +2,8 @@ import * as GUI from "@babylonjs/gui";
 import { Room } from "colyseus.js";
 import { QuestSystem } from "./QuestSystem";
 import { ShopPopupSystem } from "./ShopPopupSystem";
-import { IQuestState, IItem } from "@gangs-online/shared";
+import { GuildSystem } from "./GuildSystem";
+import { IQuestState, IItem, ChatMessageType } from "@gangs-online/shared";
 
 /**
  * HUD 管理器 - 使用 JSON 定義的 UI
@@ -57,6 +58,12 @@ export class HUDManager {
     // Shop Popup System (Phase 10.1)
     private shopPopupSystem: ShopPopupSystem | null = null;
 
+    // Guild System (Phase 13)
+    private guildSystem: GuildSystem | null = null;
+
+    // Phase 13: 聊天頻道切換回調
+    private onChatChannelChange: ((channel: ChatMessageType) => void) | null = null;
+
     constructor(uiTexture: GUI.AdvancedDynamicTexture) {
         this.uiTexture = uiTexture;
     }
@@ -86,6 +93,13 @@ export class HUDManager {
 
         // Initialize Shop Popup System (Phase 10.1)
         this.shopPopupSystem = new ShopPopupSystem(room);
+
+        // Initialize Guild System (Phase 13)
+        this.guildSystem = new GuildSystem(room, this.uiTexture);
+        this.guildSystem.setPopupContent(this.popupContent);
+        this.guildSystem.setHidePopupCallback(() => {
+            this.hidePopup();
+        });
 
         console.log("✅ HUD Manager initialized");
     }
@@ -634,7 +648,23 @@ export class HUDManager {
             }
         });
 
+        // Phase 13: 通知聊天頻道切換
+        if (this.onChatChannelChange) {
+            let chatType: ChatMessageType = "GLOBAL";
+            if (channel === "world") chatType = "GLOBAL";
+            else if (channel === "guild") chatType = "GUILD";
+            else if (channel === "private") chatType = "PRIVATE";
+            this.onChatChannelChange(chatType);
+        }
+
         console.log(`📢 Switched to chat channel: ${channel}`);
+    }
+
+    /**
+     * 設置聊天頻道切換回調 (Phase 13)
+     */
+    setOnChatChannelChange(callback: (channel: ChatMessageType) => void): void {
+        this.onChatChannelChange = callback;
     }
 
     /**
@@ -755,6 +785,13 @@ export class HUDManager {
             else if (type === "inventory" && this.shopPopupSystem) {
                 const inventoryControls = this.shopPopupSystem.createInventoryPopupContent();
                 inventoryControls.forEach((control) => {
+                    this.popupContent!.addControl(control);
+                });
+            }
+            // Phase 13: Handle guild popup (社交按鈕改為幫會)
+            else if (type === "social" && this.guildSystem) {
+                const guildControls = this.guildSystem.createGuildPopupContent();
+                guildControls.forEach((control) => {
                     this.popupContent!.addControl(control);
                 });
             } else {
@@ -883,6 +920,29 @@ export class HUDManager {
     }
 
     /**
+     * 更新幫會狀態 (Phase 13)
+     */
+    updateGuildState(guildId: string, guildName: string): void {
+        if (this.guildSystem) {
+            this.guildSystem.updateGuildState(guildId, guildName);
+        }
+
+        // 更新幫會頻道標籤的可用性
+        const guildTab = this.findControlByName<GUI.Button>("tab_guild");
+        if (guildTab) {
+            guildTab.isEnabled = guildId !== "";
+            guildTab.alpha = guildId !== "" ? 1 : 0.5;
+        }
+    }
+
+    /**
+     * 獲取幫會系統 (Phase 13)
+     */
+    getGuildSystem(): GuildSystem | null {
+        return this.guildSystem;
+    }
+
+    /**
      * 釋放資源
      */
     dispose(): void {
@@ -895,6 +955,10 @@ export class HUDManager {
         // Phase 10: Dispose Quest System
         if (this.questSystem) {
             this.questSystem.dispose();
+        }
+        // Phase 13: Dispose Guild System
+        if (this.guildSystem) {
+            this.guildSystem.dispose();
         }
     }
 }
