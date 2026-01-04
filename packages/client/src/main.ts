@@ -259,16 +259,9 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 playerManager.updateCombatState(sessionId, !!(targetId && targetId !== ""));
             });
 
-            // === Phase 7: 同步經驗值和等級 ===
-            player.listen("xp", (currentXP: number) => {
-                playerManager.updateXP(sessionId, currentXP, player.maxXp);
-            });
-
             // Phase 11: 記錄之前的等級用於升級反饋
             let prevLevel = player.level;
             player.listen("level", (newLevel: number) => {
-                playerManager.updateLevel(sessionId, newLevel, player.name);
-
                 // === Phase 11: 升級效果 ===
                 if (newLevel > prevLevel) {
                     const entity = playerManager.getEntity(sessionId);

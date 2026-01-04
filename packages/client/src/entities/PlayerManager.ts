@@ -147,26 +147,6 @@ export class PlayerManager {
     }
 
     /**
-     * 更新經驗值條（Phase 7）
-     */
-    updateXP(sessionId: string, currentXP: number, maxXP: number): void {
-        const entity = this.playerEntities[sessionId];
-        if (entity?.ui?.xpFg) {
-            this.uiSystem.updateXPBar(entity.ui.xpFg, currentXP, maxXP);
-        }
-    }
-
-    /**
-     * 更新等級和頭銜（Phase 7）
-     */
-    updateLevel(sessionId: string, level: number, playerName: string): void {
-        const entity = this.playerEntities[sessionId];
-        if (entity?.ui?.nameLabel) {
-            this.uiSystem.updatePlayerTitle(entity.ui.nameLabel, playerName, level);
-        }
-    }
-
-    /**
      * 更新所有玩家的移動和動畫
      */
     updateAll(): void {

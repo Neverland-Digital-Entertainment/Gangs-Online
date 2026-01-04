@@ -21,10 +21,7 @@ export interface PlayerUIElements {
     hpFg: GUI.Rectangle;
     hpBg: GUI.Rectangle;
     combatIndicator: GUI.TextBlock;
-    // Phase 7: 進度系統
-    xpFg?: GUI.Rectangle; // XP 條（玩家專用）
-    xpBg?: GUI.Rectangle; // XP 背景
-    nameLabel?: GUI.TextBlock; // 名稱標籤（用於動態更新頭銜）
+    nameLabel: GUI.TextBlock;
 }
 
 /**
