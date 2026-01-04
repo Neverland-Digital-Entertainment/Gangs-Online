@@ -45,10 +45,6 @@ export class LoginScreen {
                         <span class="btn-icon">G</span>
                         使用 Google 登入
                     </button>
-                    <button id="btnApple" class="login-btn apple-btn">
-                        <span class="btn-icon"></span>
-                        使用 Apple 登入
-                    </button>
 
                     <div class="divider">
                         <span>或使用 Email</span>
