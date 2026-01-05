@@ -11,10 +11,8 @@
 import { getFirestore, getFieldValue, isFirebaseInitialized } from "./FirebaseService";
 import { IGuildData, IGuildDataStored, IGuildMember, IGuildMemberStored, GuildRole, GUILD_CONSTANTS } from "@gangs-online/shared";
 
-// Firestore 路徑常數
-const FIRESTORE_APP_ID = "gangs-online";
-const GUILDS_PATH = `artifacts/${FIRESTORE_APP_ID}/public/data/guilds`;
-const USERS_PATH = `artifacts/${FIRESTORE_APP_ID}/public/data/users`;
+// Firestore 路徑常數（簡化：放在 DB 根層）
+const GUILDS_PATH = "guilds";
 const PLAYERS_PATH = "players";
 
 /**
@@ -47,7 +45,7 @@ export class GuildService {
 
         try {
             // 檢查玩家是否已在幫會
-            const userDoc = await db.collection(USERS_PATH).doc(userId).get();
+            const userDoc = await db.collection(PLAYERS_PATH).doc(userId).get();
             if (userDoc.exists) {
                 const userData = userDoc.data();
                 if (userData?.guildId) {
@@ -79,7 +77,7 @@ export class GuildService {
             await guildRef.set(guildData);
 
             // 更新用戶的幫會資訊
-            await db.collection(USERS_PATH).doc(userId).set({
+            await db.collection(PLAYERS_PATH).doc(userId).set({
                 guildId: guildId,
                 guildName: name
             }, { merge: true });
@@ -110,7 +108,7 @@ export class GuildService {
 
         try {
             // 檢查玩家是否已在幫會
-            const userDoc = await db.collection(USERS_PATH).doc(userId).get();
+            const userDoc = await db.collection(PLAYERS_PATH).doc(userId).get();
             if (userDoc.exists) {
                 const userData = userDoc.data();
                 if (userData?.guildId) {
@@ -144,7 +142,7 @@ export class GuildService {
             });
 
             // 更新用戶的幫會資訊
-            await db.collection(USERS_PATH).doc(userId).set({
+            await db.collection(PLAYERS_PATH).doc(userId).set({
                 guildId: guildId,
                 guildName: guildData.name
             }, { merge: true });
@@ -174,7 +172,7 @@ export class GuildService {
 
         try {
             // 獲取用戶的幫會資訊
-            const userDoc = await db.collection(USERS_PATH).doc(userId).get();
+            const userDoc = await db.collection(PLAYERS_PATH).doc(userId).get();
             if (!userDoc.exists) {
                 return { success: false, error: "用戶不存在" };
             }
@@ -190,7 +188,7 @@ export class GuildService {
             const guildDoc = await db.collection(GUILDS_PATH).doc(guildId).get();
             if (!guildDoc.exists) {
                 // 幫會不存在，清除用戶的幫會資訊
-                await db.collection(USERS_PATH).doc(userId).update({
+                await db.collection(PLAYERS_PATH).doc(userId).update({
                     guildId: "",
                     guildName: ""
                 });
@@ -219,7 +217,7 @@ export class GuildService {
             }
 
             // 清除用戶的幫會資訊
-            await db.collection(USERS_PATH).doc(userId).update({
+            await db.collection(PLAYERS_PATH).doc(userId).update({
                 guildId: "",
                 guildName: ""
             });
@@ -319,7 +317,7 @@ export class GuildService {
         }
 
         try {
-            const userDoc = await db.collection(USERS_PATH).doc(userId).get();
+            const userDoc = await db.collection(PLAYERS_PATH).doc(userId).get();
             if (!userDoc.exists) {
                 return null;
             }
@@ -423,7 +421,7 @@ export class GuildService {
             });
 
             // 清除被踢成員的幫會資訊
-            await db.collection(USERS_PATH).doc(targetUserId).update({
+            await db.collection(PLAYERS_PATH).doc(targetUserId).update({
                 guildId: "",
                 guildName: ""
             });

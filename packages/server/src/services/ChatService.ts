@@ -6,9 +6,8 @@
 import { getFirestore, isFirebaseInitialized } from "./FirebaseService";
 import { IChatMessage, ChatMessageType, GUILD_CONSTANTS } from "@gangs-online/shared";
 
-// Firestore 路徑常數
-const FIRESTORE_APP_ID = "gangs-online";
-const CHAT_HISTORY_PATH = `artifacts/${FIRESTORE_APP_ID}/public/data/chat_history`;
+// Firestore 路徑常數（簡化：放在 DB 根層）
+const CHAT_HISTORY_PATH = "chat_history";
 
 /**
  * 聊天服務類別
