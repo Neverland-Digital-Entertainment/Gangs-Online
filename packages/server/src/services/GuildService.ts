@@ -2,14 +2,20 @@
  * Guild Service (Phase 13: Guild System)
  * 負責幫會的建立、加入、退出等管理功能
  * 使用 Firebase Firestore 進行資料持久化
+ *
+ * 資料結構設計：
+ * - guilds 集合：存放幫會資料，成員只存 userId 和 role
+ * - players 集合：存放玩家資料，包含 name
+ * - 讀取幫會資料時，動態從 players 集合取得成員名稱
  */
 import { getFirestore, getFieldValue, isFirebaseInitialized } from "./FirebaseService";
-import { IGuildData, IGuildMember, GuildRole, GUILD_CONSTANTS } from "@gangs-online/shared";
+import { IGuildData, IGuildDataStored, IGuildMember, IGuildMemberStored, GuildRole, GUILD_CONSTANTS } from "@gangs-online/shared";
 
 // Firestore 路徑常數
 const FIRESTORE_APP_ID = "gangs-online";
 const GUILDS_PATH = `artifacts/${FIRESTORE_APP_ID}/public/data/guilds`;
 const USERS_PATH = `artifacts/${FIRESTORE_APP_ID}/public/data/users`;
+const PLAYERS_PATH = "players";
 
 /**
  * 幫會服務類別
@@ -19,10 +25,9 @@ export class GuildService {
      * 建立幫會
      * @param name 幫會名稱
      * @param userId 創建者的 Firebase UID
-     * @param userName 創建者的顯示名稱
      * @returns 新建幫會的 ID，失敗時返回 null
      */
-    async createGuild(name: string, userId: string, userName: string): Promise<{ success: boolean; guildId?: string; error?: string }> {
+    async createGuild(name: string, userId: string): Promise<{ success: boolean; guildId?: string; error?: string }> {
         if (!isFirebaseInitialized()) {
             return { success: false, error: "Firebase 未初始化" };
         }
@@ -40,26 +45,6 @@ export class GuildService {
             return { success: false, error: `幫會名稱不能超過 ${GUILD_CONSTANTS.MAX_GUILD_NAME_LENGTH} 個字` };
         }
 
-        // 確保成員名稱有效（若為空則從 players 資料庫取得）
-        let memberName = userName;
-        if (!memberName || memberName.trim() === "") {
-            console.warn(`[GuildService] userName 為空，嘗試從資料庫取得...`);
-            try {
-                const playerDoc = await db.collection("players").doc(userId).get();
-                if (playerDoc.exists) {
-                    const playerData = playerDoc.data();
-                    memberName = playerData?.name || `玩家${userId.substring(0, 6)}`;
-                    console.log(`[GuildService] 從資料庫取得名稱: ${memberName}`);
-                } else {
-                    memberName = `玩家${userId.substring(0, 6)}`;
-                    console.log(`[GuildService] 使用預設名稱: ${memberName}`);
-                }
-            } catch (err) {
-                memberName = `玩家${userId.substring(0, 6)}`;
-                console.error(`[GuildService] 取得玩家名稱失敗，使用預設: ${memberName}`, err);
-            }
-        }
-
         try {
             // 檢查玩家是否已在幫會
             const userDoc = await db.collection(USERS_PATH).doc(userId).get();
@@ -70,12 +55,12 @@ export class GuildService {
                 }
             }
 
-            // 建立幫會文檔
+            // 建立幫會文檔（成員只存 userId 和 role，不存 name）
             const guildRef = db.collection(GUILDS_PATH).doc();
             const guildId = guildRef.id;
             const now = Date.now();
 
-            const guildData: IGuildData = {
+            const guildData: IGuildDataStored = {
                 id: guildId,
                 name: name,
                 leaderId: userId,
@@ -85,7 +70,6 @@ export class GuildService {
                 members: {
                     [userId]: {
                         userId: userId,
-                        name: memberName,
                         role: "龍頭" as GuildRole,
                         joinTime: now
                     }
@@ -100,7 +84,7 @@ export class GuildService {
                 guildName: name
             }, { merge: true });
 
-            console.log(`[GuildService] 幫會創建成功: ${name} (${guildId}) by ${memberName}`);
+            console.log(`[GuildService] 幫會創建成功: ${name} (${guildId})`);
             return { success: true, guildId };
 
         } catch (error) {
@@ -113,9 +97,8 @@ export class GuildService {
      * 加入幫會
      * @param guildId 幫會 ID
      * @param userId 玩家的 Firebase UID
-     * @param userName 玩家的顯示名稱
      */
-    async joinGuild(guildId: string, userId: string, userName: string): Promise<{ success: boolean; guildName?: string; error?: string }> {
+    async joinGuild(guildId: string, userId: string): Promise<{ success: boolean; guildName?: string; error?: string }> {
         if (!isFirebaseInitialized()) {
             return { success: false, error: "Firebase 未初始化" };
         }
@@ -123,26 +106,6 @@ export class GuildService {
         const db = getFirestore();
         if (!db) {
             return { success: false, error: "Firestore 連接失敗" };
-        }
-
-        // 確保成員名稱有效（若為空則從 players 資料庫取得）
-        let memberName = userName;
-        if (!memberName || memberName.trim() === "") {
-            console.warn(`[GuildService] joinGuild: userName 為空，嘗試從資料庫取得...`);
-            try {
-                const playerDoc = await db.collection("players").doc(userId).get();
-                if (playerDoc.exists) {
-                    const playerData = playerDoc.data();
-                    memberName = playerData?.name || `玩家${userId.substring(0, 6)}`;
-                    console.log(`[GuildService] 從資料庫取得名稱: ${memberName}`);
-                } else {
-                    memberName = `玩家${userId.substring(0, 6)}`;
-                    console.log(`[GuildService] 使用預設名稱: ${memberName}`);
-                }
-            } catch (err) {
-                memberName = `玩家${userId.substring(0, 6)}`;
-                console.error(`[GuildService] 取得玩家名稱失敗，使用預設: ${memberName}`, err);
-            }
         }
 
         try {
@@ -161,7 +124,7 @@ export class GuildService {
                 return { success: false, error: "幫會不存在" };
             }
 
-            const guildData = guildDoc.data() as IGuildData;
+            const guildData = guildDoc.data() as IGuildDataStored;
 
             // 檢查人數上限
             if (guildData.memberCount >= GUILD_CONSTANTS.MAX_GUILD_MEMBERS) {
@@ -170,11 +133,10 @@ export class GuildService {
 
             const now = Date.now();
 
-            // 添加成員到幫會
+            // 添加成員到幫會（只存 userId 和 role，不存 name）
             await db.collection(GUILDS_PATH).doc(guildId).update({
                 [`members.${userId}`]: {
                     userId: userId,
-                    name: memberName,
                     role: "成員" as GuildRole,
                     joinTime: now
                 },
@@ -187,7 +149,7 @@ export class GuildService {
                 guildName: guildData.name
             }, { merge: true });
 
-            console.log(`[GuildService] ${memberName} 加入幫會: ${guildData.name}`);
+            console.log(`[GuildService] 玩家 ${userId} 加入幫會: ${guildData.name}`);
             return { success: true, guildName: guildData.name };
 
         } catch (error) {
@@ -235,7 +197,7 @@ export class GuildService {
                 return { success: true };
             }
 
-            const guildData = guildDoc.data() as IGuildData;
+            const guildData = guildDoc.data() as IGuildDataStored;
 
             // 檢查是否為龍頭
             if (guildData.leaderId === userId) {
@@ -272,7 +234,8 @@ export class GuildService {
     }
 
     /**
-     * 獲取幫會資料
+     * 獲取幫會資料（包含成員名稱）
+     * 從 players 集合動態取得成員名稱
      * @param guildId 幫會 ID
      */
     async getGuild(guildId: string): Promise<IGuildData | null> {
@@ -290,7 +253,51 @@ export class GuildService {
             if (!guildDoc.exists) {
                 return null;
             }
-            return guildDoc.data() as IGuildData;
+
+            const storedData = guildDoc.data() as IGuildDataStored;
+
+            // 取得所有成員的 userId
+            const memberIds = Object.keys(storedData.members);
+
+            // 從 players 集合批量取得成員名稱
+            const memberNames: { [userId: string]: string } = {};
+            for (const userId of memberIds) {
+                try {
+                    const playerDoc = await db.collection(PLAYERS_PATH).doc(userId).get();
+                    if (playerDoc.exists) {
+                        const playerData = playerDoc.data();
+                        memberNames[userId] = playerData?.name || `玩家${userId.substring(0, 6)}`;
+                    } else {
+                        memberNames[userId] = `玩家${userId.substring(0, 6)}`;
+                    }
+                } catch (err) {
+                    console.error(`[GuildService] 取得玩家 ${userId} 名稱失敗:`, err);
+                    memberNames[userId] = `玩家${userId.substring(0, 6)}`;
+                }
+            }
+
+            // 組合成完整的幫會資料（包含成員名稱）
+            const members: { [userId: string]: IGuildMember } = {};
+            for (const [userId, storedMember] of Object.entries(storedData.members)) {
+                members[userId] = {
+                    userId: storedMember.userId,
+                    name: memberNames[userId],
+                    role: storedMember.role,
+                    joinTime: storedMember.joinTime
+                };
+            }
+
+            const guildData: IGuildData = {
+                id: storedData.id,
+                name: storedData.name,
+                leaderId: storedData.leaderId,
+                createdAt: storedData.createdAt,
+                memberCount: storedData.memberCount,
+                description: storedData.description,
+                members: members
+            };
+
+            return guildData;
         } catch (error) {
             console.error("[GuildService] 獲取幫會資料失敗:", error);
             return null;
@@ -332,9 +339,10 @@ export class GuildService {
 
     /**
      * 獲取幫會列表（用於顯示可加入的幫會）
+     * 注意：列表不需要成員名稱，直接返回存儲的資料
      * @param limit 返回的幫會數量上限
      */
-    async getGuildList(limit: number = 20): Promise<IGuildData[]> {
+    async getGuildList(limit: number = 20): Promise<IGuildDataStored[]> {
         if (!isFirebaseInitialized()) {
             return [];
         }
@@ -347,9 +355,9 @@ export class GuildService {
         try {
             // 注意：根據 Phase13.md 的限制，不使用 orderBy
             const snapshot = await db.collection(GUILDS_PATH).limit(limit).get();
-            const guilds: IGuildData[] = [];
+            const guilds: IGuildDataStored[] = [];
             snapshot.forEach(doc => {
-                guilds.push(doc.data() as IGuildData);
+                guilds.push(doc.data() as IGuildDataStored);
             });
             return guilds;
         } catch (error) {

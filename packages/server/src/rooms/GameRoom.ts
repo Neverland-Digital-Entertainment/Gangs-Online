@@ -195,7 +195,7 @@ export class GameRoom extends Room<GameState> {
                 return;
             }
 
-            const result = await guildService.createGuild(payload.name, player.firebaseUid, player.name);
+            const result = await guildService.createGuild(payload.name, player.firebaseUid);
             if (result.success && result.guildId) {
                 player.guildId = result.guildId;
                 player.guildName = payload.name;
@@ -218,7 +218,7 @@ export class GameRoom extends Room<GameState> {
                 return;
             }
 
-            const result = await guildService.joinGuild(payload.guildId, player.firebaseUid, player.name);
+            const result = await guildService.joinGuild(payload.guildId, player.firebaseUid);
             if (result.success && result.guildName) {
                 player.guildId = payload.guildId;
                 player.guildName = result.guildName;

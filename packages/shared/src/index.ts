@@ -19,17 +19,39 @@ export type PlayerRole = 'citizen' | 'triad' | 'police';
 export type GuildRole = '龍頭' | '副幫主' | '堂主' | '護法' | '成員';
 
 /**
- * 幫會成員資料
+ * 幫會成員資料（儲存在 Firestore，不包含 name）
  */
-export interface IGuildMember {
+export interface IGuildMemberStored {
     userId: string;
-    name: string; // 角色名稱（顯示用）
     role: GuildRole;
     joinTime: number; // timestamp
 }
 
 /**
- * 幫會資料結構（對應 Firestore）
+ * 幫會成員資料（返回給客戶端，包含從 players 集合取得的 name）
+ */
+export interface IGuildMember {
+    userId: string;
+    name: string; // 從 players 集合動態取得
+    role: GuildRole;
+    joinTime: number; // timestamp
+}
+
+/**
+ * 幫會資料結構（儲存在 Firestore）
+ */
+export interface IGuildDataStored {
+    id: string;
+    name: string;
+    leaderId: string;
+    createdAt: number; // timestamp
+    memberCount: number;
+    description: string;
+    members: { [userId: string]: IGuildMemberStored };
+}
+
+/**
+ * 幫會資料結構（返回給客戶端，成員包含 name）
  */
 export interface IGuildData {
     id: string;
