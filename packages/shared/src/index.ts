@@ -23,6 +23,7 @@ export type GuildRole = '龍頭' | '副幫主' | '堂主' | '護法' | '成員';
  */
 export interface IGuildMember {
     userId: string;
+    name: string; // 角色名稱（顯示用）
     role: GuildRole;
     joinTime: number; // timestamp
 }

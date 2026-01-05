@@ -157,9 +157,9 @@ export class GuildSystem {
 
         // 如果有幫會資料，顯示成員
         if (this.currentGuildData && this.currentGuildData.members) {
-            for (const [userId, member] of Object.entries(this.currentGuildData.members)) {
+            for (const [, member] of Object.entries(this.currentGuildData.members)) {
                 const memberRow = new GUI.TextBlock();
-                memberRow.text = `${member.role === "龍頭" ? "👑" : "👤"} ${userId.substring(0, 8)}... (${member.role})`;
+                memberRow.text = `${member.role === "龍頭" ? "👑" : "👤"} ${member.name || "未知"} (${member.role})`;
                 memberRow.color = member.role === "龍頭" ? "#FFD700" : "#FFFFFF";
                 memberRow.fontSize = 12;
                 memberRow.height = "22px";

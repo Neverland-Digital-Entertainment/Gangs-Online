@@ -65,6 +65,7 @@ export class GuildService {
                 members: {
                     [userId]: {
                         userId: userId,
+                        name: userName,
                         role: "龍頭" as GuildRole,
                         joinTime: now
                     }
@@ -133,6 +134,7 @@ export class GuildService {
             await db.collection(GUILDS_PATH).doc(guildId).update({
                 [`members.${userId}`]: {
                     userId: userId,
+                    name: userName,
                     role: "成員" as GuildRole,
                     joinTime: now
                 },
