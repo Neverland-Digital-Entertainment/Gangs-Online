@@ -53,6 +53,10 @@ export class LoginScreen {
                     <div class="email-form">
                         <input type="email" id="emailInput" placeholder="Email" class="login-input" />
                         <input type="password" id="passwordInput" placeholder="密碼" class="login-input" />
+                        <div class="remember-me">
+                            <input type="checkbox" id="rememberMe" />
+                            <label for="rememberMe">記住我</label>
+                        </div>
                         <div class="email-buttons">
                             <button id="btnEmailLogin" class="login-btn email-btn">登入</button>
                             <button id="btnEmailRegister" class="login-btn register-btn">註冊</button>
@@ -247,6 +251,25 @@ export class LoginScreen {
                 margin-bottom: 0;
             }
 
+            .remember-me {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                color: rgba(255,255,255,0.8);
+                font-size: 14px;
+            }
+
+            .remember-me input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                accent-color: #4285f4;
+                cursor: pointer;
+            }
+
+            .remember-me label {
+                cursor: pointer;
+            }
+
             .login-input {
                 width: 100%;
                 padding: 14px 16px;
@@ -353,11 +376,42 @@ export class LoginScreen {
             }
         });
 
+        // 載入記住的 Email
+        this.loadRememberedEmail();
+
         document.getElementById("characterNameInput")?.addEventListener("keydown", (e) => {
             if (e.key === "Enter") {
                 this.handleStartGame();
             }
         });
+    }
+
+    /**
+     * 載入記住的 Email
+     */
+    private loadRememberedEmail(): void {
+        const savedEmail = localStorage.getItem("gangs_remembered_email");
+        if (savedEmail) {
+            const emailInput = document.getElementById("emailInput") as HTMLInputElement;
+            const rememberCheckbox = document.getElementById("rememberMe") as HTMLInputElement;
+            if (emailInput) {
+                emailInput.value = savedEmail;
+            }
+            if (rememberCheckbox) {
+                rememberCheckbox.checked = true;
+            }
+        }
+    }
+
+    /**
+     * 保存或清除記住的 Email
+     */
+    private saveRememberedEmail(email: string, remember: boolean): void {
+        if (remember && email) {
+            localStorage.setItem("gangs_remembered_email", email);
+        } else {
+            localStorage.removeItem("gangs_remembered_email");
+        }
     }
 
     /**
@@ -518,6 +572,7 @@ export class LoginScreen {
     private async handleEmailLogin(): Promise<void> {
         const email = (document.getElementById("emailInput") as HTMLInputElement)?.value.trim();
         const password = (document.getElementById("passwordInput") as HTMLInputElement)?.value;
+        const rememberMe = (document.getElementById("rememberMe") as HTMLInputElement)?.checked ?? false;
 
         if (!email || !password) {
             this.showError("請輸入 Email 和密碼");
@@ -530,6 +585,12 @@ export class LoginScreen {
         try {
             firebaseService.initialize();
             const result = await firebaseService.loginWithEmail(email, password);
+
+            // 登入成功時，根據「記住我」選項保存或清除 Email
+            if (result.success) {
+                this.saveRememberedEmail(email, rememberMe);
+            }
+
             this.handleAuthSuccess(result);
         } catch (error: any) {
             this.showError(error.message || "登入失敗");

@@ -81,7 +81,8 @@ export class GuildSystem {
         // 幫會詳細資訊 - 收到後刷新 popup
         this.room.onMessage("guildInfo", (guild: IGuildData) => {
             this.currentGuildData = guild;
-            console.log(`[GuildSystem] 收到幫會資訊: ${guild.name}`);
+            // Debug: 顯示完整成員資料以診斷問題
+            console.log(`[GuildSystem] 收到幫會資訊: ${guild.name}`, JSON.stringify(guild.members, null, 2));
             // 刷新 popup 以顯示成員列表
             if (this.refreshPopupCallback) {
                 this.refreshPopupCallback();
