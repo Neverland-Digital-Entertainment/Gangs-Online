@@ -4,12 +4,12 @@
  * 使用 Firebase Firestore 進行資料持久化
  *
  * 資料結構設計：
- * - guilds 集合：存放幫會資料，成員只存 userId 和 role
- * - players 集合：存放玩家資料，包含 name
- * - 讀取幫會資料時，動態從 players 集合取得成員名稱
+ * - guilds 集合：存放所有幫會資料，包含成員列表（userId + role）
+ * - players 集合：只存玩家基本資料（name 等），不存幫會資訊
+ * - 查詢玩家所屬幫會時，從 guilds 集合搜尋
  */
 import { getFirestore, getFieldValue, isFirebaseInitialized } from "./FirebaseService";
-import { IGuildData, IGuildDataStored, IGuildMember, IGuildMemberStored, GuildRole, GUILD_CONSTANTS } from "@gangs-online/shared";
+import { IGuildData, IGuildDataStored, IGuildMember, GuildRole, GUILD_CONSTANTS } from "@gangs-online/shared";
 
 // Firestore 路徑常數（簡化：放在 DB 根層）
 const GUILDS_PATH = "guilds";
@@ -19,6 +19,41 @@ const PLAYERS_PATH = "players";
  * 幫會服務類別
  */
 export class GuildService {
+    /**
+     * 查詢玩家所屬的幫會
+     * @param userId 玩家的 Firebase UID
+     * @returns 幫會資料或 null
+     */
+    async findPlayerGuild(userId: string): Promise<{ guildId: string; guildName: string; role: GuildRole } | null> {
+        if (!isFirebaseInitialized()) {
+            return null;
+        }
+
+        const db = getFirestore();
+        if (!db) {
+            return null;
+        }
+
+        try {
+            // 搜尋所有幫會，找出包含此玩家的幫會
+            const snapshot = await db.collection(GUILDS_PATH).get();
+            for (const doc of snapshot.docs) {
+                const guildData = doc.data() as IGuildDataStored;
+                if (guildData.members && guildData.members[userId]) {
+                    return {
+                        guildId: guildData.id,
+                        guildName: guildData.name,
+                        role: guildData.members[userId].role
+                    };
+                }
+            }
+            return null;
+        } catch (error) {
+            console.error("[GuildService] 查詢玩家幫會失敗:", error);
+            return null;
+        }
+    }
+
     /**
      * 建立幫會
      * @param name 幫會名稱
@@ -44,16 +79,13 @@ export class GuildService {
         }
 
         try {
-            // 檢查玩家是否已在幫會
-            const userDoc = await db.collection(PLAYERS_PATH).doc(userId).get();
-            if (userDoc.exists) {
-                const userData = userDoc.data();
-                if (userData?.guildId) {
-                    return { success: false, error: "你已經是其他幫會的成員" };
-                }
+            // 檢查玩家是否已在幫會（從 guilds 集合搜尋）
+            const existingGuild = await this.findPlayerGuild(userId);
+            if (existingGuild) {
+                return { success: false, error: "你已經是其他幫會的成員" };
             }
 
-            // 建立幫會文檔（成員只存 userId 和 role，不存 name）
+            // 建立幫會文檔
             const guildRef = db.collection(GUILDS_PATH).doc();
             const guildId = guildRef.id;
             const now = Date.now();
@@ -75,12 +107,6 @@ export class GuildService {
             };
 
             await guildRef.set(guildData);
-
-            // 更新用戶的幫會資訊
-            await db.collection(PLAYERS_PATH).doc(userId).set({
-                guildId: guildId,
-                guildName: name
-            }, { merge: true });
 
             console.log(`[GuildService] 幫會創建成功: ${name} (${guildId})`);
             return { success: true, guildId };
@@ -108,12 +134,9 @@ export class GuildService {
 
         try {
             // 檢查玩家是否已在幫會
-            const userDoc = await db.collection(PLAYERS_PATH).doc(userId).get();
-            if (userDoc.exists) {
-                const userData = userDoc.data();
-                if (userData?.guildId) {
-                    return { success: false, error: "你已經是其他幫會的成員" };
-                }
+            const existingGuild = await this.findPlayerGuild(userId);
+            if (existingGuild) {
+                return { success: false, error: "你已經是其他幫會的成員" };
             }
 
             // 獲取幫會資料
@@ -131,7 +154,7 @@ export class GuildService {
 
             const now = Date.now();
 
-            // 添加成員到幫會（只存 userId 和 role，不存 name）
+            // 添加成員到幫會
             await db.collection(GUILDS_PATH).doc(guildId).update({
                 [`members.${userId}`]: {
                     userId: userId,
@@ -140,12 +163,6 @@ export class GuildService {
                 },
                 memberCount: guildData.memberCount + 1
             });
-
-            // 更新用戶的幫會資訊
-            await db.collection(PLAYERS_PATH).doc(userId).set({
-                guildId: guildId,
-                guildName: guildData.name
-            }, { merge: true });
 
             console.log(`[GuildService] 玩家 ${userId} 加入幫會: ${guildData.name}`);
             return { success: true, guildName: guildData.name };
@@ -171,28 +188,18 @@ export class GuildService {
         }
 
         try {
-            // 獲取用戶的幫會資訊
-            const userDoc = await db.collection(PLAYERS_PATH).doc(userId).get();
-            if (!userDoc.exists) {
-                return { success: false, error: "用戶不存在" };
-            }
-
-            const userData = userDoc.data();
-            if (!userData?.guildId) {
+            // 查詢玩家所屬幫會
+            const playerGuild = await this.findPlayerGuild(userId);
+            if (!playerGuild) {
                 return { success: false, error: "你不在任何幫會中" };
             }
 
-            const guildId = userData.guildId;
+            const guildId = playerGuild.guildId;
 
             // 獲取幫會資料
             const guildDoc = await db.collection(GUILDS_PATH).doc(guildId).get();
             if (!guildDoc.exists) {
-                // 幫會不存在，清除用戶的幫會資訊
-                await db.collection(PLAYERS_PATH).doc(userId).update({
-                    guildId: "",
-                    guildName: ""
-                });
-                return { success: true };
+                return { success: true }; // 幫會已不存在
             }
 
             const guildData = guildDoc.data() as IGuildDataStored;
@@ -215,12 +222,6 @@ export class GuildService {
                     memberCount: guildData.memberCount - 1
                 });
             }
-
-            // 清除用戶的幫會資訊
-            await db.collection(PLAYERS_PATH).doc(userId).update({
-                guildId: "",
-                guildName: ""
-            });
 
             console.log(`[GuildService] 玩家 ${userId} 離開幫會: ${guildData.name}`);
             return { success: true };
@@ -303,41 +304,7 @@ export class GuildService {
     }
 
     /**
-     * 獲取用戶的幫會資訊
-     * @param userId 玩家的 Firebase UID
-     */
-    async getUserGuildInfo(userId: string): Promise<{ guildId: string; guildName: string } | null> {
-        if (!isFirebaseInitialized()) {
-            return null;
-        }
-
-        const db = getFirestore();
-        if (!db) {
-            return null;
-        }
-
-        try {
-            const userDoc = await db.collection(PLAYERS_PATH).doc(userId).get();
-            if (!userDoc.exists) {
-                return null;
-            }
-            const userData = userDoc.data();
-            if (!userData?.guildId) {
-                return null;
-            }
-            return {
-                guildId: userData.guildId,
-                guildName: userData.guildName || ""
-            };
-        } catch (error) {
-            console.error("[GuildService] 獲取用戶幫會資訊失敗:", error);
-            return null;
-        }
-    }
-
-    /**
      * 獲取幫會列表（用於顯示可加入的幫會）
-     * 注意：列表不需要成員名稱，直接返回存儲的資料
      * @param limit 返回的幫會數量上限
      */
     async getGuildList(limit: number = 20): Promise<IGuildDataStored[]> {
@@ -351,7 +318,6 @@ export class GuildService {
         }
 
         try {
-            // 注意：根據 Phase13.md 的限制，不使用 orderBy
             const snapshot = await db.collection(GUILDS_PATH).limit(limit).get();
             const guilds: IGuildDataStored[] = [];
             snapshot.forEach(doc => {
@@ -418,12 +384,6 @@ export class GuildService {
             await db.collection(GUILDS_PATH).doc(guildId).update({
                 [`members.${targetUserId}`]: FieldValue.delete(),
                 memberCount: guild.memberCount - 1
-            });
-
-            // 清除被踢成員的幫會資訊
-            await db.collection(PLAYERS_PATH).doc(targetUserId).update({
-                guildId: "",
-                guildName: ""
             });
 
             console.log(`[GuildService] 成員 ${targetUserId} 被踢出幫會: ${guild.name}`);

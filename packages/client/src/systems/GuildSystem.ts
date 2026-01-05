@@ -235,6 +235,12 @@ export class GuildSystem {
         nameInput.placeholderColor = "#666666";
         nameInput.fontSize = 14;
         nameInput.thickness = 1;
+        nameInput.focusedBackground = "rgba(0,0,0,0.7)";
+        nameInput.autoStretchWidth = false;
+        // 點擊時自動獲取焦點
+        nameInput.onPointerDownObservable.add(() => {
+            nameInput.focus();
+        });
         controls.push(nameInput);
 
         // 創建按鈕
