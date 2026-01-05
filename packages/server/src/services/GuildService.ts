@@ -40,6 +40,26 @@ export class GuildService {
             return { success: false, error: `幫會名稱不能超過 ${GUILD_CONSTANTS.MAX_GUILD_NAME_LENGTH} 個字` };
         }
 
+        // 確保成員名稱有效（若為空則從 players 資料庫取得）
+        let memberName = userName;
+        if (!memberName || memberName.trim() === "") {
+            console.warn(`[GuildService] userName 為空，嘗試從資料庫取得...`);
+            try {
+                const playerDoc = await db.collection("players").doc(userId).get();
+                if (playerDoc.exists) {
+                    const playerData = playerDoc.data();
+                    memberName = playerData?.name || `玩家${userId.substring(0, 6)}`;
+                    console.log(`[GuildService] 從資料庫取得名稱: ${memberName}`);
+                } else {
+                    memberName = `玩家${userId.substring(0, 6)}`;
+                    console.log(`[GuildService] 使用預設名稱: ${memberName}`);
+                }
+            } catch (err) {
+                memberName = `玩家${userId.substring(0, 6)}`;
+                console.error(`[GuildService] 取得玩家名稱失敗，使用預設: ${memberName}`, err);
+            }
+        }
+
         try {
             // 檢查玩家是否已在幫會
             const userDoc = await db.collection(USERS_PATH).doc(userId).get();
@@ -65,7 +85,7 @@ export class GuildService {
                 members: {
                     [userId]: {
                         userId: userId,
-                        name: userName,
+                        name: memberName,
                         role: "龍頭" as GuildRole,
                         joinTime: now
                     }
@@ -80,7 +100,7 @@ export class GuildService {
                 guildName: name
             }, { merge: true });
 
-            console.log(`[GuildService] 幫會創建成功: ${name} (${guildId}) by ${userName}`);
+            console.log(`[GuildService] 幫會創建成功: ${name} (${guildId}) by ${memberName}`);
             return { success: true, guildId };
 
         } catch (error) {
@@ -103,6 +123,26 @@ export class GuildService {
         const db = getFirestore();
         if (!db) {
             return { success: false, error: "Firestore 連接失敗" };
+        }
+
+        // 確保成員名稱有效（若為空則從 players 資料庫取得）
+        let memberName = userName;
+        if (!memberName || memberName.trim() === "") {
+            console.warn(`[GuildService] joinGuild: userName 為空，嘗試從資料庫取得...`);
+            try {
+                const playerDoc = await db.collection("players").doc(userId).get();
+                if (playerDoc.exists) {
+                    const playerData = playerDoc.data();
+                    memberName = playerData?.name || `玩家${userId.substring(0, 6)}`;
+                    console.log(`[GuildService] 從資料庫取得名稱: ${memberName}`);
+                } else {
+                    memberName = `玩家${userId.substring(0, 6)}`;
+                    console.log(`[GuildService] 使用預設名稱: ${memberName}`);
+                }
+            } catch (err) {
+                memberName = `玩家${userId.substring(0, 6)}`;
+                console.error(`[GuildService] 取得玩家名稱失敗，使用預設: ${memberName}`, err);
+            }
         }
 
         try {
@@ -134,7 +174,7 @@ export class GuildService {
             await db.collection(GUILDS_PATH).doc(guildId).update({
                 [`members.${userId}`]: {
                     userId: userId,
-                    name: userName,
+                    name: memberName,
                     role: "成員" as GuildRole,
                     joinTime: now
                 },
@@ -147,7 +187,7 @@ export class GuildService {
                 guildName: guildData.name
             }, { merge: true });
 
-            console.log(`[GuildService] ${userName} 加入幫會: ${guildData.name}`);
+            console.log(`[GuildService] ${memberName} 加入幫會: ${guildData.name}`);
             return { success: true, guildName: guildData.name };
 
         } catch (error) {
