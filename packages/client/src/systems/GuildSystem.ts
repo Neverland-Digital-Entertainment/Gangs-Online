@@ -29,6 +29,9 @@ export class GuildSystem {
     // 刷新 popup 的回調
     private refreshPopupCallback: (() => void) | null = null;
 
+    // 是否正在等待幫會列表刷新（用戶手動點擊刷新按鈕時設為 true）
+    private pendingGuildListRefresh: boolean = false;
+
     constructor(room: Room, uiTexture: GUI.AdvancedDynamicTexture) {
         this.room = room;
         this.uiTexture = uiTexture;
@@ -65,15 +68,23 @@ export class GuildSystem {
             this.currentGuildId = data.guildId;
             this.currentGuildName = data.guildName;
             this.currentRole = data.role as GuildRole | "";
+            // 離開幫會時重置列表，讓下次打開 popup 時重新載入
+            if (!data.guildId) {
+                this.guildList = [];
+                this.currentGuildData = null;
+            }
             console.log(`[GuildSystem] 幫會更新: ${data.guildName} (${data.role})`);
         });
 
-        // 幫會列表 - 收到後刷新 popup
+        // 幫會列表 - 只有在「首次載入」或「用戶手動刷新」時才刷新 popup
         this.room.onMessage("guildList", (guilds: IGuildData[]) => {
+            const wasEmpty = this.guildList.length === 0;
             this.guildList = guilds;
             console.log(`[GuildSystem] 收到幫會列表: ${guilds.length} 個幫會`);
-            // 刷新 popup 以顯示新列表
-            if (this.refreshPopupCallback) {
+            // 首次載入（之前列表為空）或用戶手動刷新時才刷新 popup
+            // 這樣可以避免在用戶輸入幫會名稱時，自動刷新破壞 InputText 焦點
+            if ((wasEmpty || this.pendingGuildListRefresh) && this.refreshPopupCallback) {
+                this.pendingGuildListRefresh = false;
                 this.refreshPopupCallback();
             }
         });
@@ -315,6 +326,8 @@ export class GuildSystem {
         refreshBtn.cornerRadius = 5;
         refreshBtn.top = "10px";
         refreshBtn.onPointerClickObservable.add(() => {
+            // 設置標記，讓收到回應時刷新 popup
+            this.pendingGuildListRefresh = true;
             this.room.send("getGuildList");
         });
         controls.push(refreshBtn);
