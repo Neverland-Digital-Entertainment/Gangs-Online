@@ -50,6 +50,25 @@ export class CityGenerator {
             this.loadedMeshes = result.meshes as BABYLON.AbstractMesh[];
             console.log(`✅ Map loaded: ${this.loadedMeshes.length} meshes`);
 
+            // 應用地圖縮放比例
+            const scale = mapConfig.mapScale || 1.0;
+            if (scale !== 1.0) {
+                // 找到根節點並縮放
+                const rootMesh = this.loadedMeshes.find(m => m.name === "__root__");
+                if (rootMesh) {
+                    rootMesh.scaling = new BABYLON.Vector3(scale, scale, scale);
+                    console.log(`📐 Map scaled to ${scale}x`);
+                } else {
+                    // 如果沒有根節點，縮放所有頂層 mesh
+                    for (const mesh of this.loadedMeshes) {
+                        if (!mesh.parent) {
+                            mesh.scaling = new BABYLON.Vector3(scale, scale, scale);
+                        }
+                    }
+                    console.log(`📐 Map meshes scaled to ${scale}x`);
+                }
+            }
+
             // 處理載入的 mesh
             this.processLoadedMeshes();
 

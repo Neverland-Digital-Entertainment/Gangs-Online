@@ -20,12 +20,12 @@ export const modelConfig = {
 
 /**
  * 相機配置
- * 北上視角 (North-Up) - 60度高角度俯視
- * 計算: tan(60°) = √3 ≈ 1.732, y/z = tan(60°), z = y/1.732
+ * 北上視角 (North-Up) - 45度高角度俯視
+ * 計算: tan(45°) = 1, y = z
  */
 export const cameraConfig = {
     zoom: 18,
-    offset: { x: 0, y: 28, z: -16 }, // 北上60度視角: x=0使相機正對北方, y=28高度, z=-16距離
+    offset: { x: 0, y: 20, z: -20 }, // 北上45度視角: x=0使相機正對北方
     followSpeed: 0.1,
 };
 
@@ -35,6 +35,8 @@ export const cameraConfig = {
 export const mapConfig = {
     // GLB 地圖檔案路徑（相對於 public 資料夾）
     mapFile: "/maps/causeway-bay.glb",
+    // 地圖縮放比例（0.5 = 縮小一半）
+    mapScale: 0.5,
     // 建築物 mesh 名稱前綴（用於識別建築物以實現透明效果）
     buildingPrefix: "building",
     // 地面 mesh 名稱（用於點擊移動）
