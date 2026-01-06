@@ -67,6 +67,11 @@ export class CityGenerator {
                     }
                     console.log(`📐 Map meshes scaled to ${scale}x`);
                 }
+
+                // 縮放後需要刷新所有 mesh 的 bounding info 以確保碰撞正確
+                for (const mesh of this.loadedMeshes) {
+                    mesh.refreshBoundingInfo();
+                }
             }
 
             // 處理載入的 mesh

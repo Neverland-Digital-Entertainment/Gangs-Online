@@ -6,7 +6,7 @@ import { GameConfig } from "./types";
 export const config: GameConfig = {
     // Production server URL - DO NOT CHANGE
     serverUrl: import.meta.env.VITE_SERVER_URL || "wss://gangs-online.onrender.com",
-    moveSpeed: 0.15,
+    moveSpeed: 0.30, // 加快移動速度（因地圖縮小為 0.5x）
 };
 
 /**
