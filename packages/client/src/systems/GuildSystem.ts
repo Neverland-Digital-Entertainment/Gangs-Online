@@ -264,15 +264,18 @@ export class GuildSystem {
         createBtn.cornerRadius = 5;
         createBtn.top = "5px";
         createBtn.onPointerClickObservable.add(() => {
+            console.log("[GuildSystem] 創建幫會按鈕被點擊");
             const guildName = nameInput.text.trim();
+            console.log(`[GuildSystem] 輸入的幫會名稱: "${guildName}" (長度: ${guildName.length})`);
             if (guildName.length < GUILD_CONSTANTS.MIN_GUILD_NAME_LENGTH) {
-                console.log("[GuildSystem] 幫會名稱太短");
+                console.log(`[GuildSystem] 幫會名稱太短 (最少 ${GUILD_CONSTANTS.MIN_GUILD_NAME_LENGTH} 字)`);
                 return;
             }
             if (guildName.length > GUILD_CONSTANTS.MAX_GUILD_NAME_LENGTH) {
-                console.log("[GuildSystem] 幫會名稱太長");
+                console.log(`[GuildSystem] 幫會名稱太長 (最多 ${GUILD_CONSTANTS.MAX_GUILD_NAME_LENGTH} 字)`);
                 return;
             }
+            console.log(`[GuildSystem] 發送 createGuild 訊息: ${guildName}`);
             this.room.send("createGuild", { name: guildName });
             if (this.hidePopupCallback) {
                 this.hidePopupCallback();

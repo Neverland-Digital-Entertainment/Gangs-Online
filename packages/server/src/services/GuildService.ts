@@ -61,14 +61,19 @@ export class GuildService {
      * @returns 新建幫會的 ID，失敗時返回 null
      */
     async createGuild(name: string, userId: string): Promise<{ success: boolean; guildId?: string; error?: string }> {
+        console.log(`[GuildService] createGuild 開始: name=${name}, userId=${userId}`);
+
         if (!isFirebaseInitialized()) {
+            console.log(`[GuildService] createGuild 失敗: Firebase 未初始化`);
             return { success: false, error: "Firebase 未初始化" };
         }
 
         const db = getFirestore();
         if (!db) {
+            console.log(`[GuildService] createGuild 失敗: Firestore 連接失敗`);
             return { success: false, error: "Firestore 連接失敗" };
         }
+        console.log(`[GuildService] Firebase 連接正常`);
 
         // 驗證幫會名稱
         if (name.length < GUILD_CONSTANTS.MIN_GUILD_NAME_LENGTH) {

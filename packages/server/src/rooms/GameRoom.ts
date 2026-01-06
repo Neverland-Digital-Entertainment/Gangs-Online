@@ -189,13 +189,23 @@ export class GameRoom extends Room<GameState> {
 
         // --- Phase 13: Guild Handlers ---
         this.onMessage("createGuild", async (client, payload: { name: string }) => {
+            console.log(`[GameRoom] createGuild 收到請求: name=${payload.name}`);
             const player = this.state.players.get(client.sessionId);
-            if (!player || !player.firebaseUid) {
+            if (!player) {
+                console.log(`[GameRoom] createGuild 失敗: 找不到玩家`);
+                client.send("notification", "請先登入才能創建幫會");
+                return;
+            }
+            if (!player.firebaseUid) {
+                console.log(`[GameRoom] createGuild 失敗: 玩家沒有 firebaseUid`);
                 client.send("notification", "請先登入才能創建幫會");
                 return;
             }
 
+            console.log(`[GameRoom] createGuild 呼叫 GuildService: userId=${player.firebaseUid}`);
             const result = await guildService.createGuild(payload.name, player.firebaseUid);
+            console.log(`[GameRoom] createGuild 結果:`, result);
+
             if (result.success && result.guildId) {
                 player.guildId = result.guildId;
                 player.guildName = payload.name;
