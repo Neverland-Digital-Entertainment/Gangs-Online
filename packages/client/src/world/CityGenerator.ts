@@ -70,7 +70,7 @@ export class CityGenerator {
 
                 // 縮放後需要刷新所有 mesh 的 bounding info 以確保碰撞正確
                 for (const mesh of this.loadedMeshes) {
-                    mesh.refreshBoundingInfo();
+                    mesh.refreshBoundingInfo(true);
                 }
             }
 
