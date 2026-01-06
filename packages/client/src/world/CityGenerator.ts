@@ -92,9 +92,17 @@ export class CityGenerator {
      * 處理載入的 mesh：識別建築物、設置材質和碰撞
      */
     private processLoadedMeshes(): void {
+        console.log("📋 Processing loaded meshes:");
         for (const mesh of this.loadedMeshes) {
             // 跳過空的 root mesh
             if (mesh.name === "__root__") continue;
+
+            const boundingBox = mesh.getBoundingInfo()?.boundingBox;
+            const height = boundingBox ? boundingBox.maximumWorld.y - boundingBox.minimumWorld.y : 0;
+            const width = boundingBox ? boundingBox.maximumWorld.x - boundingBox.minimumWorld.x : 0;
+            const depth = boundingBox ? boundingBox.maximumWorld.z - boundingBox.minimumWorld.z : 0;
+
+            console.log(`  - ${mesh.name}: size(${width.toFixed(1)}, ${height.toFixed(1)}, ${depth.toFixed(1)}), isBuilding: ${this.isBuildingMesh(mesh)}, isGround: ${this.isGroundMesh(mesh)}`);
 
             // 啟用碰撞
             mesh.checkCollisions = true;
