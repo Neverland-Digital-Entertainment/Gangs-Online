@@ -691,6 +691,23 @@ export class GameRoom extends Room<GameState> {
 
         console.log(`Player joining (UID: ${firebaseUid}, Name: ${characterName}, New: ${isNewUser})`);
 
+        // Phase 13: 單一帳號登入 - 踢掉舊的連線
+        if (firebaseUid) {
+            for (const existingClient of this.clients) {
+                const existingPlayer = this.state.players.get(existingClient.sessionId);
+                if (existingPlayer && existingPlayer.firebaseUid === firebaseUid) {
+                    console.log(`[GameRoom] 踢掉舊連線: ${existingClient.sessionId} (UID: ${firebaseUid})`);
+                    // 先儲存舊玩家資料
+                    await savePlayer(existingPlayer, firebaseUid);
+                    // 發送通知給舊客戶端
+                    existingClient.send("kicked", { reason: "帳號已在其他地方登入" });
+                    // 踢掉舊連線
+                    existingClient.leave(4000); // 4000 = custom close code for duplicate login
+                    break;
+                }
+            }
+        }
+
         // Track first player for special advantage
         if (!this.firstPlayerSessionId) {
             this.firstPlayerSessionId = client.sessionId;

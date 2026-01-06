@@ -224,6 +224,14 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
             }
         });
 
+        // === Phase 13: 被踢出（帳號在其他地方登入）===
+        room.onMessage("kicked", (data: { reason: string }) => {
+            console.log("⚠️ Kicked:", data.reason);
+            alert(data.reason);
+            // 重新載入頁面回到登入畫面
+            window.location.reload();
+        });
+
         // 添加玩家
         (room.state as any).players.onAdd(async (player: PlayerData, sessionId: string) => {
             const isSelf = sessionId === room.sessionId;
