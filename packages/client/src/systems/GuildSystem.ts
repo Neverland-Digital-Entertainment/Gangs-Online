@@ -76,14 +76,13 @@ export class GuildSystem {
             console.log(`[GuildSystem] 幫會更新: ${data.guildName} (${data.role})`);
         });
 
-        // 幫會列表 - 只有在「首次載入」或「用戶手動刷新」時才刷新 popup
+        // 幫會列表 - 只有在用戶手動點擊「刷新列表」按鈕時才刷新 popup
+        // 避免自動刷新破壞 InputText 焦點
         this.room.onMessage("guildList", (guilds: IGuildData[]) => {
-            const wasEmpty = this.guildList.length === 0;
             this.guildList = guilds;
             console.log(`[GuildSystem] 收到幫會列表: ${guilds.length} 個幫會`);
-            // 首次載入（之前列表為空）或用戶手動刷新時才刷新 popup
-            // 這樣可以避免在用戶輸入幫會名稱時，自動刷新破壞 InputText 焦點
-            if ((wasEmpty || this.pendingGuildListRefresh) && this.refreshPopupCallback) {
+            // 只有用戶手動刷新時才刷新 popup
+            if (this.pendingGuildListRefresh && this.refreshPopupCallback) {
                 this.pendingGuildListRefresh = false;
                 this.refreshPopupCallback();
             }
