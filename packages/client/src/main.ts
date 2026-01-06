@@ -99,6 +99,10 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
     const cityGenerator = new CityGenerator(scene);
     cityGenerator.generate();
 
+    // 異步載入 GLB 地圖
+    loadingScreen.updateText("正在載入地圖...");
+    await cityGenerator.loadMap();
+
     // --- UI Layer ---
     const uiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
     // Phase 9.1: 動態設置理想寬度，確保 UI 在不同設備上都有合適的大小
@@ -475,10 +479,10 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
             // 使用 multiPickWithRay 並設定 predicate 跳過建築物
             const pickResults = scene.multiPickWithRay(ray, (mesh) => {
-                // 跳過建築物（名稱以 b_ 開頭）
-                if (mesh.name.startsWith("b_")) return false;
+                // 跳過建築物（使用 CityGenerator 的判斷方法）
+                if (cityGenerator.isBuildingByMesh(mesh as BABYLON.AbstractMesh)) return false;
                 // 跳過地面
-                if (mesh.name === "ground") return false;
+                if (mesh.name === "ground" || mesh.name.toLowerCase().includes("road") || mesh.name.toLowerCase().includes("floor")) return false;
                 return true;
             });
 
@@ -648,7 +652,7 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 let targetPoint = null;
 
                 // 如果點擊了建筑物，嘗試穿透找到後面的道路
-                if (pickResult.pickedMesh.name.startsWith("b_")) {
+                if (cityGenerator.isBuildingByMesh(pickResult.pickedMesh)) {
                     const ray = scene.createPickingRay(
                         scene.pointerX,
                         scene.pointerY,
@@ -660,7 +664,7 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     if (hits) {
                         for (const hit of hits) {
                             if (hit.pickedMesh &&
-                                !hit.pickedMesh.name.startsWith("b_") &&
+                                !cityGenerator.isBuildingByMesh(hit.pickedMesh) &&
                                 hit.pickedPoint) {
                                 targetPoint = hit.pickedPoint;
                                 break;

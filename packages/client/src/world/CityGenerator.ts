@@ -1,123 +1,217 @@
 import * as BABYLON from "@babylonjs/core";
+import "@babylonjs/loaders/glTF";
 import { GAME_CONSTANTS } from "@gangs-online/shared";
+import { mapConfig } from "../config";
 
 /**
  * 城市生成器
- * 負責生成程序化的城市環境（道路、人行道、建築物）
- * Phase 9: 增加安全區視覺效果
- * Phase 10: 增加建築物遮擋透明效果
+ * 負責載入 GLB 地圖並設置建築物透明效果
+ *
+ * 功能:
+ * - 載入 GLB 地圖檔案（如 causeway-bay.glb）
+ * - 自動識別建築物 mesh 並設置獨立材質（用於透明效果）
+ * - 保留安全區視覺效果
+ * - 支援建築物遮擋透明效果（玩家在建築物後面時建築物變半透明）
  */
 export class CityGenerator {
     private scene: BABYLON.Scene;
-    private buildings: BABYLON.Mesh[] = []; // 存儲所有建築物以便遮擋檢測
+    private buildings: BABYLON.AbstractMesh[] = []; // 存儲所有建築物以便遮擋檢測
+    private ground: BABYLON.AbstractMesh | null = null;
+    private loadedMeshes: BABYLON.AbstractMesh[] = [];
+    private originalMaterials: Map<BABYLON.AbstractMesh, BABYLON.Material | null> = new Map();
 
     constructor(scene: BABYLON.Scene) {
         this.scene = scene;
     }
 
     /**
-     * 創建整個城市
+     * 創建整個城市（同步方法，用於後向兼容）
+     * 注意：此方法只創建基礎地面和安全區，實際地圖由 loadMap() 異步載入
      */
     generate(): void {
-        this.createRoad();
-        this.createSafeZone(); // Phase 9: 安全區
-        this.createBuildings();
+        this.createBasicGround();
+        this.createSafeZone();
     }
 
     /**
-     * 創建瀝青道路
+     * 異步載入 GLB 地圖
      */
-    private createRoad(): void {
+    async loadMap(): Promise<void> {
+        console.log("🗺️ Loading map:", mapConfig.mapFile);
+
+        try {
+            const result = await BABYLON.SceneLoader.ImportMeshAsync(
+                "", // 載入所有 mesh
+                mapConfig.mapFile,
+                "",
+                this.scene
+            );
+
+            this.loadedMeshes = result.meshes as BABYLON.AbstractMesh[];
+            console.log(`✅ Map loaded: ${this.loadedMeshes.length} meshes`);
+
+            // 處理載入的 mesh
+            this.processLoadedMeshes();
+
+            // 隱藏基礎地面（如果地圖有自己的地面）
+            if (this.ground && this.hasGroundMesh()) {
+                this.ground.isVisible = false;
+            }
+
+        } catch (error) {
+            console.error("❌ Failed to load map:", error);
+            // 載入失敗時保留基礎地面
+        }
+    }
+
+    /**
+     * 處理載入的 mesh：識別建築物、設置材質和碰撞
+     */
+    private processLoadedMeshes(): void {
+        for (const mesh of this.loadedMeshes) {
+            // 跳過空的 root mesh
+            if (mesh.name === "__root__") continue;
+
+            // 啟用碰撞
+            mesh.checkCollisions = true;
+
+            // 判斷是否為建築物
+            if (this.isBuildingMesh(mesh)) {
+                this.setupBuildingMesh(mesh);
+            } else if (this.isGroundMesh(mesh)) {
+                // 地面 mesh
+                mesh.checkCollisions = true;
+                console.log(`🛤️ Ground mesh: ${mesh.name}`);
+            }
+        }
+
+        console.log(`🏢 Buildings identified: ${this.buildings.length}`);
+    }
+
+    /**
+     * 判斷 mesh 是否為建築物
+     */
+    private isBuildingMesh(mesh: BABYLON.AbstractMesh): boolean {
+        const name = mesh.name.toLowerCase();
+
+        // 排除地面、道路等
+        if (this.isGroundMesh(mesh)) return false;
+
+        // 包含 building 前綴的
+        if (name.includes(mapConfig.buildingPrefix.toLowerCase())) return true;
+
+        // 有一定高度的物件視為建築物（排除薄的平面）
+        const boundingBox = mesh.getBoundingInfo()?.boundingBox;
+        if (boundingBox) {
+            const height = boundingBox.maximumWorld.y - boundingBox.minimumWorld.y;
+            const width = boundingBox.maximumWorld.x - boundingBox.minimumWorld.x;
+            const depth = boundingBox.maximumWorld.z - boundingBox.minimumWorld.z;
+
+            // 高度大於 1 且高度大於寬度或深度的 1/3
+            if (height > 1 && height > Math.min(width, depth) * 0.3) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 判斷 mesh 是否為地面
+     */
+    private isGroundMesh(mesh: BABYLON.AbstractMesh): boolean {
+        const name = mesh.name.toLowerCase();
+        for (const groundName of mapConfig.groundNames) {
+            if (name.includes(groundName.toLowerCase())) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 檢查是否已載入地面 mesh
+     */
+    private hasGroundMesh(): boolean {
+        return this.loadedMeshes.some(mesh => this.isGroundMesh(mesh));
+    }
+
+    /**
+     * 設置建築物 mesh（創建獨立材質以支援透明效果）
+     */
+    private setupBuildingMesh(mesh: BABYLON.AbstractMesh): void {
+        // 保存原始材質
+        this.originalMaterials.set(mesh, mesh.material);
+
+        // 創建獨立材質（複製現有材質或創建新材質）
+        if (mesh.material) {
+            // 複製材質以獨立控制透明度
+            const newMat = mesh.material.clone(`${mesh.material.name}_building_${mesh.name}`);
+            if (newMat) {
+                mesh.material = newMat;
+            }
+        } else {
+            // 創建默認建築物材質
+            const buildingMat = new BABYLON.StandardMaterial(`bMat_${mesh.name}`, this.scene);
+            buildingMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.35);
+            buildingMat.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.08);
+            buildingMat.alpha = 1.0;
+            mesh.material = buildingMat;
+        }
+
+        // 啟用碰撞
+        mesh.checkCollisions = true;
+
+        // 標記為建築物（用於點擊穿透）
+        if (!mesh.metadata) mesh.metadata = {};
+        mesh.metadata.isBuilding = true;
+
+        // 加入建築物列表
+        this.buildings.push(mesh);
+
+        console.log(`🏢 Building mesh: ${mesh.name}`);
+    }
+
+    /**
+     * 創建基礎地面（作為後備，當 GLB 沒有地面時使用）
+     */
+    private createBasicGround(): void {
         const ground = BABYLON.MeshBuilder.CreateGround(
-            "road",
-            { width: 100, height: 100 },
+            "ground",
+            { width: 200, height: 200 },
             this.scene
         );
-        const roadMat = new BABYLON.StandardMaterial("roadMat", this.scene);
-        roadMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-        ground.material = roadMat;
-
-        // ENABLE COLLISION ON GROUND
+        const groundMat = new BABYLON.StandardMaterial("groundMat", this.scene);
+        groundMat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.15);
+        ground.material = groundMat;
         ground.checkCollisions = true;
+        ground.position.y = -0.01; // 稍低於地圖地面以避免 Z-fighting
+        this.ground = ground;
     }
 
     /**
-     * 創建安全區視覺效果 (Phase 9)
+     * 創建安全區視覺效果
      */
     private createSafeZone(): void {
-        // 創建綠色半透明圓形作為安全區標記
         const safeZone = BABYLON.MeshBuilder.CreateDisc(
             "safeZone",
             { radius: GAME_CONSTANTS.SAFE_ZONE_RADIUS },
             this.scene
         );
 
-        // 旋轉到地面（預設是垂直的）
         safeZone.rotation.x = Math.PI / 2;
-        safeZone.position.y = 0.02; // 稍微高於地面，避免 Z-fighting
+        safeZone.position.y = 0.05;
 
-        // 創建半透明綠色材質
         const safeMat = new BABYLON.StandardMaterial("safeMat", this.scene);
-        safeMat.diffuseColor = new BABYLON.Color3(0, 1, 0); // 綠色
-        safeMat.emissiveColor = new BABYLON.Color3(0, 0.3, 0); // 發光效果
-        safeMat.alpha = 0.2; // 半透明
+        safeMat.diffuseColor = new BABYLON.Color3(0, 1, 0);
+        safeMat.emissiveColor = new BABYLON.Color3(0, 0.3, 0);
+        safeMat.alpha = 0.2;
         safeZone.material = safeMat;
 
         console.log(`✅ Safe Zone created with radius ${GAME_CONSTANTS.SAFE_ZONE_RADIUS}`);
     }
 
     /**
-     * 創建建築物和人行道
-     */
-    private createBuildings(): void {
-        // Sidewalk material (Lighter Grey)
-        const sidewalkMat = new BABYLON.StandardMaterial("sidewalkMat", this.scene);
-        sidewalkMat.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-
-        // Generate random blocks
-        for (let i = -4; i <= 4; i++) {
-            for (let j = -4; j <= 4; j++) {
-                if (Math.abs(i) < 2 && Math.abs(j) < 2) continue;
-
-                const height = Math.random() * 8 + 4;
-
-                const building = BABYLON.MeshBuilder.CreateBox(
-                    `b_${i}_${j}`,
-                    { height: height, width: 8, depth: 8 },
-                    this.scene
-                );
-                building.position.set(i * 12, height / 2, j * 12);
-
-                // 為每個建築物創建獨立材質（以便單獨控制透明度）
-                const buildingMat = new BABYLON.StandardMaterial(`bMat_${i}_${j}`, this.scene);
-                buildingMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.3);
-                buildingMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.2);
-                buildingMat.alpha = 1.0; // 初始為不透明
-                building.material = buildingMat;
-
-                // ENABLE COLLISION ON BUILDINGS
-                building.checkCollisions = true;
-
-                // 保存建築物引用以便後續遮擋檢測
-                this.buildings.push(building);
-
-                const walk = BABYLON.MeshBuilder.CreateGround(
-                    `w_${i}_${j}`,
-                    { width: 10, height: 10 },
-                    this.scene
-                );
-                walk.position.set(i * 12, 0.05, j * 12);
-                walk.material = sidewalkMat;
-
-                // ENABLE COLLISION ON SIDEWALKS
-                walk.checkCollisions = true;
-            }
-        }
-    }
-
-    /**
-     * 更新建築物遮擋效果 (Phase 10)
-     * 當玩家在建築物後面時，將建築物設置為半透明，讓玩家可見
+     * 更新建築物遮擋效果
+     * 當玩家在建築物後面時，將建築物設置為半透明
      */
     updateBuildingOcclusion(playerPosition: BABYLON.Vector3, camera: BABYLON.Camera): void {
         const cameraPos = camera.position;
@@ -132,13 +226,55 @@ export class CityGenerator {
             // 檢查射線是否擊中這個建築物
             const hit = ray.intersectsMesh(building, false);
 
-            if (hit.hit && building.material instanceof BABYLON.StandardMaterial) {
-                // 玩家被這個建築物遮擋，設置為半透明
-                building.material.alpha = 0.3;
-            } else if (building.material instanceof BABYLON.StandardMaterial) {
-                // 玩家沒有被遮擋，恢復不透明
-                building.material.alpha = 1.0;
-            }
+            // 設置透明度
+            this.setBuildingAlpha(building, hit.hit ? 0.3 : 1.0);
         }
+    }
+
+    /**
+     * 設置建築物透明度
+     */
+    private setBuildingAlpha(mesh: BABYLON.AbstractMesh, alpha: number): void {
+        if (!mesh.material) return;
+
+        // StandardMaterial
+        if (mesh.material instanceof BABYLON.StandardMaterial) {
+            mesh.material.alpha = alpha;
+            return;
+        }
+
+        // PBRMaterial
+        if (mesh.material instanceof BABYLON.PBRMaterial) {
+            mesh.material.alpha = alpha;
+            return;
+        }
+
+        // 嘗試設置任何有 alpha 屬性的材質
+        if ('alpha' in mesh.material) {
+            (mesh.material as any).alpha = alpha;
+        }
+    }
+
+    /**
+     * 檢查 mesh 是否為建築物（用於點擊穿透判斷）
+     */
+    isBuildingByMesh(mesh: BABYLON.AbstractMesh): boolean {
+        return this.buildings.includes(mesh) ||
+               (mesh.metadata && mesh.metadata.isBuilding) ||
+               mesh.name.startsWith("b_"); // 後向兼容舊的命名
+    }
+
+    /**
+     * 獲取所有建築物 mesh
+     */
+    getBuildings(): BABYLON.AbstractMesh[] {
+        return this.buildings;
+    }
+
+    /**
+     * 獲取地面 mesh
+     */
+    getGround(): BABYLON.AbstractMesh | null {
+        return this.ground;
     }
 }
