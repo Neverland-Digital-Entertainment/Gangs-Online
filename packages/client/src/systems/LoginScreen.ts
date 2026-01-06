@@ -584,7 +584,8 @@ export class LoginScreen {
 
         try {
             firebaseService.initialize();
-            const result = await firebaseService.loginWithEmail(email, password);
+            // 傳入 rememberMe 參數，決定是否持久化登入狀態
+            const result = await firebaseService.loginWithEmail(email, password, rememberMe);
 
             // 登入成功時，根據「記住我」選項保存或清除 Email
             if (result.success) {
