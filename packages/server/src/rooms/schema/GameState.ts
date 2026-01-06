@@ -54,6 +54,10 @@ export class Player extends Schema {
 
     // Quest System (Phase 10)
     @type(Quest) activeQuest: Quest | null = null;
+
+    // Guild System (Phase 13)
+    @type("string") guildId: string = "";
+    @type("string") guildName: string = "";
 }
 
 /**

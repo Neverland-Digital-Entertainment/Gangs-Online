@@ -13,6 +13,9 @@ import {
     OAuthProvider,
     onAuthStateChanged,
     signOut,
+    setPersistence,
+    browserLocalPersistence,
+    browserSessionPersistence,
     User,
     Auth
 } from "firebase/auth";
@@ -130,12 +133,18 @@ export class FirebaseService {
 
     /**
      * Email 登入
+     * @param rememberMe 是否記住登入狀態（true = 持久化, false = 只在當前分頁有效）
      */
-    async loginWithEmail(email: string, password: string): Promise<AuthResult> {
+    async loginWithEmail(email: string, password: string, rememberMe: boolean = false): Promise<AuthResult> {
         if (!this.initialized) this.initialize();
         if (!auth) return { success: false, user: null, error: "Auth not initialized" };
 
         try {
+            // 根據「記住我」設定持久化方式
+            const persistence = rememberMe ? browserLocalPersistence : browserSessionPersistence;
+            await setPersistence(auth, persistence);
+            console.log(`[Firebase] Persistence set to: ${rememberMe ? 'LOCAL' : 'SESSION'}`);
+
             const result = await signInWithEmailAndPassword(auth, email, password);
             console.log("[Firebase] Email login successful:", result.user.uid);
             return { success: true, user: result.user, isNewUser: false };

@@ -5,6 +5,7 @@
 import { Player, Item, Quest } from "../rooms/schema/GameState";
 import { IQuestDef } from "@gangs-online/shared";
 import { getFirestore, getFieldValue, isFirebaseInitialized } from "../services/FirebaseService";
+import { guildService } from "../services/GuildService";
 
 /**
  * 儲存玩家資料到 Firebase
@@ -49,6 +50,7 @@ export const savePlayer = async (player: Player, firebaseUid: string): Promise<b
         z: player.z,
         inventory: inventory,
         activeQuest: activeQuest,
+        // Phase 13: 幫會資料現在只存在 guilds 集合，不再存在 players
         lastOnline: getFieldValue().serverTimestamp()
     };
 
@@ -125,6 +127,17 @@ export const loadPlayer = async (
                     quest.completed = saved.activeQuest.completed ?? false;
                     player.activeQuest = quest;
                 }
+            }
+
+            // Phase 13: 從 guilds 集合查詢玩家的幫會資料
+            const playerGuild = await guildService.findPlayerGuild(firebaseUid);
+            if (playerGuild) {
+                player.guildId = playerGuild.guildId;
+                player.guildName = playerGuild.guildName;
+                console.log(`[Persistence] Player ${saved.name} is in guild: ${playerGuild.guildName}`);
+            } else {
+                player.guildId = "";
+                player.guildName = "";
             }
 
             console.log(`[Persistence] Player ${saved.name} restored successfully.`);

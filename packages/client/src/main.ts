@@ -22,6 +22,7 @@ import { LootManager } from "./entities/LootManager"; // Phase 8
 import { SoundManager } from "./systems/SoundManager"; // Phase 11
 import { ParticleSystem } from "./systems/ParticleSystem"; // Phase 11
 import { createEngine, createIsometricCamera, setupScene, updateCameraFollow, updateCameraOrtho } from "./utils/BabylonUtils";
+import { firebaseService } from "./services/FirebaseService"; // Phase 13: 自動登入
 
 /**
  * 主入口 - 遊戲初始化和場景創建
@@ -179,17 +180,21 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
         hudManager = new HUDManager(uiTexture);
         await hudManager.initialize(room);
 
-        // 監聽聊天訊息
-        room.onMessage("chat", (msg: { sessionId: string; text: string; channel?: string }) => {
+        // 監聽聊天訊息 (Phase 13: 支援多頻道)
+        room.onMessage("chat", (msg: { sessionId: string; text: string; type?: string; senderName?: string }) => {
             const entity = playerManager.getEntity(msg.sessionId);
             if (entity) {
                 chatSystem.createChatBubble(entity.mesh, msg.text);
             }
-            // Phase 9.1: 同步到 HUD 聊天系統
+            // Phase 13: 同步到 HUD 聊天系統，支援頻道類型
             if (hudManager) {
                 const player = (room.state as any).players.get(msg.sessionId);
-                const senderName = player?.name || "Unknown";
-                hudManager.addChatMessage(senderName, msg.text, msg.channel || "world");
+                const senderName = msg.senderName || player?.name || "Unknown";
+                // 轉換頻道類型：GLOBAL -> world, GUILD -> guild, PRIVATE -> private
+                let channel = "world";
+                if (msg.type === "GUILD") channel = "guild";
+                else if (msg.type === "PRIVATE") channel = "private";
+                hudManager.addChatMessage(senderName, msg.text, channel);
             }
         });
 
@@ -217,6 +222,14 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     );
                 }
             }
+        });
+
+        // === Phase 13: 被踢出（帳號在其他地方登入）===
+        room.onMessage("kicked", (data: { reason: string }) => {
+            console.log("⚠️ Kicked:", data.reason);
+            alert(data.reason);
+            // 重新載入頁面回到登入畫面
+            window.location.reload();
         });
 
         // 添加玩家
@@ -368,6 +381,29 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                         rewardMoney: quest.rewardMoney,
                     });
                 }
+
+                // Phase 13: 監聽幫會狀態變化
+                player.listen("guildId", (guildId: string) => {
+                    hudManager?.updateGuildState(guildId, (player as any).guildName || "");
+                    chatSystem.updateGuildId(guildId);
+                });
+
+                player.listen("guildName", (guildName: string) => {
+                    hudManager?.updateGuildState((player as any).guildId || "", guildName);
+                });
+
+                // Phase 13: 初始化幫會狀態
+                const initialGuildId = (player as any).guildId || "";
+                const initialGuildName = (player as any).guildName || "";
+                if (initialGuildId) {
+                    hudManager?.updateGuildState(initialGuildId, initialGuildName);
+                    chatSystem.updateGuildId(initialGuildId);
+                }
+
+                // Phase 13: 連接 HUD 聊天頻道切換到 ChatSystem
+                hudManager?.setOnChatChannelChange((channel) => {
+                    chatSystem.setChannel(channel);
+                });
             }
         });
 
@@ -703,37 +739,74 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 // --- 啟動應用 ---
 console.log("🚀 Starting application...");
 
-// Phase 12.1: 隱藏載入畫面的文字，顯示登入畫面
-loadingScreen.updateText(""); // 清空文字但保留背景
+/**
+ * 啟動遊戲（處理自動登入）
+ */
+const startGame = async () => {
+    // Phase 13: 檢查是否已有登入狀態（自動登入）
+    loadingScreen.updateText("正在檢查登入狀態...");
 
-const loginScreen = new LoginScreen();
-loginScreen.show()
-    .then((loginResult) => {
-        console.log("✅ Login successful:", loginResult);
+    try {
+        firebaseService.initialize();
+        const existingUser = await firebaseService.waitForAuthReady();
 
-        // 登入成功後，恢復載入畫面文字
-        loadingScreen.updateText("正在初始化遊戲...");
+        if (existingUser) {
+            // 已登入用戶 - 自動進入遊戲
+            console.log("✅ Auto-login: User already authenticated:", existingUser.uid);
+            loadingScreen.updateText("正在自動登入...");
 
-        return createScene(loginResult).then((scene) => {
-            console.log("✅ Scene created successfully!");
-            loadingScreen.updateText("即將進入遊戲...");
+            const loginResult: LoginResult = {
+                success: true,
+                userId: existingUser.uid,
+                characterName: "", // 從伺服器載入
+                isNewUser: false
+            };
 
-            // 延遲隱藏載入螢幕，確保一切就緒
-            setTimeout(() => {
-                loadingScreen.hide();
-            }, 1000);
+            await startScene(loginResult);
+        } else {
+            // 未登入 - 顯示登入畫面
+            loadingScreen.updateText(""); // 清空文字但保留背景
 
-            engine.runRenderLoop(() => {
-                scene.render();
-            });
-            console.log("✅ Render loop started!");
+            const loginScreen = new LoginScreen();
+            const loginResult = await loginScreen.show();
+            console.log("✅ Login successful:", loginResult);
+
+            loadingScreen.updateText("正在初始化遊戲...");
+            await startScene(loginResult);
+        }
+    } catch (error: any) {
+        console.error("❌ Startup error:", error);
+        loadingScreen.showError(error);
+    }
+};
+
+/**
+ * 啟動遊戲場景
+ */
+const startScene = async (loginResult: LoginResult) => {
+    try {
+        const scene = await createScene(loginResult);
+        console.log("✅ Scene created successfully!");
+        loadingScreen.updateText("即將進入遊戲...");
+
+        // 延遲隱藏載入螢幕，確保一切就緒
+        setTimeout(() => {
+            loadingScreen.hide();
+        }, 1000);
+
+        engine.runRenderLoop(() => {
+            scene.render();
         });
-    })
-    .catch((error) => {
+        console.log("✅ Render loop started!");
+    } catch (error: any) {
         console.error("❌ Failed to create scene:", error);
         console.error("Stack trace:", error.stack);
         loadingScreen.showError(error);
-    });
+    }
+};
+
+// 啟動遊戲
+startGame();
 
 // --- 視窗大小調整 ---
 const handleResize = () => {
