@@ -1,6 +1,6 @@
 import { Room, Client } from "colyseus";
 import { GameState, Player, Item } from "./schema/GameState";
-import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle, IQuestDef, ChatMessageType, IChatMessage } from "@gangs-online/shared";
+import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle, IQuestDef, ChatMessageType, IChatMessage, EVIL_VALUE_CONSTANTS } from "@gangs-online/shared";
 import { EnemyManager } from "../systems/EnemyManager";
 import { ProgressionSystem } from "../systems/ProgressionSystem";
 import { LootSystem } from "../systems/LootSystem"; // Phase 8
@@ -12,6 +12,8 @@ import { initializeFirebase } from "../services/FirebaseService"; // Phase 12
 import { savePlayer, loadPlayer } from "../data/persistence"; // Phase 12
 import { guildService } from "../services/GuildService"; // Phase 13
 import { chatService } from "../services/ChatService"; // Phase 13
+import { EvilValueSystem } from "../systems/EvilValueSystem"; // Phase 14
+import { PrisonSystem } from "../systems/PrisonSystem"; // Phase 14
 
 export class GameRoom extends Room<GameState> {
     maxClients = 50;
@@ -23,6 +25,8 @@ export class GameRoom extends Room<GameState> {
     private shopSystem!: ShopSystem; // 商店系統 (Phase 9)
     private npcManager!: NPCManager; // NPC 管理系統 (Phase 9)
     private questManager!: QuestManager; // 任務管理系統 (Phase 10)
+    private evilValueSystem!: EvilValueSystem; // 罪惡值系統 (Phase 14)
+    private prisonSystem!: PrisonSystem; // 監獄系統 (Phase 14)
 
     onCreate(options: any) {
         console.log("Gangs Online: Room Created");
@@ -56,27 +60,77 @@ export class GameRoom extends Room<GameState> {
         // 生成任務 NPC - 浩南哥
         this.npcManager.spawnQuestNPC("npc_quest", 5, 5, "浩南 (Quest)");
 
+        // 初始化罪惡值系統 (Phase 14)
+        this.evilValueSystem = new EvilValueSystem();
+
+        // 初始化監獄系統 (Phase 14)
+        this.prisonSystem = new PrisonSystem(this.evilValueSystem);
+
+        // 設置 NPC Manager 的引用 (Phase 14)
+        this.npcManager.setReferences(
+            this.state.players,
+            this.evilValueSystem,
+            this.prisonSystem
+        );
+
         // 設置 AI 更新迴圈（每 50ms 執行一次 = 20 FPS）
         this.setSimulationInterval((deltaTime) => {
             this.enemyManager.update(deltaTime);
+
+            // Phase 14: 警察 AI 更新
+            this.npcManager.updatePoliceAI(deltaTime);
+
+            // Phase 14: 監獄釋放檢查
+            this.state.players.forEach((player) => {
+                if (this.prisonSystem.canBeReleased(player)) {
+                    this.prisonSystem.releasePlayer(player);
+                    const client = this.clients.find((c) => c.sessionId === player.sessionId);
+                    if (client) {
+                        client.send("notification", "你已經服完刑期，重獲自由！");
+                        client.send("prisonRelease", {});
+                    }
+                }
+            });
+
+            // Phase 14: 清理死亡的市民 NPC
+            const deadNPCs = this.npcManager.removeDeadNPCs();
+            deadNPCs.forEach(() => {
+                // 1 分鐘後重生市民
+                this.clock.setTimeout(() => {
+                    this.npcManager.respawnCitizen();
+                }, 60000);
+            });
         });
 
         // Handle Movement
         this.onMessage("move", (client, input: IPlayerInput) => {
             const player = this.state.players.get(client.sessionId);
             if (player && player.hp > 0) { // Can only move if alive
+                // Phase 14: 檢查監獄移動限制
+                if (player.inPrison) {
+                    if (!this.prisonSystem.validatePrisonMovement(player, input.x, input.z)) {
+                        client.send("notification", "你還在監獄裡，不能離開！");
+                        return;
+                    }
+                }
                 player.x = input.x;
                 player.z = input.z;
             }
         });
 
-        // Handle Attack (支援攻擊玩家或敵人) - Phase 9: 增加安全區檢查
+        // Handle Attack (支援攻擊玩家或敵人) - Phase 9: 增加安全區檢查, Phase 14: 增加紅名系統
         this.onMessage("attack", (client, payload: { targetId: string; type: EntityType }) => {
             const attacker = this.state.players.get(client.sessionId);
 
             if (!attacker || attacker.hp <= 0) {
                 console.log(`❌ Attack failed: attacker not found or dead`);
                 return; // 攻擊者不存在或已死亡
+            }
+
+            // Phase 14: 檢查是否在監獄中
+            if (attacker.inPrison) {
+                client.send("notification", "你在監獄裡不能攻擊！");
+                return;
             }
 
             // Phase 9: 檢查攻擊者是否在安全區內
@@ -97,9 +151,28 @@ export class GameRoom extends Room<GameState> {
                     return;
                 }
 
-                // Phase 9: 檢查是否攻擊 NPC
-                if (this.npcManager.isNPC(payload.targetId)) {
+                // Phase 14: 檢查是否攻擊市民 NPC（會增加罪惡值）
+                if (this.npcManager.isCitizen(payload.targetId)) {
+                    // 攻擊市民會增加罪惡值
+                    this.evilValueSystem.increaseEvilValue(attacker);
+                    client.send("notification", `你攻擊了無辜市民！罪惡值 +1（目前: ${attacker.evilValue}）`);
+                    this.npcManager.handleCitizenAttacked(client.sessionId, payload.targetId);
+                    return;
+                }
+
+                // Phase 9: 檢查是否攻擊商店或任務 NPC（不能攻擊）
+                const npcType = this.npcManager.getNPCType(payload.targetId);
+                if (npcType === "shop" || npcType === "quest") {
                     client.send("notification", "唔好打十三叔！佢係好人嚟架！");
+                    return;
+                }
+
+                // Phase 14: 檢查是否攻擊警察（警察會還手）
+                if (this.npcManager.isPolice(payload.targetId)) {
+                    client.send("notification", "你竟敢襲警！");
+                    // 攻擊警察也增加罪惡值
+                    this.evilValueSystem.increaseEvilValue(attacker);
+                    // 讓警察 AI 處理還手
                     return;
                 }
 
@@ -535,6 +608,18 @@ export class GameRoom extends Room<GameState> {
             if (this.safeZoneSystem.isInSafeZone(target.x, target.z)) {
                 client.send("notification", "對方在安全區內！");
                 return;
+            }
+
+            // Phase 14: 檢查目標是否在監獄中
+            if (target.inPrison) {
+                client.send("notification", "對方在監獄裡！");
+                return;
+            }
+
+            // Phase 14: 攻擊非紅名玩家會增加罪惡值
+            if (!this.evilValueSystem.isWanted(target)) {
+                this.evilValueSystem.increaseEvilValue(attacker);
+                client.send("notification", `你攻擊了無辜玩家！罪惡值 +1（目前: ${attacker.evilValue}）`);
             }
 
             // Check if not already in combat

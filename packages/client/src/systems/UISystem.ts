@@ -146,4 +146,25 @@ export class UISystem {
         if (!nameLabel) return;
         nameLabel.text = name;
     }
+
+    /**
+     * 更新玩家名字顏色（Phase 14: 紅名系統）
+     * @param nameLabel 名字標籤
+     * @param isWanted 是否為紅名
+     */
+    updatePlayerNameColor(nameLabel: GUI.TextBlock | undefined, isWanted: boolean): void {
+        if (!nameLabel) return;
+        nameLabel.color = isWanted ? "#FF0000" : "white"; // 紅名顯示紅色
+    }
+
+    /**
+     * 更新實體名字顏色（Phase 14）
+     * @param ui UI 元素
+     * @param isWanted 是否為紅名
+     */
+    setPlayerWantedState(ui: PlayerUIElements, isWanted: boolean): void {
+        if (ui.nameLabel) {
+            ui.nameLabel.color = isWanted ? "#FF0000" : "white";
+        }
+    }
 }

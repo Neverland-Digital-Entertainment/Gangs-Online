@@ -150,6 +150,11 @@ export class PlayerData extends Schema implements IEntityData {
     // Guild System (Phase 13)
     @type("string") guildId: string = "";
     @type("string") guildName: string = "";
+
+    // Evil Value & Prison System (Phase 14)
+    @type("number") evilValue: number = 0; // 罪惡值 (0-3)
+    @type("boolean") inPrison: boolean = false; // 是否在監獄中
+    @type("number") prisonReleaseTime: number = 0; // 釋放時間戳
 }
 
 // Enemy Data (for PVE)
@@ -213,7 +218,7 @@ export interface ILootData {
     item: IItem;
 }
 
-// Player Data Interface (Extended for Phase 13)
+// Player Data Interface (Extended for Phase 14)
 export interface IPlayerData extends IEntityData {
     sessionId: string;
     role: PlayerRole;
@@ -227,6 +232,10 @@ export interface IPlayerData extends IEntityData {
     // Phase 13: Guild System
     guildId: string;
     guildName: string;
+    // Phase 14: Evil Value & Prison System
+    evilValue: number;
+    inPrison: boolean;
+    prisonReleaseTime: number;
 }
 
 // Game Constants
@@ -291,7 +300,62 @@ export const getRankTitle = (level: number): string => {
     return "藍燈籠 (Blue Lantern)";
 };
 
+// ==================== Phase 14: NPC Types & Evil Value System ====================
+
 /**
- * 遊戲版本（0.13.0 - Guild System & Chat Migration）
+ * NPC 類型（Phase 14）
  */
-export const GAME_VERSION = "0.13.0";
+export type NPCType = 'citizen' | 'police' | 'gangs' | 'shop' | 'quest';
+
+/**
+ * NPC 掉落表項目（Phase 14）
+ */
+export interface ILootTableEntry {
+    itemId: string;
+    dropRate: number; // 0.05 = 5%
+}
+
+/**
+ * NPC 數據結構（Phase 14 - Firebase Collection: npcs）
+ */
+export interface INPCData {
+    id: string;
+    type: NPCType;
+    name: string;
+    hp: number;
+    attack: number;
+    lootTable?: ILootTableEntry[];
+    dialogue?: string; // 僅 citizen, shop
+    relatedQuests?: string[]; // 關聯任務 ID
+    spawnX?: number;
+    spawnZ?: number;
+}
+
+/**
+ * 罪惡值系統常數（Phase 14）
+ */
+export const EVIL_VALUE_CONSTANTS = {
+    MAX_EVIL_VALUE: 3, // 最大罪惡值
+    EVIL_INCREMENT: 1, // 每次攻擊無辜增加的罪惡值
+    PRISON_DURATION: 30000, // 監獄停留時間（毫秒）= 30 秒
+    POLICE_SCAN_RANGE: 15.0, // 警察掃描範圍
+    POLICE_SCAN_INTERVAL: 2000, // 警察掃描間隔（毫秒）
+};
+
+/**
+ * 監獄系統常數（Phase 14）
+ */
+export const PRISON_CONSTANTS = {
+    // 監獄位置（隔離區）
+    PRISON_X: -50,
+    PRISON_Z: -50,
+    PRISON_RADIUS: 5.0, // 監獄活動範圍
+    // 釋放後重生點（銅鑼灣）
+    RELEASE_X: 0,
+    RELEASE_Z: 0,
+};
+
+/**
+ * 遊戲版本（0.14.0 - Roles & Wanted System）
+ */
+export const GAME_VERSION = "0.14.0";

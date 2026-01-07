@@ -271,6 +271,15 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 playerManager.updateCombatState(sessionId, !!(targetId && targetId !== ""));
             });
 
+            // Phase 14: 監聽所有玩家的罪惡值變化（更新名字顏色）
+            player.listen("evilValue", (evilValue: number) => {
+                const isWanted = evilValue > 0;
+                const entity = playerManager.getEntity(sessionId);
+                if (entity && entity.ui && uiSystem) {
+                    uiSystem.setPlayerWantedState(entity.ui, isWanted);
+                }
+            });
+
             // Phase 11: 記錄之前的等級用於升級反饋
             let prevLevel = player.level;
             player.listen("level", (newLevel: number) => {
@@ -404,6 +413,31 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 hudManager?.setOnChatChannelChange((channel) => {
                     chatSystem.setChannel(channel);
                 });
+
+                // Phase 14: 監聽罪惡值變化
+                player.listen("evilValue", (evilValue: number) => {
+                    const isWanted = evilValue > 0;
+                    hudManager?.setWanted(isWanted);
+
+                    // 更新自己的名字顏色
+                    const entity = playerManager.getEntity(sessionId);
+                    if (entity && entity.ui && uiSystem) {
+                        uiSystem.setPlayerWantedState(entity.ui, isWanted);
+                    }
+                });
+
+                // Phase 14: 監聽監獄狀態變化
+                player.listen("inPrison", (inPrison: boolean) => {
+                    if (inPrison) {
+                        console.log("🔒 [Phase 14] 你被送進監獄了！");
+                    }
+                });
+
+                // Phase 14: 初始化罪惡值狀態
+                const initialEvilValue = (player as any).evilValue || 0;
+                if (initialEvilValue > 0) {
+                    hudManager?.setWanted(true);
+                }
             }
         });
 
