@@ -573,8 +573,8 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     canvas.style.cursor = "pointer";
                     break;
                 case 'npc':
-                    // Phase 14: 市民 NPC 可攻擊，顯示攻擊游標
-                    if (target.id?.startsWith("npc_citizen_")) {
+                    // Phase 14: 市民和警察 NPC 可攻擊，顯示攻擊游標
+                    if (target.id?.startsWith("npc_citizen_") || target.id?.startsWith("npc_police_")) {
                         canvas.style.cursor = "crosshair";
                     } else {
                         canvas.style.cursor = "pointer";
@@ -632,8 +632,8 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     hudManager.showShopPopup();
                     return;
                 }
-                // Phase 14: 市民 NPC 可以被攻擊（發送 enemy 類型給伺服器）
-                if (target.id.startsWith("npc_citizen_")) {
+                // Phase 14: 市民和警察 NPC 可以被攻擊（發送 enemy 類型給伺服器）
+                if (target.id.startsWith("npc_citizen_") || target.id.startsWith("npc_police_")) {
                     const myEntity = playerManager.getEntity(mySessionId!);
                     if (myEntity && target.mesh) {
                         const targetPos = target.mesh.position;
@@ -642,18 +642,20 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                         const dist = Math.sqrt(dx * dx + dz * dz);
 
                         if (dist <= GAME_CONSTANTS.ATTACK_RANGE) {
-                            console.log("🗡️ Attacking citizen:", target.id);
+                            const targetName = target.id.startsWith("npc_police_") ? "police" : "citizen";
+                            console.log(`🗡️ Attacking ${targetName}:`, target.id);
                             soundManager.playMissSound();
                             room.send("attack", { targetId: target.id, type: "enemy" as EntityType });
                         } else {
-                            console.log("🚶 Walking to citizen:", target.id);
+                            const targetName = target.id.startsWith("npc_police_") ? "police" : "citizen";
+                            console.log(`🚶 Walking to ${targetName}:`, target.id);
                             pendingAttack = { targetId: target.id, targetType: "enemy", x: targetPos.x, z: targetPos.z };
                             room.send("move", { x: targetPos.x, z: targetPos.z });
                         }
                     }
                     return;
                 }
-                // 其他 NPC（警察等）不能直接攻擊
+                // 其他 NPC（商店、任務）不能直接攻擊
                 return;
             }
 

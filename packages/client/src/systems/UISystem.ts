@@ -85,14 +85,16 @@ export class UISystem {
      * 為實體創建UI（玩家或敵人）
      * @param mesh - 3D 模型
      * @param name - 名稱
-     * @param isEnemy - 是否為敵人
+     * @param isEnemy - 是否為敵人/NPC（用於顯示等級）
      * @param level - 等級（僅敵人使用）
+     * @param isHostile - 是否為敵對（決定名字顏色：紅色=敵對，白色=友善）
      */
     createEntityUI(
         mesh: BABYLON.Mesh,
         name: string,
         isEnemy: boolean,
-        level: number = 1
+        level: number = 1,
+        isHostile: boolean = true // Phase 14: 新增參數，預設敵對
     ): { container: GUI.Rectangle; hpFg: GUI.Rectangle; nameLabel: GUI.TextBlock } {
         const container = new GUI.Rectangle();
         container.width = "120px";
@@ -106,7 +108,8 @@ export class UISystem {
         const nameLabel = new GUI.TextBlock();
         if (isEnemy) {
             nameLabel.text = `${name} (Lv${level})`;
-            nameLabel.color = "#FF4444";
+            // Phase 14: 只有敵對實體才顯示紅色名字
+            nameLabel.color = isHostile ? "#FF4444" : "white";
         } else {
             // 玩家：只顯示名字
             nameLabel.text = name;

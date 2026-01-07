@@ -84,7 +84,9 @@ export class EnemyManager {
         if (idleAnim) idleAnim.play(true);
 
         // 創建 UI（名稱和血條）- Phase 7: 傳遞等級（敵人通常是 1 級）
-        const ui = this.uiSystem.createEntityUI(root as BABYLON.Mesh, enemyData.name, true, 1);
+        // Phase 14: NPC 名字為白色，只有敵對怪物（gangs）才顯示紅色
+        const isHostile = !isNPC; // NPC 不敵對，敵人才敵對
+        const ui = this.uiSystem.createEntityUI(root as BABYLON.Mesh, enemyData.name, true, 1, isHostile);
 
         const entity: EnemyEntity = {
             mesh: root,
@@ -118,8 +120,8 @@ export class EnemyManager {
             });
         }
 
-        // 監聯血量變化（敵人和市民 NPC）
-        if (!isNPC || isCitizen) {
+        // 監聯血量變化（敵人、市民和警察 NPC）
+        if (!isNPC || isCitizen || isPolice) {
             enemyData.listen("hp", (currentHp: number) => {
                 this.updateHealth(enemyId, currentHp, enemyData.maxHp);
             });

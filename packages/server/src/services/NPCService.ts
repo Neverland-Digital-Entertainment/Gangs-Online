@@ -66,13 +66,13 @@ const DEFAULT_NPCS: INPCData[] = [
         spawnX: -8,
         spawnZ: -12,
     },
-    // 警察 NPC
+    // 警察 NPC - Phase 14: 警察很難被打敗（高 HP、高攻擊）
     {
         id: "npc_police_1",
         type: "police",
         name: "警察",
-        hp: 200,
-        attack: 20,
+        hp: 500, // 很高的血量，需要多人聯手或高級裝備才能打敗
+        attack: 35, // 較高的攻擊力
         spawnX: 15,
         spawnZ: 15,
     },
@@ -80,8 +80,8 @@ const DEFAULT_NPCS: INPCData[] = [
         id: "npc_police_2",
         type: "police",
         name: "警察",
-        hp: 200,
-        attack: 20,
+        hp: 500,
+        attack: 35,
         spawnX: -15,
         spawnZ: 15,
     },

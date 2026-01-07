@@ -270,6 +270,28 @@ export class NPCManager {
     }
 
     /**
+     * 處理警察被攻擊（Phase 14）
+     * 攻擊警察會增加罪惡值，警察很難被打敗
+     * @returns 是否為攻擊警察
+     */
+    handlePoliceAttacked(attackerId: string, policeId: string): boolean {
+        const police = this.npcs.get(policeId);
+        if (!police || police.npcType !== "police") return false;
+
+        // 警察被攻擊，扣血
+        police.hp -= GAME_CONSTANTS.ATTACK_DAMAGE;
+        console.log(`👮 [Police] ${police.name} 被攻擊！HP: ${police.hp}/${police.maxHp}`);
+
+        if (police.hp <= 0) {
+            police.hp = 0;
+            console.log(`💀 [Police] ${police.name} 被擊敗！`);
+            // 警察死亡後 2 分鐘重生
+        }
+
+        return true; // 確認是攻擊警察
+    }
+
+    /**
      * 移除死亡的 NPC
      */
     removeDeadNPCs(): string[] {

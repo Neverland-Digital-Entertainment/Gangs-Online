@@ -169,12 +169,14 @@ export class GameRoom extends Room<GameState> {
                     return;
                 }
 
-                // Phase 14: 檢查是否攻擊警察（警察會還手）
+                // Phase 14: 檢查是否攻擊警察（警察會還手，且非常難打敗）
                 if (this.npcManager.isPolice(payload.targetId)) {
-                    client.send("notification", "你竟敢襲警！");
-                    // 攻擊警察也增加罪惡值
+                    // 攻擊警察會增加罪惡值
                     this.evilValueSystem.increaseEvilValue(attacker);
-                    // 讓警察 AI 處理還手
+                    client.send("notification", `你竟敢襲警！罪惡值 +1（目前: ${attacker.evilValue}）`);
+                    // 對警察造成傷害
+                    this.npcManager.handlePoliceAttacked(client.sessionId, payload.targetId);
+                    // 警察 AI 會自動還手（因為玩家現在是紅名）
                     return;
                 }
 
