@@ -560,8 +560,15 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
             switch (target.type) {
                 case 'loot':
-                case 'npc':
                     canvas.style.cursor = "pointer";
+                    break;
+                case 'npc':
+                    // Phase 14: 市民 NPC 可攻擊，顯示攻擊游標
+                    if (target.id?.startsWith("npc_citizen_")) {
+                        canvas.style.cursor = "crosshair";
+                    } else {
+                        canvas.style.cursor = "pointer";
+                    }
                     break;
                 case 'enemy':
                 case 'player':
@@ -609,11 +616,34 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 console.log("👔 Clicked NPC:", target.id);
                 if (target.id === "npc_quest") {
                     hudManager.showPopup("任務", "quest");
+                    return;
                 } else if (target.id === "npc_shopkeeper") {
                     // Phase 11: 只有點擊商店 NPC 才會顯示商店
                     hudManager.showShopPopup();
+                    return;
                 }
-                // 其他 NPC 不開啟商店
+                // Phase 14: 市民 NPC 可以被攻擊（發送 enemy 類型給伺服器）
+                if (target.id.startsWith("npc_citizen_")) {
+                    const myEntity = playerManager.getEntity(mySessionId!);
+                    if (myEntity && target.mesh) {
+                        const targetPos = target.mesh.position;
+                        const dx = myEntity.mesh.position.x - targetPos.x;
+                        const dz = myEntity.mesh.position.z - targetPos.z;
+                        const dist = Math.sqrt(dx * dx + dz * dz);
+
+                        if (dist <= GAME_CONSTANTS.ATTACK_RANGE) {
+                            console.log("🗡️ Attacking citizen:", target.id);
+                            soundManager.playMissSound();
+                            room.send("attack", { targetId: target.id, type: "enemy" as EntityType });
+                        } else {
+                            console.log("🚶 Walking to citizen:", target.id);
+                            pendingAttack = { targetId: target.id, targetType: "enemy", x: targetPos.x, z: targetPos.z };
+                            room.send("move", { x: targetPos.x, z: targetPos.z });
+                        }
+                    }
+                    return;
+                }
+                // 其他 NPC（警察等）不能直接攻擊
                 return;
             }
 

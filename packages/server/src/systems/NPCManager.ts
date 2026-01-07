@@ -1,15 +1,16 @@
 import { MapSchema } from "@colyseus/schema";
 import { Enemy, Player } from "../rooms/schema/GameState";
-import { NPCType, EVIL_VALUE_CONSTANTS, GAME_CONSTANTS } from "@gangs-online/shared";
+import { NPCType, EVIL_VALUE_CONSTANTS, GAME_CONSTANTS, INPCData } from "@gangs-online/shared";
 import { EvilValueSystem } from "./EvilValueSystem";
 import { PrisonSystem } from "./PrisonSystem";
+import { npcService } from "../services/NPCService";
 
 /**
  * NPCManager - 管理 NPC 生成和邏輯 (Phase 9, Phase 14: 擴展 NPC AI)
  *
  * 功能：
- * - 生成商店 NPC
- * - 生成市民、警察、古惑仔 NPC (Phase 14)
+ * - 從 Firebase 載入 NPC 定義
+ * - 生成商店 NPC、市民、警察、古惑仔 NPC
  * - 管理 NPC 狀態和 AI 行為
  */
 export class NPCManager {
@@ -37,34 +38,39 @@ export class NPCManager {
     }
 
     /**
-     * 初始化 NPC（生成商店老闆和 Phase 14 NPC）
+     * 初始化 NPC（從 Firebase 載入 NPC 定義並生成）
      */
-    initialize(): void {
-        this.spawnShopkeeper();
+    async initialize(): Promise<void> {
+        // 初始化 NPC 服務（從 Firebase 載入）
+        await npcService.initialize();
 
-        // Phase 14: 生成市民和警察
-        this.spawnCitizens(3);
-        this.spawnPolice(2);
+        // 從 NPCService 載入所有 NPC 並生成
+        const allNPCs = npcService.getAllNPCs();
+        allNPCs.forEach((npcData) => {
+            this.spawnNPCFromData(npcData);
+        });
+
+        console.log(`✅ [NPCManager] Spawned ${allNPCs.length} NPCs from Firebase/defaults`);
     }
 
     /**
-     * 在地圖中心生成商店老闆 NPC
+     * 從 NPC 定義資料生成 NPC
      */
-    private spawnShopkeeper(): void {
-        const shopkeeper = new Enemy();
-        shopkeeper.id = "npc_shopkeeper";
-        shopkeeper.x = 0;
-        shopkeeper.z = 0;
-        shopkeeper.name = "十三叔 (Shop)";
-        shopkeeper.type = "npc";
-        shopkeeper.npcType = "shop";
-        shopkeeper.state = "idle";
-        shopkeeper.hp = 9999; // 無敵
-        shopkeeper.maxHp = 9999;
-        shopkeeper.attack = 0;
+    private spawnNPCFromData(data: INPCData): void {
+        const npc = new Enemy();
+        npc.id = data.id;
+        npc.x = data.spawnX ?? 0;
+        npc.z = data.spawnZ ?? 0;
+        npc.name = data.name;
+        npc.type = "npc";
+        npc.npcType = data.type;
+        npc.state = "idle";
+        npc.hp = data.hp;
+        npc.maxHp = data.hp;
+        npc.attack = data.attack;
 
-        this.npcs.set(shopkeeper.id, shopkeeper);
-        console.log("✅ Shopkeeper NPC spawned at map center (0, 0)");
+        this.npcs.set(npc.id, npc);
+        console.log(`✅ [NPCManager] Spawned ${data.type} NPC "${data.name}" at (${npc.x}, ${npc.z})`);
     }
 
     /**

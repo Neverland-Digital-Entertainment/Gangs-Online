@@ -51,14 +51,16 @@ export class GameRoom extends Room<GameState> {
         // 初始化商店系統 (Phase 9)
         this.shopSystem = new ShopSystem();
 
-        // 初始化 NPC 管理系統 (Phase 9)
+        // 初始化 NPC 管理系統 (Phase 9, Phase 14: 從 Firebase 載入)
         this.npcManager = new NPCManager(this.state.enemies);
-        this.npcManager.initialize();
+        // NPC 初始化是非同步的，需要等待完成
+        this.npcManager.initialize().catch((err) => {
+            console.error("[GameRoom] Failed to initialize NPCs:", err);
+        });
 
         // 初始化任務管理系統 (Phase 10)
         this.questManager = new QuestManager();
-        // 生成任務 NPC - 浩南哥
-        this.npcManager.spawnQuestNPC("npc_quest", 5, 5, "浩南 (Quest)");
+        // 任務 NPC 現在從 Firebase 載入，不需要手動生成
 
         // 初始化罪惡值系統 (Phase 14)
         this.evilValueSystem = new EvilValueSystem();
