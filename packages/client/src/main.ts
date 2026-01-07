@@ -430,6 +430,12 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 player.listen("inPrison", (inPrison: boolean) => {
                     if (inPrison) {
                         console.log("🔒 [Phase 14] 你被送進監獄了！");
+                        // Show prison overlay with countdown
+                        const releaseTime = (player as any).prisonReleaseTime || (Date.now() + 30000);
+                        hudManager?.showPrisonOverlay(releaseTime);
+                    } else {
+                        console.log("🔓 [Phase 14] 你已從監獄釋放！");
+                        hudManager?.hidePrisonOverlay();
                     }
                 });
 

@@ -577,6 +577,9 @@ export class GameRoom extends Room<GameState> {
                                 player.inCombatWithEnemy = "";
                                 console.log(`💀 Player ${player.name} was killed by ${enemy.name}`);
 
+                                // Phase 14: 紅名玩家死亡懲罰
+                                this.handleRedNameDeathPenalty(player);
+
                                 // 重生玩家
                                 this.clock.setTimeout(() => {
                                     if (this.state.players.has(player.sessionId)) {
@@ -739,6 +742,9 @@ export class GameRoom extends Room<GameState> {
 
             console.log(`Player ${target.sessionId} was killed by ${attacker.sessionId}`);
 
+            // Phase 14: 紅名玩家死亡懲罰 - 隨機掉落物品
+            this.handleRedNameDeathPenalty(target);
+
             // Special respawn for first player (me): immediate full heal
             if (target.sessionId === this.firstPlayerSessionId) {
                 console.log(`First player died - instant respawn with full HP`);
@@ -766,6 +772,60 @@ export class GameRoom extends Room<GameState> {
                         }
                     }
                 }, 3000);
+            }
+        }
+    }
+
+    /**
+     * Phase 14: 處理紅名玩家死亡懲罰 - 隨機掉落物品
+     */
+    private handleRedNameDeathPenalty(player: Player): void {
+        // 只有紅名玩家才會掉落物品
+        if (!this.evilValueSystem.isWanted(player)) {
+            return;
+        }
+
+        // 檢查玩家背包是否有物品
+        if (player.inventory.length === 0) {
+            console.log(`🔴 [Phase 14] ${player.name} 是紅名但背包為空，無物品掉落`);
+            return;
+        }
+
+        // 根據罪惡值決定掉落數量 (evilValue 1-3 對應 1-3 件物品)
+        const dropCount = Math.min(player.evilValue, player.inventory.length);
+
+        // 隨機選擇要掉落的物品索引
+        const indicesToDrop: number[] = [];
+        const availableIndices = Array.from({ length: player.inventory.length }, (_, i) => i);
+
+        for (let i = 0; i < dropCount && availableIndices.length > 0; i++) {
+            const randomIndex = Math.floor(Math.random() * availableIndices.length);
+            indicesToDrop.push(availableIndices[randomIndex]);
+            availableIndices.splice(randomIndex, 1);
+        }
+
+        // 從大到小排序索引，以便從後往前刪除（避免索引偏移問題）
+        indicesToDrop.sort((a, b) => b - a);
+
+        // 記錄掉落的物品名稱
+        const droppedItems: string[] = [];
+
+        // 移除物品
+        for (const index of indicesToDrop) {
+            const item = player.inventory.at(index);
+            if (item) {
+                droppedItems.push(item.name);
+                player.inventory.deleteAt(index);
+            }
+        }
+
+        if (droppedItems.length > 0) {
+            console.log(`🔴 [Phase 14] ${player.name} 紅名死亡，掉落了 ${droppedItems.length} 件物品: ${droppedItems.join(", ")}`);
+
+            // 通知玩家掉落了物品
+            const targetClient = this.clients.find((c) => c.sessionId === player.sessionId);
+            if (targetClient) {
+                targetClient.send("notification", `紅名懲罰：你掉落了 ${droppedItems.join(", ")}`);
             }
         }
     }

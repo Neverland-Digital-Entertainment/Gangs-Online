@@ -65,6 +65,11 @@ export class HUDManager {
     // Phase 13: 聊天頻道切換回調
     private onChatChannelChange: ((channel: ChatMessageType) => void) | null = null;
 
+    // Phase 14: Prison overlay elements
+    private prisonOverlay: GUI.Rectangle | null = null;
+    private prisonCountdownText: GUI.TextBlock | null = null;
+    private prisonCountdownInterval: number | null = null;
+
     constructor(uiTexture: GUI.AdvancedDynamicTexture) {
         this.uiTexture = uiTexture;
     }
@@ -108,7 +113,63 @@ export class HUDManager {
             }
         });
 
+        // Phase 14: Create prison overlay UI
+        this.createPrisonOverlay();
+
         console.log("✅ HUD Manager initialized");
+    }
+
+    /**
+     * Phase 14: 創建監獄 overlay UI
+     */
+    private createPrisonOverlay(): void {
+        // Create dark overlay container
+        this.prisonOverlay = new GUI.Rectangle("PrisonOverlay");
+        this.prisonOverlay.width = "100%";
+        this.prisonOverlay.height = "100%";
+        this.prisonOverlay.background = "rgba(0, 0, 0, 0.7)";
+        this.prisonOverlay.thickness = 0;
+        this.prisonOverlay.zIndex = 200; // High z-index to cover everything
+        this.prisonOverlay.isVisible = false;
+
+        // Create prison icon (bars)
+        const prisonIcon = new GUI.TextBlock("PrisonIcon");
+        prisonIcon.text = "🔒";
+        prisonIcon.fontSize = 80;
+        prisonIcon.color = "#FFFFFF";
+        prisonIcon.top = "-80px";
+        prisonIcon.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+        this.prisonOverlay.addControl(prisonIcon);
+
+        // Create prison title
+        const prisonTitle = new GUI.TextBlock("PrisonTitle");
+        prisonTitle.text = "你被送進監獄了！";
+        prisonTitle.fontSize = 36;
+        prisonTitle.color = "#FF4444";
+        prisonTitle.fontWeight = "bold";
+        prisonTitle.top = "20px";
+        prisonTitle.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+        this.prisonOverlay.addControl(prisonTitle);
+
+        // Create countdown text
+        this.prisonCountdownText = new GUI.TextBlock("PrisonCountdown");
+        this.prisonCountdownText.text = "釋放倒數：30 秒";
+        this.prisonCountdownText.fontSize = 24;
+        this.prisonCountdownText.color = "#FFFFFF";
+        this.prisonCountdownText.top = "80px";
+        this.prisonCountdownText.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+        this.prisonOverlay.addControl(this.prisonCountdownText);
+
+        // Create hint text
+        const hintText = new GUI.TextBlock("PrisonHint");
+        hintText.text = "服刑期間無法移動或攻擊";
+        hintText.fontSize = 16;
+        hintText.color = "#888888";
+        hintText.top = "130px";
+        hintText.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+        this.prisonOverlay.addControl(hintText);
+
+        this.uiTexture.addControl(this.prisonOverlay);
     }
 
     /**
@@ -625,6 +686,59 @@ export class HUDManager {
         if (this.wantedIndicator) {
             this.wantedIndicator.isVisible = isWanted;
         }
+    }
+
+    /**
+     * Phase 14: 顯示監獄 overlay 並開始倒數
+     */
+    showPrisonOverlay(releaseTime: number): void {
+        if (!this.prisonOverlay) return;
+
+        this.prisonOverlay.isVisible = true;
+
+        // Clear any existing countdown
+        if (this.prisonCountdownInterval !== null) {
+            window.clearInterval(this.prisonCountdownInterval);
+        }
+
+        // Update countdown every second
+        const updateCountdown = () => {
+            const remaining = Math.max(0, releaseTime - Date.now());
+            const seconds = Math.ceil(remaining / 1000);
+
+            if (this.prisonCountdownText) {
+                this.prisonCountdownText.text = `釋放倒數：${seconds} 秒`;
+            }
+
+            // Auto-hide when countdown reaches 0 (server will also release)
+            if (remaining <= 0 && this.prisonCountdownInterval !== null) {
+                window.clearInterval(this.prisonCountdownInterval);
+                this.prisonCountdownInterval = null;
+            }
+        };
+
+        // Update immediately and then every second
+        updateCountdown();
+        this.prisonCountdownInterval = window.setInterval(updateCountdown, 1000);
+
+        console.log("🔒 [Phase 14] Prison overlay shown");
+    }
+
+    /**
+     * Phase 14: 隱藏監獄 overlay
+     */
+    hidePrisonOverlay(): void {
+        if (this.prisonOverlay) {
+            this.prisonOverlay.isVisible = false;
+        }
+
+        // Clear countdown interval
+        if (this.prisonCountdownInterval !== null) {
+            window.clearInterval(this.prisonCountdownInterval);
+            this.prisonCountdownInterval = null;
+        }
+
+        console.log("🔓 [Phase 14] Prison overlay hidden");
     }
 
     /**
