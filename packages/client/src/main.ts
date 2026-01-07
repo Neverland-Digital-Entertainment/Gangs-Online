@@ -1,7 +1,7 @@
 import * as BABYLON from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import * as Client from "colyseus.js";
-import { PlayerData, IEnemyData, EntityType, GAME_CONSTANTS } from "@gangs-online/shared";
+import { PlayerData, IEnemyData, EntityType, GAME_CONSTANTS, PRISON_CONSTANTS } from "@gangs-online/shared";
 import "@babylonjs/loaders";
 import { GAME_VERSION } from "./version";
 
@@ -430,11 +430,15 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 player.listen("inPrison", (inPrison: boolean) => {
                     if (inPrison) {
                         console.log("🔒 [Phase 14] 你被送進監獄了！");
+                        // 瞬間傳送到監獄位置（跳過走路動畫）
+                        playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.PRISON_X, PRISON_CONSTANTS.PRISON_Z);
                         // Show prison overlay with countdown
                         const releaseTime = (player as any).prisonReleaseTime || (Date.now() + 30000);
                         hudManager?.showPrisonOverlay(releaseTime);
                     } else {
                         console.log("🔓 [Phase 14] 你已從監獄釋放！");
+                        // 瞬間傳送到釋放點
+                        playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.RELEASE_X, PRISON_CONSTANTS.RELEASE_Z);
                         hudManager?.hidePrisonOverlay();
                     }
                 });
