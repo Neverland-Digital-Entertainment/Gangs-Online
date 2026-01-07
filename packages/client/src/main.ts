@@ -426,19 +426,15 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     }
                 });
 
-                // Phase 14: 監聽監獄狀態變化
+                // Phase 14: 監聽監獄狀態變化（本地玩家專用 UI）
                 player.listen("inPrison", (inPrison: boolean) => {
                     if (inPrison) {
                         console.log("🔒 [Phase 14] 你被送進監獄了！");
-                        // 瞬間傳送到監獄位置（跳過走路動畫）
-                        playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.PRISON_X, PRISON_CONSTANTS.PRISON_Z);
                         // Show prison overlay with countdown
                         const releaseTime = (player as any).prisonReleaseTime || (Date.now() + 30000);
                         hudManager?.showPrisonOverlay(releaseTime);
                     } else {
                         console.log("🔓 [Phase 14] 你已從監獄釋放！");
-                        // 瞬間傳送到釋放點
-                        playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.RELEASE_X, PRISON_CONSTANTS.RELEASE_Z);
                         hudManager?.hidePrisonOverlay();
                     }
                 });
@@ -449,6 +445,20 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     hudManager?.setWanted(true);
                 }
             }
+
+            // Phase 14: 監聽所有玩家的監獄狀態變化（用於傳送）
+            // 這個監聯在 if (isSelf) 區塊外面，所以對所有玩家都有效
+            player.listen("inPrison", (inPrison: boolean) => {
+                if (inPrison) {
+                    // 瞬間傳送到監獄位置（跳過走路動畫）
+                    playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.PRISON_X, PRISON_CONSTANTS.PRISON_Z);
+                    console.log(`🔒 [Phase 14] 玩家 ${sessionId} 被傳送到監獄`);
+                } else {
+                    // 瞬間傳送到釋放點
+                    playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.RELEASE_X, PRISON_CONSTANTS.RELEASE_Z);
+                    console.log(`🔓 [Phase 14] 玩家 ${sessionId} 從監獄釋放`);
+                }
+            });
         });
 
         // 移除玩家
