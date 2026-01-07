@@ -30,7 +30,8 @@ export class CityGenerator {
      */
     generate(): void {
         this.createBasicGround();
-        this.createSafeZone();
+        // 暫時禁用安全區以便測試地圖
+        // this.createSafeZone();
     }
 
     /**

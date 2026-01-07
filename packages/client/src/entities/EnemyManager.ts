@@ -43,9 +43,16 @@ export class EnemyManager {
      * 創建敵人或 NPC (Phase 9: 支援 NPC)
      * @param enemyData - Colyseus Schema 對象（具有 onChange 和 listen 方法）
      */
-    async createEnemy(enemyData: any, enemyId: string): Promise<EnemyEntity> {
+    async createEnemy(enemyData: any, enemyId: string): Promise<EnemyEntity | null> {
         const entityType = enemyData.type || "enemy";
         const isNPC = entityType === "npc";
+
+        // 暫時隱藏所有 NPC 以便測試地圖
+        if (isNPC) {
+            console.log(`👔 Skipping NPC creation (temporarily disabled): ${enemyId}`);
+            return null as any;
+        }
+
         console.log(`${isNPC ? '👔' : '🧟'} Creating ${isNPC ? 'NPC' : 'enemy'}: ${enemyId}`);
 
         // 載入 3D 模型
