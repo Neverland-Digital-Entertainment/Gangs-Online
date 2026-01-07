@@ -206,13 +206,14 @@ export class NPCManager {
             });
 
             if (targetPlayer) {
+                const target = targetPlayer as Player; // Type assertion to fix TS inference
                 const distance = minDistance;
 
                 if (distance > GAME_CONSTANTS.ATTACK_RANGE) {
                     // 追逐紅名玩家
                     npc.state = "chase";
-                    const dx = targetPlayer.x - npc.x;
-                    const dz = targetPlayer.z - npc.z;
+                    const dx = target.x - npc.x;
+                    const dz = target.z - npc.z;
                     npc.x += (dx / distance) * GAME_CONSTANTS.ENEMY_SPEED * 1.5; // 警察移動較快
                     npc.z += (dz / distance) * GAME_CONSTANTS.ENEMY_SPEED * 1.5;
                 } else {
@@ -221,14 +222,14 @@ export class NPCManager {
 
                     // 隨機機率攻擊
                     if (Math.random() < GAME_CONSTANTS.ENEMY_ATTACK_CHANCE * 2) {
-                        targetPlayer.hp -= npc.attack;
-                        console.log(`👮 [Police] 警察攻擊紅名玩家 ${targetPlayer.name}，造成 ${npc.attack} 傷害！HP: ${targetPlayer.hp}/${targetPlayer.maxHp}`);
+                        target.hp -= npc.attack;
+                        console.log(`👮 [Police] 警察攻擊紅名玩家 ${target.name}，造成 ${npc.attack} 傷害！HP: ${target.hp}/${target.maxHp}`);
 
-                        if (targetPlayer.hp <= 0) {
-                            targetPlayer.hp = 0;
+                        if (target.hp <= 0) {
+                            target.hp = 0;
                             // 紅名玩家被警察擊倒 -> 送進監獄
-                            console.log(`🚔 [Police] ${targetPlayer.name} 被警察擊倒，送進監獄！`);
-                            this.prisonSystem!.sendToPrison(targetPlayer);
+                            console.log(`🚔 [Police] ${target.name} 被警察擊倒，送進監獄！`);
+                            this.prisonSystem!.sendToPrison(target);
                         }
                     }
                 }
