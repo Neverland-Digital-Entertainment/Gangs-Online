@@ -316,7 +316,13 @@ export interface ILootTableEntry {
 }
 
 /**
+ * NPC 狀態（Phase 15）
+ */
+export type NPCStatus = 'active' | 'inactive';
+
+/**
  * NPC 數據結構（Phase 14 - Firebase Collection: npcs）
+ * Phase 15: 新增 status 欄位
  */
 export interface INPCData {
     id: string;
@@ -329,6 +335,7 @@ export interface INPCData {
     relatedQuests?: string[]; // 關聯任務 ID
     spawnX?: number;
     spawnZ?: number;
+    status?: NPCStatus; // Phase 15: active/inactive 狀態
 }
 
 /**
@@ -356,6 +363,6 @@ export const PRISON_CONSTANTS = {
 };
 
 /**
- * 遊戲版本（0.14.0 - Roles & Wanted System）
+ * 遊戲版本（0.15.0 - Real Scene Integration）
  */
-export const GAME_VERSION = "0.14.0";
+export const GAME_VERSION = "0.15.0";
