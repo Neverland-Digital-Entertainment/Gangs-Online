@@ -107,6 +107,11 @@ export class SceneLoaderSystem {
             rootMesh: null
         };
 
+        // Phase 15: 調試 - 計算場景邊界
+        let minX = Infinity, maxX = -Infinity;
+        let minY = Infinity, maxY = -Infinity;
+        let minZ = Infinity, maxZ = -Infinity;
+
         for (const mesh of meshes) {
             // 跳過 __root__ 節點
             if (mesh.name === "__root__") {
@@ -117,6 +122,20 @@ export class SceneLoaderSystem {
                 continue;
             }
 
+            // Phase 15: 計算邊界框用於調試
+            mesh.computeWorldMatrix(true);
+            const boundingInfo = mesh.getBoundingInfo();
+            if (boundingInfo) {
+                const min = boundingInfo.boundingBox.minimumWorld;
+                const max = boundingInfo.boundingBox.maximumWorld;
+                minX = Math.min(minX, min.x);
+                maxX = Math.max(maxX, max.x);
+                minY = Math.min(minY, min.y);
+                maxY = Math.max(maxY, max.y);
+                minZ = Math.min(minZ, min.z);
+                maxZ = Math.max(maxZ, max.z);
+            }
+
             // 根據名稱首字母分類
             const firstChar = mesh.name.charAt(0).toUpperCase();
 
@@ -125,17 +144,18 @@ export class SceneLoaderSystem {
                 this.setupTerrainMesh(mesh);
                 result.terrainMeshes.push(mesh);
                 this.terrainMeshes.push(mesh);
-                console.log(`🌍 [SceneLoader] Terrain: ${mesh.name}`);
+                console.log(`🌍 [SceneLoader] Terrain: ${mesh.name} at pos(${mesh.position.x.toFixed(1)}, ${mesh.position.y.toFixed(1)}, ${mesh.position.z.toFixed(1)})`);
             } else if (firstChar === "B") {
                 // 建築物件 - 有碰撞、可透明化
                 this.setupBuildingMesh(mesh);
                 result.buildingMeshes.push(mesh);
                 this.buildingMeshes.push(mesh);
-                console.log(`🏢 [SceneLoader] Building: ${mesh.name}`);
+                console.log(`🏢 [SceneLoader] Building: ${mesh.name} at pos(${mesh.position.x.toFixed(1)}, ${mesh.position.y.toFixed(1)}, ${mesh.position.z.toFixed(1)})`);
             } else {
                 // 其他物件
                 result.otherMeshes.push(mesh);
-                console.log(`📦 [SceneLoader] Other: ${mesh.name}`);
+                // Phase 15: 顯示其他物件的位置（幫助調試）
+                console.log(`📦 [SceneLoader] Other: ${mesh.name} at pos(${mesh.position.x.toFixed(1)}, ${mesh.position.y.toFixed(1)}, ${mesh.position.z.toFixed(1)})`);
             }
         }
 
@@ -143,6 +163,10 @@ export class SceneLoaderSystem {
         console.log(`   - Terrain meshes: ${result.terrainMeshes.length}`);
         console.log(`   - Building meshes: ${result.buildingMeshes.length}`);
         console.log(`   - Other meshes: ${result.otherMeshes.length}`);
+        console.log(`📐 [SceneLoader] Scene bounds:`);
+        console.log(`   - X: ${minX.toFixed(1)} to ${maxX.toFixed(1)} (width: ${(maxX - minX).toFixed(1)})`);
+        console.log(`   - Y: ${minY.toFixed(1)} to ${maxY.toFixed(1)} (height: ${(maxY - minY).toFixed(1)})`);
+        console.log(`   - Z: ${minZ.toFixed(1)} to ${maxZ.toFixed(1)} (depth: ${(maxZ - minZ).toFixed(1)})`);
 
         return result;
     }
