@@ -7,9 +7,8 @@ import { BuildingOcclusionSystem } from "../systems/BuildingOcclusionSystem";
  *
  * 負責：
  * 1. 載入 CausewayBay.glb 場景（帶進度回調）
- * 2. 若載入失敗則使用程序化生成備案
- * 3. 管理建築物遮擋透明效果
- * 4. 處理地形與建築物的分類（T/B 命名規則）
+ * 2. 管理建築物遮擋透明效果
+ * 3. 處理地形與建築物的分類（T/B 命名規則）
  */
 export class SceneManager {
     private scene: BABYLON.Scene;
@@ -17,7 +16,6 @@ export class SceneManager {
     private occlusionSystem: BuildingOcclusionSystem;
     private terrainMeshes: BABYLON.AbstractMesh[] = [];
     private buildingMeshes: BABYLON.AbstractMesh[] = [];
-    private groundMesh: BABYLON.Mesh | null = null;
     private isLoaded: boolean = false;
 
     constructor(scene: BABYLON.Scene) {
@@ -35,114 +33,39 @@ export class SceneManager {
         console.log("🌍 [SceneManager] Initializing scene...");
 
         try {
-            // 嘗試載入 CausewayBay.glb
+            // 載入 CausewayBay.glb
             const result = await this.sceneLoader.loadScene("/maps/CausewayBay.glb", onProgress);
 
             // 設定地形和建築物
             this.terrainMeshes = result.terrainMeshes;
             this.buildingMeshes = result.buildingMeshes;
 
+            // 如果沒有分類到 T/B，將所有 mesh 當作可行走區域
+            if (this.terrainMeshes.length === 0 && result.otherMeshes.length > 0) {
+                console.log("⚠️ [SceneManager] No T-prefixed terrain found, treating all meshes as walkable");
+                // 將所有非建築物 mesh 設為可行走
+                result.otherMeshes.forEach(mesh => {
+                    mesh.isPickable = true;
+                    mesh.checkCollisions = true;
+                    this.terrainMeshes.push(mesh);
+                });
+            }
+
             // 設定遮擋系統
             this.occlusionSystem.setTerrainMeshes(this.terrainMeshes);
             this.occlusionSystem.setBuildingMeshes(this.buildingMeshes);
 
-            // 如果沒有地形，創建一個地面作為備案
-            if (this.terrainMeshes.length === 0) {
-                console.log("⚠️ [SceneManager] No terrain meshes found, creating ground plane");
-                this.createGroundPlane();
-            }
-
             this.isLoaded = true;
             console.log("✅ [SceneManager] Scene loaded successfully");
+            console.log(`   - Terrain meshes: ${this.terrainMeshes.length}`);
+            console.log(`   - Building meshes: ${this.buildingMeshes.length}`);
             return true;
         } catch (error) {
             console.error("❌ [SceneManager] Failed to load scene:", error);
-            console.log("⚠️ [SceneManager] Falling back to procedural generation");
-
-            // 回調到 100% 以完成進度條
             onProgress?.(100);
-
-            // 使用程序化生成備案
-            this.createFallbackScene();
-            return false;
+            this.isLoaded = false;
+            throw error; // 直接拋出錯誤，不使用備案場景
         }
-    }
-
-    /**
-     * 創建備案場景（程序化生成）
-     * 當 glb 載入失敗時使用
-     */
-    private createFallbackScene(): void {
-        console.log("🔧 [SceneManager] Creating fallback procedural scene");
-
-        // 創建地面
-        this.createGroundPlane();
-
-        // 創建簡單的測試建築物
-        this.createTestBuildings();
-
-        this.isLoaded = true;
-    }
-
-    /**
-     * 創建地面
-     */
-    private createGroundPlane(): void {
-        this.groundMesh = BABYLON.MeshBuilder.CreateGround(
-            "T_Ground",
-            { width: 200, height: 200 },
-            this.scene
-        );
-
-        const groundMat = new BABYLON.StandardMaterial("groundMat", this.scene);
-        groundMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-        this.groundMesh.material = groundMat;
-        this.groundMesh.checkCollisions = true;
-        this.groundMesh.isPickable = true;
-        this.groundMesh.metadata = { type: "terrain" };
-
-        this.terrainMeshes.push(this.groundMesh);
-        this.occlusionSystem.addTerrainMesh(this.groundMesh);
-    }
-
-    /**
-     * 創建測試用建築物（備案用）
-     */
-    private createTestBuildings(): void {
-        const positions = [
-            { x: -20, z: -20 },
-            { x: 20, z: -20 },
-            { x: -20, z: 20 },
-            { x: 20, z: 20 },
-            { x: 0, z: 30 },
-            { x: 0, z: -30 },
-        ];
-
-        positions.forEach((pos, index) => {
-            const height = 5 + Math.random() * 10;
-            const building = BABYLON.MeshBuilder.CreateBox(
-                `B_Building_${index}`,
-                { height, width: 8, depth: 8 },
-                this.scene
-            );
-
-            building.position.set(pos.x, height / 2, pos.z);
-
-            const buildingMat = new BABYLON.StandardMaterial(`B_Building_${index}_mat`, this.scene);
-            buildingMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.5);
-            buildingMat.alpha = 1.0;
-            buildingMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-            building.material = buildingMat;
-
-            building.checkCollisions = true;
-            building.isPickable = true;
-            building.metadata = { type: "building" };
-
-            this.buildingMeshes.push(building);
-            this.occlusionSystem.addBuildingMesh(building);
-        });
-
-        console.log(`🏢 [SceneManager] Created ${positions.length} test buildings`);
     }
 
     /**
@@ -209,11 +132,6 @@ export class SceneManager {
     dispose(): void {
         this.sceneLoader.dispose();
         this.occlusionSystem.dispose();
-
-        if (this.groundMesh) {
-            this.groundMesh.dispose();
-        }
-
         this.terrainMeshes = [];
         this.buildingMeshes = [];
         this.isLoaded = false;
