@@ -11,7 +11,6 @@ import * as BABYLON from "@babylonjs/core";
  */
 export class DebugUISystem {
     private scene: BABYLON.Scene;
-    private engine: BABYLON.Engine;
     private container: HTMLElement | null = null;
     private fpsElement: HTMLElement | null = null;
     private polygonsElement: HTMLElement | null = null;
@@ -21,7 +20,6 @@ export class DebugUISystem {
 
     constructor(scene: BABYLON.Scene) {
         this.scene = scene;
-        this.engine = scene.getEngine();
         this.createUI();
         this.startUpdate();
     }
@@ -92,8 +90,10 @@ export class DebugUISystem {
      * 更新 Debug 資訊
      */
     private update(): void {
+        const engine = this.scene.getEngine();
+
         // FPS
-        const fps = this.engine.getFps();
+        const fps = engine.getFps();
         if (this.fpsElement) {
             this.fpsElement.textContent = `FPS: ${fps.toFixed(1)}`;
             // FPS 低於 30 時變紅色警告
@@ -109,10 +109,10 @@ export class DebugUISystem {
 
         this.scene.meshes.forEach((mesh) => {
             if (mesh.isEnabled() && mesh.isVisible) {
-                const geometry = mesh.geometry;
-                if (geometry) {
-                    totalVertices += geometry.getTotalVertices();
-                    totalIndices += geometry.getTotalIndices();
+                // 檢查是否為 Mesh 類型（有 geometry 屬性）
+                if (mesh instanceof BABYLON.Mesh && mesh.geometry) {
+                    totalVertices += mesh.geometry.getTotalVertices();
+                    totalIndices += mesh.geometry.getTotalIndices();
                 }
             }
         });
@@ -129,10 +129,9 @@ export class DebugUISystem {
             this.trianglesElement.textContent = `Triangles: ${this.formatNumber(triangles)}`;
         }
 
-        // Draw Calls (使用 instrumentation)
-        const drawCalls = this.scene.getEngine()._drawCalls?.current || activeMeshes;
+        // Draw Calls (使用 active meshes 作為估算)
         if (this.drawCallsElement) {
-            this.drawCallsElement.textContent = `Draw Calls: ${drawCalls}`;
+            this.drawCallsElement.textContent = `Draw Calls: ~${activeMeshes}`;
         }
     }
 
