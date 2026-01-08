@@ -107,22 +107,18 @@ export class SceneLoaderSystem {
             rootMesh: null
         };
 
-        // Phase 15: 調試 - 計算場景邊界
+        // Phase 15: 第一遍 - 找到 root mesh 並計算場景邊界
         let minX = Infinity, maxX = -Infinity;
         let minY = Infinity, maxY = -Infinity;
         let minZ = Infinity, maxZ = -Infinity;
 
         for (const mesh of meshes) {
-            // 跳過 __root__ 節點
             if (mesh.name === "__root__") {
                 result.rootMesh = mesh;
-                // 設定根節點位置到原點，朝向北方
-                mesh.position = BABYLON.Vector3.Zero();
-                mesh.rotation = BABYLON.Vector3.Zero();
                 continue;
             }
 
-            // Phase 15: 計算邊界框用於調試
+            // 計算邊界框
             mesh.computeWorldMatrix(true);
             const boundingInfo = mesh.getBoundingInfo();
             if (boundingInfo) {
@@ -135,6 +131,32 @@ export class SceneLoaderSystem {
                 minZ = Math.min(minZ, min.z);
                 maxZ = Math.max(maxZ, max.z);
             }
+        }
+
+        // Phase 15: 計算場景中心並偏移到原點
+        const centerX = (minX + maxX) / 2;
+        const centerY = minY; // 使用最低點作為地面高度
+        const centerZ = (minZ + maxZ) / 2;
+
+        console.log(`📐 [SceneLoader] Original scene center: (${centerX.toFixed(1)}, ${centerY.toFixed(1)}, ${centerZ.toFixed(1)})`);
+        console.log(`📐 [SceneLoader] Scene bounds BEFORE centering:`);
+        console.log(`   - X: ${minX.toFixed(1)} to ${maxX.toFixed(1)} (width: ${(maxX - minX).toFixed(1)})`);
+        console.log(`   - Y: ${minY.toFixed(1)} to ${maxY.toFixed(1)} (height: ${(maxY - minY).toFixed(1)})`);
+        console.log(`   - Z: ${minZ.toFixed(1)} to ${maxZ.toFixed(1)} (depth: ${(maxZ - minZ).toFixed(1)})`);
+
+        // 如果有 root mesh，偏移它來讓整個場景居中
+        if (result.rootMesh) {
+            result.rootMesh.position = new BABYLON.Vector3(-centerX, -centerY, -centerZ);
+            result.rootMesh.rotation = BABYLON.Vector3.Zero();
+            console.log(`🔄 [SceneLoader] Root mesh offset to: (${-centerX.toFixed(1)}, ${-centerY.toFixed(1)}, ${-centerZ.toFixed(1)})`);
+        }
+
+        // Phase 15: 第二遍 - 分類所有 mesh（在偏移之後）
+        for (const mesh of meshes) {
+            if (mesh.name === "__root__") continue;
+
+            // 重新計算世界矩陣（因為 root 已經偏移）
+            mesh.computeWorldMatrix(true);
 
             // 根據名稱首字母分類
             const firstChar = mesh.name.charAt(0).toUpperCase();
@@ -144,18 +166,35 @@ export class SceneLoaderSystem {
                 this.setupTerrainMesh(mesh);
                 result.terrainMeshes.push(mesh);
                 this.terrainMeshes.push(mesh);
-                console.log(`🌍 [SceneLoader] Terrain: ${mesh.name} at pos(${mesh.position.x.toFixed(1)}, ${mesh.position.y.toFixed(1)}, ${mesh.position.z.toFixed(1)})`);
+                console.log(`🌍 [SceneLoader] Terrain: ${mesh.name}`);
             } else if (firstChar === "B") {
                 // 建築物件 - 有碰撞、可透明化
                 this.setupBuildingMesh(mesh);
                 result.buildingMeshes.push(mesh);
                 this.buildingMeshes.push(mesh);
-                console.log(`🏢 [SceneLoader] Building: ${mesh.name} at pos(${mesh.position.x.toFixed(1)}, ${mesh.position.y.toFixed(1)}, ${mesh.position.z.toFixed(1)})`);
+                // 減少 log 輸出，只顯示前 5 個
+                if (result.buildingMeshes.length <= 5) {
+                    console.log(`🏢 [SceneLoader] Building: ${mesh.name}`);
+                }
             } else {
                 // 其他物件
                 result.otherMeshes.push(mesh);
-                // Phase 15: 顯示其他物件的位置（幫助調試）
-                console.log(`📦 [SceneLoader] Other: ${mesh.name} at pos(${mesh.position.x.toFixed(1)}, ${mesh.position.y.toFixed(1)}, ${mesh.position.z.toFixed(1)})`);
+            }
+        }
+
+        // 顯示最終邊界（偏移後）
+        let newMinX = Infinity, newMaxX = -Infinity;
+        let newMinZ = Infinity, newMaxZ = -Infinity;
+        for (const mesh of meshes) {
+            if (mesh.name === "__root__") continue;
+            const boundingInfo = mesh.getBoundingInfo();
+            if (boundingInfo) {
+                const min = boundingInfo.boundingBox.minimumWorld;
+                const max = boundingInfo.boundingBox.maximumWorld;
+                newMinX = Math.min(newMinX, min.x);
+                newMaxX = Math.max(newMaxX, max.x);
+                newMinZ = Math.min(newMinZ, min.z);
+                newMaxZ = Math.max(newMaxZ, max.z);
             }
         }
 
@@ -163,10 +202,9 @@ export class SceneLoaderSystem {
         console.log(`   - Terrain meshes: ${result.terrainMeshes.length}`);
         console.log(`   - Building meshes: ${result.buildingMeshes.length}`);
         console.log(`   - Other meshes: ${result.otherMeshes.length}`);
-        console.log(`📐 [SceneLoader] Scene bounds:`);
-        console.log(`   - X: ${minX.toFixed(1)} to ${maxX.toFixed(1)} (width: ${(maxX - minX).toFixed(1)})`);
-        console.log(`   - Y: ${minY.toFixed(1)} to ${maxY.toFixed(1)} (height: ${(maxY - minY).toFixed(1)})`);
-        console.log(`   - Z: ${minZ.toFixed(1)} to ${maxZ.toFixed(1)} (depth: ${(maxZ - minZ).toFixed(1)})`);
+        console.log(`📐 [SceneLoader] Scene bounds AFTER centering:`);
+        console.log(`   - X: ${newMinX.toFixed(1)} to ${newMaxX.toFixed(1)}`);
+        console.log(`   - Z: ${newMinZ.toFixed(1)} to ${newMaxZ.toFixed(1)}`);
 
         return result;
     }
