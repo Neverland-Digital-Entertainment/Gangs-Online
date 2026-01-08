@@ -144,26 +144,29 @@ export class SceneLoaderSystem {
         console.log(`   - Y: ${minY.toFixed(1)} to ${maxY.toFixed(1)} (height: ${(maxY - minY).toFixed(1)})`);
         console.log(`   - Z: ${minZ.toFixed(1)} to ${maxZ.toFixed(1)} (depth: ${(maxZ - minZ).toFixed(1)})`);
 
-        // Phase 15: 直接偏移每個 mesh（而非只偏移 root）
-        // 這是因為 GLB 中的 mesh 可能使用絕對座標而非相對於 root
+        // Phase 15: 計算偏移量
         const offsetX = -centerX;
         const offsetY = -centerY;
         const offsetZ = -centerZ;
-        console.log(`🔄 [SceneLoader] Applying offset to all meshes: (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)}, ${offsetZ.toFixed(1)})`);
+        console.log(`🔄 [SceneLoader] Applying offset: (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)}, ${offsetZ.toFixed(1)})`);
 
-        // Phase 15: 第二遍 - 偏移並分類所有 mesh
+        // Phase 15: 第二遍 - 使用絕對座標偏移每個 mesh
         for (const mesh of meshes) {
             if (mesh.name === "__root__") {
-                // 重置 root 位置
-                mesh.position = BABYLON.Vector3.Zero();
-                mesh.rotation = BABYLON.Vector3.Zero();
+                result.rootMesh = mesh;
                 continue;
             }
 
-            // 直接偏移 mesh 位置（處理非父子關係的 mesh）
-            mesh.position.x += offsetX;
-            mesh.position.y += offsetY;
-            mesh.position.z += offsetZ;
+            // 獲取當前世界座標
+            const worldPos = mesh.getAbsolutePosition();
+
+            // 計算新的世界座標
+            const newX = worldPos.x + offsetX;
+            const newY = worldPos.y + offsetY;
+            const newZ = worldPos.z + offsetZ;
+
+            // 使用 setAbsolutePosition 設定新的世界座標（忽略父子關係）
+            mesh.setAbsolutePosition(new BABYLON.Vector3(newX, newY, newZ));
 
             // 重新計算世界矩陣
             mesh.computeWorldMatrix(true);
