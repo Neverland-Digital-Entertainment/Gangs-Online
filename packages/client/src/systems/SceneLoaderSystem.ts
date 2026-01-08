@@ -1,5 +1,15 @@
 import * as BABYLON from "@babylonjs/core";
 import "@babylonjs/loaders/glTF";
+import { DracoCompression } from "@babylonjs/core/Meshes/Compression/dracoCompression";
+
+// 配置 Draco 解碼器 (Phase 15: 支援 Draco 壓縮的 GLB)
+DracoCompression.Configuration = {
+    decoder: {
+        wasmUrl: "https://preview.babylonjs.com/draco_wasm_wrapper_gltf.js",
+        wasmBinaryUrl: "https://preview.babylonjs.com/draco_decoder_gltf.wasm",
+        fallbackUrl: "https://preview.babylonjs.com/draco_decoder_gltf.js"
+    }
+};
 
 /**
  * 場景載入結果 (Phase 15)

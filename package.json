@@ -8,5 +8,8 @@
     "dev:server": "npm run dev --workspace=@gangs-online/server",
     "dev:client": "npm run dev --workspace=@gangs-online/client",
     "build": "npm run build --workspaces"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "^4.3.0"
   }
 }
