@@ -144,18 +144,28 @@ export class SceneLoaderSystem {
         console.log(`   - Y: ${minY.toFixed(1)} to ${maxY.toFixed(1)} (height: ${(maxY - minY).toFixed(1)})`);
         console.log(`   - Z: ${minZ.toFixed(1)} to ${maxZ.toFixed(1)} (depth: ${(maxZ - minZ).toFixed(1)})`);
 
-        // 如果有 root mesh，偏移它來讓整個場景居中
-        if (result.rootMesh) {
-            result.rootMesh.position = new BABYLON.Vector3(-centerX, -centerY, -centerZ);
-            result.rootMesh.rotation = BABYLON.Vector3.Zero();
-            console.log(`🔄 [SceneLoader] Root mesh offset to: (${-centerX.toFixed(1)}, ${-centerY.toFixed(1)}, ${-centerZ.toFixed(1)})`);
-        }
+        // Phase 15: 直接偏移每個 mesh（而非只偏移 root）
+        // 這是因為 GLB 中的 mesh 可能使用絕對座標而非相對於 root
+        const offsetX = -centerX;
+        const offsetY = -centerY;
+        const offsetZ = -centerZ;
+        console.log(`🔄 [SceneLoader] Applying offset to all meshes: (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)}, ${offsetZ.toFixed(1)})`);
 
-        // Phase 15: 第二遍 - 分類所有 mesh（在偏移之後）
+        // Phase 15: 第二遍 - 偏移並分類所有 mesh
         for (const mesh of meshes) {
-            if (mesh.name === "__root__") continue;
+            if (mesh.name === "__root__") {
+                // 重置 root 位置
+                mesh.position = BABYLON.Vector3.Zero();
+                mesh.rotation = BABYLON.Vector3.Zero();
+                continue;
+            }
 
-            // 重新計算世界矩陣（因為 root 已經偏移）
+            // 直接偏移 mesh 位置（處理非父子關係的 mesh）
+            mesh.position.x += offsetX;
+            mesh.position.y += offsetY;
+            mesh.position.z += offsetZ;
+
+            // 重新計算世界矩陣
             mesh.computeWorldMatrix(true);
 
             // 根據名稱首字母分類
