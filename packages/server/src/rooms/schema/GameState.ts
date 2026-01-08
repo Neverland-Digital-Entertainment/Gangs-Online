@@ -1,5 +1,5 @@
 import { Schema, MapSchema, ArraySchema, type } from "@colyseus/schema";
-import { IEnemyData, ILootData, IItem, IQuestState, EntityType, ItemType, PlayerRole } from "@gangs-online/shared";
+import { IEnemyData, ILootData, IItem, IQuestState, EntityType, ItemType, PlayerRole, NPCType } from "@gangs-online/shared";
 
 /**
  * Item Schema (Phase 8)
@@ -58,6 +58,11 @@ export class Player extends Schema {
     // Guild System (Phase 13)
     @type("string") guildId: string = "";
     @type("string") guildName: string = "";
+
+    // Evil Value & Prison System (Phase 14)
+    @type("number") evilValue: number = 0; // 罪惡值 (0-3)
+    @type("boolean") inPrison: boolean = false; // 是否在監獄中
+    @type("number") prisonReleaseTime: number = 0; // 釋放時間戳
 }
 
 /**
@@ -71,7 +76,7 @@ export class Loot extends Schema implements ILootData {
 }
 
 /**
- * Enemy Schema for PVE System (Phase 9: 也用於 NPC)
+ * Enemy Schema for PVE System (Phase 9: 也用於 NPC, Phase 14: 擴展 NPC 類型)
  */
 export class Enemy extends Schema implements IEnemyData {
     @type("string") id: string = "";
@@ -82,6 +87,8 @@ export class Enemy extends Schema implements IEnemyData {
     @type("string") name: string = "街頭混混";
     @type("string") state: 'idle' | 'chase' | 'attack' = "idle";
     @type("string") type: EntityType = "enemy"; // Phase 9: 可以是 'enemy' 或 'npc'
+    @type("string") npcType: NPCType = "gangs"; // Phase 14: NPC 類型 (citizen, police, gangs, shop, quest)
+    @type("number") attack: number = 5; // Phase 14: 攻擊力
 }
 
 /**

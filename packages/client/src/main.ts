@@ -1,7 +1,7 @@
 import * as BABYLON from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import * as Client from "colyseus.js";
-import { PlayerData, IEnemyData, EntityType, GAME_CONSTANTS } from "@gangs-online/shared";
+import { PlayerData, IEnemyData, EntityType, GAME_CONSTANTS, PRISON_CONSTANTS } from "@gangs-online/shared";
 import "@babylonjs/loaders";
 import { GAME_VERSION } from "./version";
 
@@ -271,6 +271,15 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 playerManager.updateCombatState(sessionId, !!(targetId && targetId !== ""));
             });
 
+            // Phase 14: 監聽所有玩家的罪惡值變化（更新名字顏色）
+            player.listen("evilValue", (evilValue: number) => {
+                const isWanted = evilValue > 0;
+                const entity = playerManager.getEntity(sessionId);
+                if (entity && entity.ui && uiSystem) {
+                    uiSystem.setPlayerWantedState(entity.ui, isWanted);
+                }
+            });
+
             // Phase 11: 記錄之前的等級用於升級反饋
             let prevLevel = player.level;
             player.listen("level", (newLevel: number) => {
@@ -404,7 +413,52 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 hudManager?.setOnChatChannelChange((channel) => {
                     chatSystem.setChannel(channel);
                 });
+
+                // Phase 14: 監聽罪惡值變化
+                player.listen("evilValue", (evilValue: number) => {
+                    const isWanted = evilValue > 0;
+                    hudManager?.setWanted(isWanted);
+
+                    // 更新自己的名字顏色
+                    const entity = playerManager.getEntity(sessionId);
+                    if (entity && entity.ui && uiSystem) {
+                        uiSystem.setPlayerWantedState(entity.ui, isWanted);
+                    }
+                });
+
+                // Phase 14: 監聽監獄狀態變化（本地玩家專用 UI）
+                player.listen("inPrison", (inPrison: boolean) => {
+                    if (inPrison) {
+                        console.log("🔒 [Phase 14] 你被送進監獄了！");
+                        // Show prison overlay with countdown
+                        const releaseTime = (player as any).prisonReleaseTime || (Date.now() + 30000);
+                        hudManager?.showPrisonOverlay(releaseTime);
+                    } else {
+                        console.log("🔓 [Phase 14] 你已從監獄釋放！");
+                        hudManager?.hidePrisonOverlay();
+                    }
+                });
+
+                // Phase 14: 初始化罪惡值狀態
+                const initialEvilValue = (player as any).evilValue || 0;
+                if (initialEvilValue > 0) {
+                    hudManager?.setWanted(true);
+                }
             }
+
+            // Phase 14: 監聽所有玩家的監獄狀態變化（用於傳送）
+            // 這個監聯在 if (isSelf) 區塊外面，所以對所有玩家都有效
+            player.listen("inPrison", (inPrison: boolean) => {
+                if (inPrison) {
+                    // 瞬間傳送到監獄位置（跳過走路動畫）
+                    playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.PRISON_X, PRISON_CONSTANTS.PRISON_Z);
+                    console.log(`🔒 [Phase 14] 玩家 ${sessionId} 被傳送到監獄`);
+                } else {
+                    // 瞬間傳送到釋放點
+                    playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.RELEASE_X, PRISON_CONSTANTS.RELEASE_Z);
+                    console.log(`🔓 [Phase 14] 玩家 ${sessionId} 從監獄釋放`);
+                }
+            });
         });
 
         // 移除玩家
@@ -526,8 +580,15 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
             switch (target.type) {
                 case 'loot':
-                case 'npc':
                     canvas.style.cursor = "pointer";
+                    break;
+                case 'npc':
+                    // Phase 14: 市民和警察 NPC 可攻擊，顯示攻擊游標
+                    if (target.id?.startsWith("npc_citizen_") || target.id?.startsWith("npc_police_")) {
+                        canvas.style.cursor = "crosshair";
+                    } else {
+                        canvas.style.cursor = "pointer";
+                    }
                     break;
                 case 'enemy':
                 case 'player':
@@ -575,11 +636,36 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 console.log("👔 Clicked NPC:", target.id);
                 if (target.id === "npc_quest") {
                     hudManager.showPopup("任務", "quest");
+                    return;
                 } else if (target.id === "npc_shopkeeper") {
                     // Phase 11: 只有點擊商店 NPC 才會顯示商店
                     hudManager.showShopPopup();
+                    return;
                 }
-                // 其他 NPC 不開啟商店
+                // Phase 14: 市民和警察 NPC 可以被攻擊（發送 enemy 類型給伺服器）
+                if (target.id.startsWith("npc_citizen_") || target.id.startsWith("npc_police_")) {
+                    const myEntity = playerManager.getEntity(mySessionId!);
+                    if (myEntity && target.mesh) {
+                        const targetPos = target.mesh.position;
+                        const dx = myEntity.mesh.position.x - targetPos.x;
+                        const dz = myEntity.mesh.position.z - targetPos.z;
+                        const dist = Math.sqrt(dx * dx + dz * dz);
+
+                        if (dist <= GAME_CONSTANTS.ATTACK_RANGE) {
+                            const targetName = target.id.startsWith("npc_police_") ? "police" : "citizen";
+                            console.log(`🗡️ Attacking ${targetName}:`, target.id);
+                            soundManager.playMissSound();
+                            room.send("attack", { targetId: target.id, type: "enemy" as EntityType });
+                        } else {
+                            const targetName = target.id.startsWith("npc_police_") ? "police" : "citizen";
+                            console.log(`🚶 Walking to ${targetName}:`, target.id);
+                            pendingAttack = { targetId: target.id, targetType: "enemy", x: targetPos.x, z: targetPos.z };
+                            room.send("move", { x: targetPos.x, z: targetPos.z });
+                        }
+                    }
+                    return;
+                }
+                // 其他 NPC（商店、任務）不能直接攻擊
                 return;
             }
 

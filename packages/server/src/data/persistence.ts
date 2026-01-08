@@ -51,6 +51,8 @@ export const savePlayer = async (player: Player, firebaseUid: string): Promise<b
         inventory: inventory,
         activeQuest: activeQuest,
         // Phase 13: 幫會資料現在只存在 guilds 集合，不再存在 players
+        // Phase 14: 罪惡值（登出時保存，但監獄釋放會重置）
+        evilValue: player.evilValue,
         lastOnline: getFieldValue().serverTimestamp()
     };
 
@@ -139,6 +141,11 @@ export const loadPlayer = async (
                 player.guildId = "";
                 player.guildName = "";
             }
+
+            // Phase 14: 還原罪惡值（監獄狀態不保存，登入時一律不在監獄）
+            player.evilValue = saved.evilValue ?? 0;
+            player.inPrison = false; // 登入時不在監獄
+            player.prisonReleaseTime = 0;
 
             console.log(`[Persistence] Player ${saved.name} restored successfully.`);
             return true;

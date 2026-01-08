@@ -84,7 +84,9 @@ export class EnemyManager {
         if (idleAnim) idleAnim.play(true);
 
         // 創建 UI（名稱和血條）- Phase 7: 傳遞等級（敵人通常是 1 級）
-        const ui = this.uiSystem.createEntityUI(root as BABYLON.Mesh, enemyData.name, true, 1);
+        // Phase 14: NPC 名字為白色，只有敵對怪物（gangs）才顯示紅色
+        const isHostile = !isNPC; // NPC 不敵對，敵人才敵對
+        const ui = this.uiSystem.createEntityUI(root as BABYLON.Mesh, enemyData.name, true, 1, isHostile);
 
         const entity: EnemyEntity = {
             mesh: root,
@@ -100,22 +102,28 @@ export class EnemyManager {
 
         this.enemies.set(enemyId, entity);
 
-        // Phase 9: NPC 不需要監聽位置變化（靜態）
-        if (!isNPC) {
+        // Phase 14: 市民 NPC 需要監聽 HP 變化（可被攻擊）
+        const isCitizen = enemyId.startsWith("npc_citizen_");
+        const isPolice = enemyId.startsWith("npc_police_");
+
+        // Phase 9: 大部分 NPC 不需要監聽位置變化（靜態），但警察會移動
+        if (!isNPC || isPolice) {
             // 監聽位置變化
             enemyData.onChange(() => {
                 entity.targetX = enemyData.x;
                 entity.targetZ = enemyData.z;
             });
 
-            // 監聽血量變化
-            enemyData.listen("hp", (currentHp: number) => {
-                this.updateHealth(enemyId, currentHp, enemyData.maxHp);
-            });
-
             // 監聽狀態變化（閒置、追逐、攻擊）
             enemyData.listen("state", (state: string) => {
                 this.updateState(enemyId, state as "idle" | "chase" | "attack");
+            });
+        }
+
+        // 監聯血量變化（敵人、市民和警察 NPC）
+        if (!isNPC || isCitizen || isPolice) {
+            enemyData.listen("hp", (currentHp: number) => {
+                this.updateHealth(enemyId, currentHp, enemyData.maxHp);
             });
         }
 
@@ -137,12 +145,13 @@ export class EnemyManager {
     }
 
     /**
-     * 更新所有敵人（每幀調用）- Phase 9: 跳過 NPC
+     * 更新所有敵人（每幀調用）- Phase 9: 跳過靜態 NPC, Phase 14: 警察會移動
      */
     updateAll(): void {
         this.enemies.forEach((entity, enemyId) => {
-            // Phase 9: 跳過 NPC（NPC 是靜態的，不需要移動）
-            if (entity.type === 'npc') {
+            // Phase 9: 跳過靜態 NPC（商店、任務、市民）
+            // Phase 14: 警察 NPC 會移動
+            if (entity.type === 'npc' && !enemyId.startsWith("npc_police_")) {
                 return;
             }
 

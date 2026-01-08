@@ -116,6 +116,34 @@ export class PlayerManager {
     }
 
     /**
+     * Phase 14: 瞬間傳送玩家（跳過移動動畫）
+     * 用於監獄傳送等需要立即移動的情況
+     */
+    teleportPlayer(sessionId: string, x: number, z: number): void {
+        const entity = this.playerEntities[sessionId];
+        if (entity) {
+            // 立即設置 mesh 位置
+            entity.mesh.position.x = x;
+            entity.mesh.position.z = z;
+
+            // 同步更新目標位置，避免之後又走回去
+            if (this.playerTargets[sessionId]) {
+                this.playerTargets[sessionId].x = x;
+                this.playerTargets[sessionId].z = z;
+            }
+
+            // 切換到 idle 動畫
+            if (entity.currentAnim !== "idle") {
+                if (entity.runAnim) entity.runAnim.stop();
+                if (entity.idleAnim) entity.idleAnim.play(true);
+                entity.currentAnim = "idle";
+            }
+
+            console.log(`🚀 [Teleport] Player ${sessionId} teleported to (${x}, ${z})`);
+        }
+    }
+
+    /**
      * 更新玩家血量顯示
      */
     updateHealth(sessionId: string, currentHp: number, maxHp: number): void {
