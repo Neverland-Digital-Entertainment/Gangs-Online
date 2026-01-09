@@ -16,11 +16,48 @@ export class PlayerManager {
     private weaponSystem: WeaponSystem;
     private playerEntities: { [sessionId: string]: PlayerEntity } = {};
     private playerTargets: { [sessionId: string]: PlayerTarget } = {};
+    private groundMeshes: BABYLON.AbstractMesh[] = []; // Phase 15: 地面偵測用
 
     constructor(scene: BABYLON.Scene, uiSystem: UISystem, weaponSystem: WeaponSystem) {
         this.scene = scene;
         this.uiSystem = uiSystem;
         this.weaponSystem = weaponSystem;
+    }
+
+    /**
+     * Phase 15: 設定可行走的地面 mesh（用於地面偵測）
+     */
+    setGroundMeshes(meshes: BABYLON.AbstractMesh[]): void {
+        this.groundMeshes = meshes;
+        console.log(`🌍 [PlayerManager] Ground meshes set: ${meshes.length}`);
+    }
+
+    /**
+     * Phase 15: 獲取指定位置的地面高度
+     * 使用射線從上往下偵測
+     */
+    getGroundHeight(x: number, z: number): number {
+        // 從高處往下發射射線
+        const rayOrigin = new BABYLON.Vector3(x, 500, z);
+        const rayDirection = new BABYLON.Vector3(0, -1, 0);
+        const ray = new BABYLON.Ray(rayOrigin, rayDirection, 1000);
+
+        // 只檢測地面 mesh
+        const predicate = (mesh: BABYLON.AbstractMesh) => {
+            // 檢查是否在地面列表中，或是 T 開頭的地形
+            return this.groundMeshes.includes(mesh) ||
+                   mesh.name.toUpperCase().startsWith("T") ||
+                   mesh.metadata?.type === "terrain";
+        };
+
+        const hit = this.scene.pickWithRay(ray, predicate);
+
+        if (hit?.hit && hit.pickedPoint) {
+            return hit.pickedPoint.y;
+        }
+
+        // 如果沒偵測到地面，返回 0
+        return 0;
     }
 
     /**
@@ -193,7 +230,7 @@ export class PlayerManager {
                 // Threshold to stop moving
                 if (dist > 0.1) {
                     // --- MOVEMENT WITH COLLISIONS ---
-                    const velocity = new BABYLON.Vector3(dx, -0.5, dz)
+                    const velocity = new BABYLON.Vector3(dx, 0, dz)
                         .normalize()
                         .scale(config.moveSpeed);
 
@@ -207,8 +244,9 @@ export class PlayerManager {
                     const currentRotation = mesh.rotation.y;
                     mesh.rotation.y = BABYLON.Scalar.Lerp(currentRotation, targetAngle, 0.2);
 
-                    // Move!
-                    mesh.moveWithCollisions(velocity);
+                    // Move horizontally
+                    mesh.position.x += velocity.x;
+                    mesh.position.z += velocity.z;
 
                     // Play Run Animation
                     if (entity.currentAnim !== "run") {
@@ -224,6 +262,11 @@ export class PlayerManager {
                         entity.currentAnim = "idle";
                     }
                 }
+
+                // Phase 15: 地面偵測 - 讓角色貼地行走
+                const groundY = this.getGroundHeight(mesh.position.x, mesh.position.z);
+                // 平滑過渡到地面高度
+                mesh.position.y = BABYLON.Scalar.Lerp(mesh.position.y, groundY, 0.3);
             }
         }
     }
