@@ -245,27 +245,24 @@ export class SceneLoaderSystem {
         // 設定 metadata 標記為建築
         mesh.metadata = { ...mesh.metadata, type: "building" };
 
-        // 為建築物創建獨立材質以便控制透明度
+        // Phase 15: 為建築物準備透明度設定（支援 PBR 和 Standard 材質）
         if (mesh.material) {
-            // 複製現有材質
-            const originalMat = mesh.material as BABYLON.StandardMaterial;
-            const buildingMat = originalMat.clone(`${mesh.name}_mat`);
+            // 複製現有材質以避免影響其他使用相同材質的 mesh
+            const clonedMat = mesh.material.clone(`${mesh.name}_mat`);
 
-            if (buildingMat instanceof BABYLON.StandardMaterial) {
-                buildingMat.alpha = 1.0;
-                // 啟用透明度需要的設定
-                buildingMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-                mesh.material = buildingMat;
-                this.buildingMaterials.set(mesh, buildingMat);
+            if (clonedMat) {
+                mesh.material = clonedMat;
+
+                // 根據材質類型設定透明度支援
+                if (clonedMat instanceof BABYLON.PBRMaterial) {
+                    clonedMat.alpha = 1.0;
+                    // PBR 材質預設不透明，但準備好切換
+                    clonedMat.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
+                } else if (clonedMat instanceof BABYLON.StandardMaterial) {
+                    clonedMat.alpha = 1.0;
+                    clonedMat.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
+                }
             }
-        } else {
-            // 如果沒有材質，創建一個預設材質
-            const buildingMat = new BABYLON.StandardMaterial(`${mesh.name}_mat`, this.scene);
-            buildingMat.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-            buildingMat.alpha = 1.0;
-            buildingMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-            mesh.material = buildingMat;
-            this.buildingMaterials.set(mesh, buildingMat);
         }
     }
 

@@ -101,18 +101,37 @@ export class BuildingOcclusionSystem {
      * 設定建築物透明度
      */
     private setBuildingAlpha(building: BABYLON.AbstractMesh, alpha: number): void {
-        if (building.material instanceof BABYLON.StandardMaterial) {
-            building.material.alpha = alpha;
-        } else if (building.material instanceof BABYLON.PBRMaterial) {
-            building.material.alpha = alpha;
-        }
+        const setMaterialAlpha = (material: BABYLON.Material | null) => {
+            if (!material) return;
+
+            if (material instanceof BABYLON.PBRMaterial) {
+                // PBR 材質需要特殊處理
+                material.alpha = alpha;
+                if (alpha < 1.0) {
+                    material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+                    material.backFaceCulling = false; // 顯示背面
+                } else {
+                    material.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
+                    material.backFaceCulling = true;
+                }
+            } else if (material instanceof BABYLON.StandardMaterial) {
+                material.alpha = alpha;
+                if (alpha < 1.0) {
+                    material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+                    material.backFaceCulling = false;
+                } else {
+                    material.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
+                    material.backFaceCulling = true;
+                }
+            }
+        };
+
+        // 處理主材質
+        setMaterialAlpha(building.material);
+
         // 處理子 mesh
         building.getChildMeshes().forEach((child) => {
-            if (child.material instanceof BABYLON.StandardMaterial) {
-                child.material.alpha = alpha;
-            } else if (child.material instanceof BABYLON.PBRMaterial) {
-                child.material.alpha = alpha;
-            }
+            setMaterialAlpha(child.material);
         });
     }
 
