@@ -14,7 +14,7 @@ export class BuildingOcclusionSystem {
     private buildingMeshes: BABYLON.AbstractMesh[] = [];
     private terrainMeshes: BABYLON.AbstractMesh[] = [];
     private occludedBuildings: Set<BABYLON.AbstractMesh> = new Set();
-    private readonly TRANSPARENT_ALPHA = 0.3;
+    private readonly TRANSPARENT_ALPHA = 0.2;
     private readonly OPAQUE_ALPHA = 1.0;
 
     constructor(scene: BABYLON.Scene) {

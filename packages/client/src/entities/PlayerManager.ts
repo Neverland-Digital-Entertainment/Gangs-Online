@@ -244,9 +244,8 @@ export class PlayerManager {
                     const currentRotation = mesh.rotation.y;
                     mesh.rotation.y = BABYLON.Scalar.Lerp(currentRotation, targetAngle, 0.2);
 
-                    // Move horizontally
-                    mesh.position.x += velocity.x;
-                    mesh.position.z += velocity.z;
+                    // Phase 15: 使用 moveWithCollisions 處理碰撞
+                    mesh.moveWithCollisions(velocity);
 
                     // Play Run Animation
                     if (entity.currentAnim !== "run") {
