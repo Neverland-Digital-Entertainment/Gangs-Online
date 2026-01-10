@@ -41,6 +41,10 @@ export function createIsometricCamera(scene: BABYLON.Scene, engine: BABYLON.Engi
     camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
     camera.setTarget(BABYLON.Vector3.Zero());
 
+    // Phase 15: 設定裁剪平面，避免遠處建築物被切掉
+    camera.minZ = 0.1;    // 近裁剪面
+    camera.maxZ = 2000;   // 遠裁剪面（確保能看到整個場景）
+
     // 初始化正交邊界
     updateCameraOrtho(camera, engine);
 
