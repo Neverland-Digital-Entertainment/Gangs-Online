@@ -353,13 +353,13 @@ export const EVIL_VALUE_CONSTANTS = {
  * 監獄系統常數（Phase 14）
  */
 export const PRISON_CONSTANTS = {
-    // 監獄位置（隔離區）
-    PRISON_X: -50,
-    PRISON_Z: -50,
-    PRISON_RADIUS: 5.0, // 監獄活動範圍
-    // 釋放後重生點（銅鑼灣）
+    // Phase 15: 監獄位置（場景西北角，避開建築物）
+    PRISON_X: -350,
+    PRISON_Z: 500,
+    PRISON_RADIUS: 10.0, // 監獄活動範圍
+    // Phase 15: 釋放後重生點（場景南邊道路）
     RELEASE_X: 0,
-    RELEASE_Z: 0,
+    RELEASE_Z: -450,
 };
 
 /**
