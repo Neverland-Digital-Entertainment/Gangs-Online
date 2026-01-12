@@ -1,26 +1,28 @@
 import * as BABYLON from "@babylonjs/core";
-import { SceneLoaderSystem, SceneLoadResult } from "../systems/SceneLoaderSystem";
+import { ChunkLoaderSystem, LoadedChunk } from "../systems/ChunkLoaderSystem";
 import { BuildingOcclusionSystem } from "../systems/BuildingOcclusionSystem";
 
 /**
- * 場景管理器 (Phase 15)
+ * 場景管理器 (Phase 15 - Chunk Loading)
  *
  * 負責：
- * 1. 載入 CausewayBay.glb 場景（帶進度回調）
+ * 1. 使用 ChunkLoaderSystem 載入地圖 chunks
  * 2. 管理建築物遮擋透明效果
  * 3. 處理地形與建築物的分類（T/B 命名規則）
+ * 4. 提供玩家起始位置
  */
 export class SceneManager {
     private scene: BABYLON.Scene;
-    private sceneLoader: SceneLoaderSystem;
+    private chunkLoader: ChunkLoaderSystem;
     private occlusionSystem: BuildingOcclusionSystem;
     private terrainMeshes: BABYLON.AbstractMesh[] = [];
     private buildingMeshes: BABYLON.AbstractMesh[] = [];
     private isLoaded: boolean = false;
+    private startPosition: BABYLON.Vector3 = BABYLON.Vector3.Zero();
 
     constructor(scene: BABYLON.Scene) {
         this.scene = scene;
-        this.sceneLoader = new SceneLoaderSystem(scene);
+        this.chunkLoader = new ChunkLoaderSystem(scene);
         this.occlusionSystem = new BuildingOcclusionSystem(scene);
     }
 
@@ -30,42 +32,72 @@ export class SceneManager {
      * @returns 是否成功載入 glb 檔案
      */
     async initialize(onProgress?: (progress: number) => void): Promise<boolean> {
-        console.log("🌍 [SceneManager] Initializing scene...");
+        console.log("🌍 [SceneManager] Initializing scene with chunk loading...");
 
         try {
-            // 載入 CausewayBay.glb
-            const result = await this.sceneLoader.loadScene("/maps/CausewayBay.glb", onProgress);
+            // 載入 manifest
+            await this.chunkLoader.loadManifest("/maps/manifest.json");
+
+            // 載入起始 chunk
+            const startChunk = await this.chunkLoader.loadStartChunk((progress) => {
+                // 起始 chunk 佔總進度的 50%
+                onProgress?.(Math.round(progress * 0.5));
+            });
+
+            // 載入所有其他 chunks（對於小地圖，一次載入全部）
+            await this.chunkLoader.loadAllChunks((chunkId, progress) => {
+                // 其他 chunks 佔剩餘 50%
+                onProgress?.(50 + Math.round(progress * 0.5));
+            });
 
             // 設定地形和建築物
-            this.terrainMeshes = result.terrainMeshes;
-            this.buildingMeshes = result.buildingMeshes;
+            this.terrainMeshes = this.chunkLoader.getTerrainMeshes();
+            this.buildingMeshes = this.chunkLoader.getBuildingMeshes();
 
             // 如果沒有分類到 T/B，將所有 mesh 當作可行走區域
-            if (this.terrainMeshes.length === 0 && result.otherMeshes.length > 0) {
-                console.log("⚠️ [SceneManager] No T-prefixed terrain found, treating all meshes as walkable");
-                // 將所有非建築物 mesh 設為可行走
-                result.otherMeshes.forEach(mesh => {
-                    mesh.isPickable = true;
-                    mesh.checkCollisions = true;
-                    this.terrainMeshes.push(mesh);
-                });
+            if (this.terrainMeshes.length === 0) {
+                console.log("⚠️ [SceneManager] No T-prefixed terrain found");
+                // 收集所有非建築物 mesh
+                for (const [id, chunk] of this.chunkLoader.getLoadedChunks()) {
+                    for (const mesh of chunk.meshes) {
+                        if (mesh.name !== "__root__" && !mesh.name.toUpperCase().startsWith("B")) {
+                            mesh.isPickable = true;
+                            mesh.checkCollisions = true;
+                            this.terrainMeshes.push(mesh);
+                        }
+                    }
+                }
             }
 
             // 設定遮擋系統
             this.occlusionSystem.setTerrainMeshes(this.terrainMeshes);
             this.occlusionSystem.setBuildingMeshes(this.buildingMeshes);
 
+            // 設定起始位置（從起始 chunk 中心）
+            this.startPosition = this.chunkLoader.getStartPosition();
+
             this.isLoaded = true;
-            console.log("✅ [SceneManager] Scene loaded successfully");
+            onProgress?.(100);
+
+            console.log("✅ [SceneManager] Scene loaded successfully with chunk loading");
             console.log(`   - Terrain meshes: ${this.terrainMeshes.length}`);
             console.log(`   - Building meshes: ${this.buildingMeshes.length}`);
+            console.log(`   - Start position: (${this.startPosition.x.toFixed(1)}, ${this.startPosition.y.toFixed(1)}, ${this.startPosition.z.toFixed(1)})`);
+
             return true;
         } catch (error) {
             console.error("❌ [SceneManager] Failed to load scene:", error);
             onProgress?.(100);
             this.isLoaded = false;
-            throw error; // 直接拋出錯誤，不使用備案場景
+            throw error;
         }
+    }
+
+    /**
+     * 獲取玩家起始位置
+     */
+    getStartPosition(): BABYLON.Vector3 {
+        return this.startPosition.clone();
     }
 
     /**
@@ -120,6 +152,13 @@ export class SceneManager {
     }
 
     /**
+     * 獲取 ChunkLoader（用於高級操作）
+     */
+    getChunkLoader(): ChunkLoaderSystem {
+        return this.chunkLoader;
+    }
+
+    /**
      * 檢查場景是否已載入
      */
     isSceneLoaded(): boolean {
@@ -130,7 +169,7 @@ export class SceneManager {
      * 清理資源
      */
     dispose(): void {
-        this.sceneLoader.dispose();
+        this.chunkLoader.dispose();
         this.occlusionSystem.dispose();
         this.terrainMeshes = [];
         this.buildingMeshes = [];

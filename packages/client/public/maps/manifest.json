@@ -1,0 +1,17 @@
+{
+  "mapName": "HongKong",
+  "version": "0.15.0",
+  "startChunk": "11-SW-10D",
+  "chunks": [
+    {
+      "id": "11-SW-10D",
+      "file": "11-SW-10D.glb",
+      "description": "South-West starting area"
+    },
+    {
+      "id": "11-SE-6C",
+      "file": "11-SE-6C.glb",
+      "description": "South-East area"
+    }
+  ]
+}

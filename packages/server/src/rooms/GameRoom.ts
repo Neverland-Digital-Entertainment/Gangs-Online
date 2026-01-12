@@ -120,6 +120,16 @@ export class GameRoom extends Room<GameState> {
             }
         });
 
+        // Phase 15: Handle set_position (客戶端載入地圖後設定起始位置)
+        this.onMessage("set_position", (client, input: { x: number; z: number }) => {
+            const player = this.state.players.get(client.sessionId);
+            if (player) {
+                console.log(`📍 [Phase 15] Setting player ${client.sessionId} position to (${input.x.toFixed(1)}, ${input.z.toFixed(1)})`);
+                player.x = input.x;
+                player.z = input.z;
+            }
+        });
+
         // Handle Attack (支援攻擊玩家或敵人) - Phase 14: 增加紅名系統, Phase 15: 移除安全區檢查
         this.onMessage("attack", (client, payload: { targetId: string; type: EntityType }) => {
             const attacker = this.state.players.get(client.sessionId);

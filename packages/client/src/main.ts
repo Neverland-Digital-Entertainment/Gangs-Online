@@ -259,6 +259,13 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
             const entity = await playerManager.createPlayer(player, sessionId, isSelf);
 
+            // Phase 15: 如果是本地玩家，發送地圖起始位置到伺服器
+            if (isSelf) {
+                const startPos = sceneManager.getStartPosition();
+                console.log(`📍 [Phase 15] Sending start position to server: (${startPos.x.toFixed(1)}, ${startPos.z.toFixed(1)})`);
+                room.send("set_position", { x: startPos.x, z: startPos.z });
+            }
+
             // 同步位置
             player.onChange(() => {
                 playerManager.updateTarget(sessionId, player.x, player.z);
