@@ -4,7 +4,7 @@ import * as BABYLON from "@babylonjs/core";
  * 建築物遮擋系統 (Phase 15)
  *
  * 當玩家位於建築物後方（被相機與玩家之間的建築物遮擋）時：
- * - 將遮擋的建築物設為半透明
+ * - 將遮擋的建築物完全隱藏（但保留碰撞）
  * - 確保玩家始終可見
  *
  * 支援點擊建築物後移動到建築後方的地形座標
@@ -14,8 +14,6 @@ export class BuildingOcclusionSystem {
     private buildingMeshes: BABYLON.AbstractMesh[] = [];
     private terrainMeshes: BABYLON.AbstractMesh[] = [];
     private occludedBuildings: Set<BABYLON.AbstractMesh> = new Set();
-    private readonly TRANSPARENT_ALPHA = 0.2;
-    private readonly OPAQUE_ALPHA = 1.0;
 
     constructor(scene: BABYLON.Scene) {
         this.scene = scene;
@@ -79,9 +77,9 @@ export class BuildingOcclusionSystem {
                 // 玩家被這個建築物遮擋
                 newlyOccluded.add(building);
 
-                // 如果還沒設為透明，則設定
+                // 如果還沒隱藏，則隱藏（但保留碰撞）
                 if (!this.occludedBuildings.has(building)) {
-                    this.setBuildingAlpha(building, this.TRANSPARENT_ALPHA);
+                    this.setBuildingVisibility(building, false);
                 }
             }
         }
@@ -89,7 +87,7 @@ export class BuildingOcclusionSystem {
         // 恢復不再遮擋的建築物
         for (const building of this.occludedBuildings) {
             if (!newlyOccluded.has(building)) {
-                this.setBuildingAlpha(building, this.OPAQUE_ALPHA);
+                this.setBuildingVisibility(building, true);
             }
         }
 
@@ -98,40 +96,18 @@ export class BuildingOcclusionSystem {
     }
 
     /**
-     * 設定建築物透明度
+     * 設定建築物可見性（隱藏時保留碰撞）
      */
-    private setBuildingAlpha(building: BABYLON.AbstractMesh, alpha: number): void {
-        const setMaterialAlpha = (material: BABYLON.Material | null) => {
-            if (!material) return;
-
-            if (material instanceof BABYLON.PBRMaterial) {
-                // PBR 材質需要特殊處理
-                material.alpha = alpha;
-                if (alpha < 1.0) {
-                    material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-                    material.backFaceCulling = false; // 顯示背面
-                } else {
-                    material.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
-                    material.backFaceCulling = true;
-                }
-            } else if (material instanceof BABYLON.StandardMaterial) {
-                material.alpha = alpha;
-                if (alpha < 1.0) {
-                    material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-                    material.backFaceCulling = false;
-                } else {
-                    material.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
-                    material.backFaceCulling = true;
-                }
-            }
-        };
-
-        // 處理主材質
-        setMaterialAlpha(building.material);
+    private setBuildingVisibility(building: BABYLON.AbstractMesh, visible: boolean): void {
+        // 設定主 mesh 可見性
+        building.isVisible = visible;
+        // 碰撞保持啟用
+        building.checkCollisions = true;
 
         // 處理子 mesh
         building.getChildMeshes().forEach((child) => {
-            setMaterialAlpha(child.material);
+            child.isVisible = visible;
+            child.checkCollisions = true;
         });
     }
 
@@ -215,9 +191,9 @@ export class BuildingOcclusionSystem {
      * 清理資源
      */
     dispose(): void {
-        // 恢復所有建築物為不透明
+        // 恢復所有建築物為可見
         for (const building of this.occludedBuildings) {
-            this.setBuildingAlpha(building, this.OPAQUE_ALPHA);
+            this.setBuildingVisibility(building, true);
         }
         this.occludedBuildings.clear();
         this.buildingMeshes = [];
