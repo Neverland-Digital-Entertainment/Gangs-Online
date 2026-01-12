@@ -475,7 +475,20 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
             // Phase 14: 監聽所有玩家的監獄狀態變化（用於傳送）
             // 這個監聯在 if (isSelf) 區塊外面，所以對所有玩家都有效
+            let prevInPrison: boolean | null = null; // 追蹤之前的狀態，避免初始化時觸發
             player.listen("inPrison", (inPrison: boolean) => {
+                // Phase 15: 跳過初始化時的觸發（prevInPrison 為 null 時）
+                if (prevInPrison === null) {
+                    prevInPrison = inPrison;
+                    // 如果初始狀態就是在監獄中，才傳送到監獄
+                    if (inPrison) {
+                        playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.PRISON_X, PRISON_CONSTANTS.PRISON_Z);
+                        console.log(`🔒 [Phase 14] 玩家 ${sessionId} 初始狀態在監獄`);
+                    }
+                    return;
+                }
+
+                prevInPrison = inPrison;
                 if (inPrison) {
                     // 瞬間傳送到監獄位置（跳過走路動畫）
                     playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.PRISON_X, PRISON_CONSTANTS.PRISON_Z);
