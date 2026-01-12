@@ -336,11 +336,17 @@ export class ChunkLoaderSystem {
     getStartPosition(): BABYLON.Vector3 {
         const startChunk = this.loadedChunks.get(this.manifest?.startChunk || "");
         if (startChunk) {
-            // 返回 chunk 中心，Y 使用地面高度
+            // Phase 15: 使用 chunk 的角落而不是中心，通常角落比較空曠
+            // 使用 maxX, maxZ 角落（往內縮 50 單位避免出界）
+            const spawnX = startChunk.bounds.maxX - 50;
+            const spawnZ = startChunk.bounds.maxZ - 50;
+
+            console.log(`📍 [ChunkLoader] Spawn position: corner (${spawnX.toFixed(1)}, ${spawnZ.toFixed(1)})`);
+
             return new BABYLON.Vector3(
-                startChunk.center.x,
+                spawnX,
                 startChunk.bounds.minY + 1, // 稍微高於地面
-                startChunk.center.z
+                spawnZ
             );
         }
         return BABYLON.Vector3.Zero();
