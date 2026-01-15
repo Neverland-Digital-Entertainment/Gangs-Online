@@ -1,11 +1,11 @@
 {
   "mapName": "HongKong",
-  "version": "0.15.1",
+  "version": "0.15.2",
   "startChunk": "11-NW-19D",
   "chunks": [
     {
       "id": "11-NW-19D",
-      "file": "11-NW-19D-v2.glb",
+      "file": "11-NW-19D.glb",
       "description": "Mong Kok - North-West area"
     }
   ]
