@@ -198,7 +198,7 @@ export class ChunkLoaderSystem {
 
             // Debug: 輸出每個 mesh 的名稱和三角形數
             const firstChar = mesh.name.charAt(0).toUpperCase();
-            const category = (firstChar === "T") ? "T" : (firstChar === "B") ? "B" : "?";
+            const category = (firstChar === "T") ? "T" : (firstChar === "B") ? "B" : (firstChar === "I") ? "I" : "?";
             console.log(`   [${category}] ${mesh.name}: ${triangles.toLocaleString()} tris`);
 
             // 計算世界矩陣以獲取正確的邊界
@@ -228,6 +228,9 @@ export class ChunkLoaderSystem {
                 this.setupBuildingMesh(mesh, chunkId);
                 buildingMeshes.push(mesh);
                 this.allBuildingMeshes.push(mesh);
+            } else if (firstChar === "I") {
+                // I = Items/Props（街上的物品，有碰撞但不遮擋視線）
+                this.setupItemMesh(mesh, chunkId);
             }
         }
 
@@ -287,6 +290,16 @@ export class ChunkLoaderSystem {
                 }
             }
         }
+    }
+
+    /**
+     * 設定物品/道具 mesh 屬性
+     * I = Items/Props（街上的物品，有碰撞但不會遮擋視線）
+     */
+    private setupItemMesh(mesh: BABYLON.AbstractMesh, chunkId: string): void {
+        mesh.isPickable = true;
+        mesh.checkCollisions = true;
+        mesh.metadata = { ...mesh.metadata, type: "item", chunkId };
     }
 
     /**
