@@ -8,6 +8,7 @@ import * as BABYLON from "@babylonjs/core";
  * - Polygons (多邊形總數)
  * - Triangles (三角形總數)
  * - Draw Calls (繪製調用數)
+ * - Player X/Z 座標
  */
 export class DebugUISystem {
     private scene: BABYLON.Scene;
@@ -16,7 +17,10 @@ export class DebugUISystem {
     private polygonsElement: HTMLElement | null = null;
     private trianglesElement: HTMLElement | null = null;
     private drawCallsElement: HTMLElement | null = null;
+    private posXElement: HTMLElement | null = null;
+    private posZElement: HTMLElement | null = null;
     private isVisible: boolean = true;
+    private playerPosition: BABYLON.Vector3 = BABYLON.Vector3.Zero();
 
     constructor(scene: BABYLON.Scene) {
         this.scene = scene;
@@ -62,13 +66,27 @@ export class DebugUISystem {
 
         // Draw Calls 顯示
         this.drawCallsElement = document.createElement("div");
+        this.drawCallsElement.style.marginBottom = "4px";
         this.drawCallsElement.textContent = "Draw Calls: --";
+
+        // Position X 顯示
+        this.posXElement = document.createElement("div");
+        this.posXElement.style.marginBottom = "4px";
+        this.posXElement.style.color = "#88ccff";
+        this.posXElement.textContent = "X: --";
+
+        // Position Z 顯示
+        this.posZElement = document.createElement("div");
+        this.posZElement.style.color = "#88ccff";
+        this.posZElement.textContent = "Z: --";
 
         // 組裝 UI
         this.container.appendChild(this.fpsElement);
         this.container.appendChild(this.polygonsElement);
         this.container.appendChild(this.trianglesElement);
         this.container.appendChild(this.drawCallsElement);
+        this.container.appendChild(this.posXElement);
+        this.container.appendChild(this.posZElement);
 
         document.body.appendChild(this.container);
 
@@ -133,6 +151,21 @@ export class DebugUISystem {
         if (this.drawCallsElement) {
             this.drawCallsElement.textContent = `Draw Calls: ~${activeMeshes}`;
         }
+
+        // Player Position
+        if (this.posXElement) {
+            this.posXElement.textContent = `X: ${this.playerPosition.x.toFixed(1)}`;
+        }
+        if (this.posZElement) {
+            this.posZElement.textContent = `Z: ${this.playerPosition.z.toFixed(1)}`;
+        }
+    }
+
+    /**
+     * 設定玩家位置（用於顯示座標）
+     */
+    setPlayerPosition(position: BABYLON.Vector3): void {
+        this.playerPosition = position;
     }
 
     /**

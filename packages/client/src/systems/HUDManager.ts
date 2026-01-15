@@ -1123,6 +1123,18 @@ export class HUDManager {
     }
 
     /**
+     * Phase 15: 設定 HUD 可見性（用於測試模式）
+     */
+    setVisible(visible: boolean): void {
+        if (this.mainHUD) {
+            this.mainHUD.isVisible = visible;
+        }
+        if (this.popupRoot) {
+            this.popupRoot.isVisible = visible;
+        }
+    }
+
+    /**
      * 釋放資源
      */
     dispose(): void {

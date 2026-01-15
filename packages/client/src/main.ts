@@ -197,6 +197,9 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
         hudManager = new HUDManager(uiTexture);
         await hudManager.initialize(room);
 
+        // Phase 15: 暫時隱藏 HUD（測試模式）
+        hudManager.setVisible(false);
+
         // 監聽聊天訊息 (Phase 13: 支援多頻道)
         room.onMessage("chat", (msg: { sessionId: string; text: string; type?: string; senderName?: string }) => {
             const entity = playerManager.getEntity(msg.sessionId);
@@ -846,6 +849,9 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 if (myEntity) {
                     // 相機跟隨
                     updateCameraFollow(camera, myEntity.mesh);
+
+                    // Phase 15: 更新 Debug UI 座標
+                    debugUI.setPlayerPosition(myEntity.mesh.position);
 
                     // Phase 15: 檢查並更新建築物透明度（當玩家在建築物後面時）
                     sceneManager.updateBuildingOcclusion(myEntity.mesh.position, camera);

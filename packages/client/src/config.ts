@@ -23,7 +23,7 @@ export const modelConfig = {
  */
 export const cameraConfig = {
     zoom: 14,
-    offset: { x: -20, y: 20, z: 20 }, // Phase 15: 旋轉 180 度（北向上）
+    offset: { x: -20, y: 20, z: -20 }, // Phase 15: 旋轉 270 度（從原始角度左轉 90 度）
     followSpeed: 0.1,
 };
 
