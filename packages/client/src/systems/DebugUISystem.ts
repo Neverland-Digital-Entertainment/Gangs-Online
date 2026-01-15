@@ -26,6 +26,42 @@ export class DebugUISystem {
         this.scene = scene;
         this.createUI();
         this.startUpdate();
+        this.setupDebugCommand();
+    }
+
+    /**
+     * 設定 debug 指令（在 console 輸入 window.debugTriangles() 查看詳細分佈）
+     */
+    private setupDebugCommand(): void {
+        (window as any).debugTriangles = () => {
+            const breakdown: { [key: string]: number } = {};
+
+            this.scene.meshes.forEach((mesh) => {
+                if (mesh.isEnabled() && mesh.isVisible) {
+                    if (mesh instanceof BABYLON.Mesh && mesh.geometry) {
+                        const triangles = Math.round(mesh.geometry.getTotalIndices() / 3);
+                        const category = this.isMapMesh(mesh) ? "MAP" : "OTHER";
+                        const key = `[${category}] ${mesh.name}`;
+                        breakdown[key] = (breakdown[key] || 0) + triangles;
+                    }
+                }
+            });
+
+            // 排序並顯示
+            const sorted = Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
+            console.log("=== Triangle Breakdown ===");
+            let mapTotal = 0, otherTotal = 0;
+            for (const [name, count] of sorted) {
+                console.log(`${name}: ${count.toLocaleString()}`);
+                if (name.startsWith("[MAP]")) mapTotal += count;
+                else otherTotal += count;
+            }
+            console.log("=== Totals ===");
+            console.log(`Map: ${mapTotal.toLocaleString()}`);
+            console.log(`Other: ${otherTotal.toLocaleString()}`);
+            console.log(`Total: ${(mapTotal + otherTotal).toLocaleString()}`);
+        };
+        console.log("📊 [DebugUI] Type window.debugTriangles() in console to see triangle breakdown");
     }
 
     /**

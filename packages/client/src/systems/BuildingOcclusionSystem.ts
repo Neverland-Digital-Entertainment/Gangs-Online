@@ -6,6 +6,7 @@ import * as BABYLON from "@babylonjs/core";
  * 當玩家位於建築物後方（被相機與玩家之間的建築物遮擋）時：
  * - 將遮擋的建築物完全隱藏（但保留碰撞）
  * - 確保玩家始終可見
+ * - 同一棟建築的多個部件會被當作整體處理
  *
  * 支援點擊建築物後移動到建築後方的地形座標
  */
@@ -15,16 +16,68 @@ export class BuildingOcclusionSystem {
     private terrainMeshes: BABYLON.AbstractMesh[] = [];
     private occludedBuildings: Set<BABYLON.AbstractMesh> = new Set();
 
+    // 建築物分組：base name -> mesh[]
+    private buildingGroups: Map<string, BABYLON.AbstractMesh[]> = new Map();
+    // mesh -> group base name 的反向查找
+    private meshToGroup: Map<BABYLON.AbstractMesh, string> = new Map();
+
     constructor(scene: BABYLON.Scene) {
         this.scene = scene;
     }
 
     /**
-     * 設定建築物 mesh 列表
+     * 從 mesh 名稱提取建築物基礎名稱
+     * 例如: "B_Building01_Upper" -> "B_Building01"
+     *       "B_Shop_Sign" -> "B_Shop"
+     *       "B001_Part1" -> "B001"
+     */
+    private extractBuildingBaseName(meshName: string): string {
+        // 移除常見的部件後綴
+        const suffixPatterns = [
+            /_(?:Upper|Lower|Top|Bottom|Left|Right|Front|Back|Part\d*|Sign|Window|Door|Roof|Wall|Floor|Base)$/i,
+            /_\d+$/,  // 移除結尾的數字（如 _01, _1）
+        ];
+
+        let baseName = meshName;
+        for (const pattern of suffixPatterns) {
+            baseName = baseName.replace(pattern, "");
+        }
+
+        // 如果處理後名稱為空或只有 B_，返回原名
+        if (!baseName || baseName === "B_" || baseName === "B") {
+            return meshName;
+        }
+
+        return baseName;
+    }
+
+    /**
+     * 設定建築物 mesh 列表並建立分組
      */
     setBuildingMeshes(meshes: BABYLON.AbstractMesh[]): void {
         this.buildingMeshes = meshes;
-        console.log(`🏢 [Occlusion] Tracking ${meshes.length} buildings`);
+        this.buildingGroups.clear();
+        this.meshToGroup.clear();
+
+        // 建立分組
+        for (const mesh of meshes) {
+            const baseName = this.extractBuildingBaseName(mesh.name);
+
+            if (!this.buildingGroups.has(baseName)) {
+                this.buildingGroups.set(baseName, []);
+            }
+            this.buildingGroups.get(baseName)!.push(mesh);
+            this.meshToGroup.set(mesh, baseName);
+        }
+
+        console.log(`🏢 [Occlusion] Tracking ${meshes.length} building meshes in ${this.buildingGroups.size} groups`);
+
+        // 顯示分組資訊（用於調試）
+        for (const [baseName, group] of this.buildingGroups) {
+            if (group.length > 1) {
+                console.log(`   - ${baseName}: ${group.length} parts (${group.map(m => m.name).join(", ")})`);
+            }
+        }
     }
 
     /**
@@ -62,25 +115,41 @@ export class BuildingOcclusionSystem {
      */
     update(playerPosition: BABYLON.Vector3, camera: BABYLON.Camera): void {
         const cameraPos = camera.position;
-        const newlyOccluded = new Set<BABYLON.AbstractMesh>();
+        const occludedGroups = new Set<string>();
+
+        // 從相機到玩家創建射線
+        const direction = playerPosition.subtract(cameraPos).normalize();
+        const distance = BABYLON.Vector3.Distance(cameraPos, playerPosition);
+        const ray = new BABYLON.Ray(cameraPos, direction, distance);
 
         for (const building of this.buildingMeshes) {
-            // 從相機到玩家創建射線
-            const direction = playerPosition.subtract(cameraPos).normalize();
-            const distance = BABYLON.Vector3.Distance(cameraPos, playerPosition);
-            const ray = new BABYLON.Ray(cameraPos, direction, distance);
-
             // 檢查射線是否擊中這個建築物
             const hit = ray.intersectsMesh(building, false);
 
             if (hit.hit) {
-                // 玩家被這個建築物遮擋
-                newlyOccluded.add(building);
-
-                // 如果還沒隱藏，則隱藏（但保留碰撞）
-                if (!this.occludedBuildings.has(building)) {
-                    this.setBuildingVisibility(building, false);
+                // 找到這個 mesh 所屬的建築物群組
+                const groupName = this.meshToGroup.get(building);
+                if (groupName) {
+                    occludedGroups.add(groupName);
                 }
+            }
+        }
+
+        // 計算新的遮擋 mesh 集合（整個群組）
+        const newlyOccluded = new Set<BABYLON.AbstractMesh>();
+        for (const groupName of occludedGroups) {
+            const group = this.buildingGroups.get(groupName);
+            if (group) {
+                for (const mesh of group) {
+                    newlyOccluded.add(mesh);
+                }
+            }
+        }
+
+        // 隱藏新遮擋的建築物
+        for (const building of newlyOccluded) {
+            if (!this.occludedBuildings.has(building)) {
+                this.setBuildingVisibility(building, false);
             }
         }
 
