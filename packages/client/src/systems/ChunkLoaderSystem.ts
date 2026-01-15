@@ -182,8 +182,24 @@ export class ChunkLoaderSystem {
         let minY = Infinity, maxY = -Infinity;
         let minZ = Infinity, maxZ = -Infinity;
 
+        // Debug: 記錄所有 mesh 的資訊
+        console.log(`📦 [ChunkLoader] Processing ${meshes.length} meshes from chunk ${chunkId}:`);
+        let totalTriangles = 0;
+
         for (const mesh of meshes) {
             if (mesh.name === "__root__") continue;
+
+            // 計算三角形數
+            let triangles = 0;
+            if (mesh instanceof BABYLON.Mesh && mesh.geometry) {
+                triangles = Math.round(mesh.geometry.getTotalIndices() / 3);
+                totalTriangles += triangles;
+            }
+
+            // Debug: 輸出每個 mesh 的名稱和三角形數
+            const firstChar = mesh.name.charAt(0).toUpperCase();
+            const category = (firstChar === "T") ? "T" : (firstChar === "B") ? "B" : "?";
+            console.log(`   [${category}] ${mesh.name}: ${triangles.toLocaleString()} tris`);
 
             // 計算世界矩陣以獲取正確的邊界
             mesh.computeWorldMatrix(true);
@@ -204,8 +220,6 @@ export class ChunkLoaderSystem {
             mesh.metadata = { ...mesh.metadata, chunkId };
 
             // 根據名稱首字母分類
-            const firstChar = mesh.name.charAt(0).toUpperCase();
-
             if (firstChar === "T") {
                 this.setupTerrainMesh(mesh, chunkId);
                 terrainMeshes.push(mesh);
@@ -216,6 +230,8 @@ export class ChunkLoaderSystem {
                 this.allBuildingMeshes.push(mesh);
             }
         }
+
+        console.log(`📊 [ChunkLoader] Total triangles in chunk: ${totalTriangles.toLocaleString()}`);
 
         const center = new BABYLON.Vector3(
             (minX + maxX) / 2,
