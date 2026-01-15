@@ -5,8 +5,8 @@ import * as BABYLON from "@babylonjs/core";
  *
  * 在畫面頂部顯示效能監控指標：
  * - FPS (每秒幀數)
- * - Polygons (多邊形總數)
- * - Triangles (三角形總數)
+ * - Map Triangles (地圖三角形數 - 來自 T/B 開頭的 GLB mesh)
+ * - Char Triangles (角色/其他物件三角形數)
  * - Draw Calls (繪製調用數)
  * - Player X/Z 座標
  */
@@ -14,8 +14,8 @@ export class DebugUISystem {
     private scene: BABYLON.Scene;
     private container: HTMLElement | null = null;
     private fpsElement: HTMLElement | null = null;
-    private polygonsElement: HTMLElement | null = null;
-    private trianglesElement: HTMLElement | null = null;
+    private mapTrianglesElement: HTMLElement | null = null;
+    private charTrianglesElement: HTMLElement | null = null;
     private drawCallsElement: HTMLElement | null = null;
     private posXElement: HTMLElement | null = null;
     private posZElement: HTMLElement | null = null;
@@ -54,15 +54,16 @@ export class DebugUISystem {
         this.fpsElement.style.marginBottom = "4px";
         this.fpsElement.textContent = "FPS: --";
 
-        // Polygons 顯示
-        this.polygonsElement = document.createElement("div");
-        this.polygonsElement.style.marginBottom = "4px";
-        this.polygonsElement.textContent = "Polygons: --";
+        // Map Triangles 顯示 (來自 GLB 地圖的 T/B mesh)
+        this.mapTrianglesElement = document.createElement("div");
+        this.mapTrianglesElement.style.marginBottom = "4px";
+        this.mapTrianglesElement.textContent = "Map Tris: --";
 
-        // Triangles 顯示
-        this.trianglesElement = document.createElement("div");
-        this.trianglesElement.style.marginBottom = "4px";
-        this.trianglesElement.textContent = "Triangles: --";
+        // Char Triangles 顯示 (角色、敵人等其他物件)
+        this.charTrianglesElement = document.createElement("div");
+        this.charTrianglesElement.style.marginBottom = "4px";
+        this.charTrianglesElement.style.color = "#aaaaaa";
+        this.charTrianglesElement.textContent = "Other Tris: --";
 
         // Draw Calls 顯示
         this.drawCallsElement = document.createElement("div");
@@ -82,8 +83,8 @@ export class DebugUISystem {
 
         // 組裝 UI
         this.container.appendChild(this.fpsElement);
-        this.container.appendChild(this.polygonsElement);
-        this.container.appendChild(this.trianglesElement);
+        this.container.appendChild(this.mapTrianglesElement);
+        this.container.appendChild(this.charTrianglesElement);
         this.container.appendChild(this.drawCallsElement);
         this.container.appendChild(this.posXElement);
         this.container.appendChild(this.posZElement);
@@ -105,6 +106,20 @@ export class DebugUISystem {
     }
 
     /**
+     * 檢查是否為地圖 mesh（來自 GLB 的 T/B 開頭 mesh）
+     */
+    private isMapMesh(mesh: BABYLON.AbstractMesh): boolean {
+        const name = mesh.name.toUpperCase();
+        // T = Terrain, B = Building (from GLB map)
+        // Also check for root containers from chunk loader
+        return name.startsWith("T") ||
+               name.startsWith("B") ||
+               mesh.metadata?.type === "terrain" ||
+               mesh.metadata?.type === "building" ||
+               mesh.metadata?.chunkId; // Loaded from chunk system
+    }
+
+    /**
      * 更新 Debug 資訊
      */
     private update(): void {
@@ -121,30 +136,34 @@ export class DebugUISystem {
         // Active Meshes (可見的 mesh 數量)
         const activeMeshes = this.scene.getActiveMeshes().length;
 
-        // Total Vertices (頂點總數 - 可用於估算多邊形)
-        let totalVertices = 0;
-        let totalIndices = 0;
+        // 分開統計 Map 和 Character 三角形
+        let mapIndices = 0;
+        let charIndices = 0;
 
         this.scene.meshes.forEach((mesh) => {
             if (mesh.isEnabled() && mesh.isVisible) {
                 // 檢查是否為 Mesh 類型（有 geometry 屬性）
                 if (mesh instanceof BABYLON.Mesh && mesh.geometry) {
-                    totalVertices += mesh.geometry.getTotalVertices();
-                    totalIndices += mesh.geometry.getTotalIndices();
+                    const indices = mesh.geometry.getTotalIndices();
+                    if (this.isMapMesh(mesh)) {
+                        mapIndices += indices;
+                    } else {
+                        charIndices += indices;
+                    }
                 }
             }
         });
 
-        // Polygons (估算：頂點數 / 3)
-        const polygons = Math.round(totalVertices / 3);
-        if (this.polygonsElement) {
-            this.polygonsElement.textContent = `Polygons: ${this.formatNumber(polygons)}`;
+        // Map Triangles (來自 GLB 地圖)
+        const mapTriangles = Math.round(mapIndices / 3);
+        if (this.mapTrianglesElement) {
+            this.mapTrianglesElement.textContent = `Map Tris: ${this.formatNumber(mapTriangles)}`;
         }
 
-        // Triangles (indices / 3)
-        const triangles = Math.round(totalIndices / 3);
-        if (this.trianglesElement) {
-            this.trianglesElement.textContent = `Triangles: ${this.formatNumber(triangles)}`;
+        // Char Triangles (角色、敵人等)
+        const charTriangles = Math.round(charIndices / 3);
+        if (this.charTrianglesElement) {
+            this.charTrianglesElement.textContent = `Other Tris: ${this.formatNumber(charTriangles)}`;
         }
 
         // Draw Calls (使用 active meshes 作為估算)

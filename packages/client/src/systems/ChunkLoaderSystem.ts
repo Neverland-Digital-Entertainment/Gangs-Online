@@ -200,6 +200,9 @@ export class ChunkLoaderSystem {
                 maxZ = Math.max(maxZ, max.z);
             }
 
+            // 為所有來自 chunk 的 mesh 標記 chunkId（用於 Debug UI 統計）
+            mesh.metadata = { ...mesh.metadata, chunkId };
+
             // 根據名稱首字母分類
             const firstChar = mesh.name.charAt(0).toUpperCase();
 
