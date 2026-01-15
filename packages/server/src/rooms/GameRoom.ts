@@ -886,9 +886,9 @@ export class GameRoom extends Room<GameState> {
         if (!loaded) {
             // 新玩家：使用客戶端提供的角色名稱
             player.name = characterName || `玩家${client.sessionId.substring(0, 6)}`;
-            // Phase 15: 生成在場景邊緣的道路上（避免卡在建築物內）
-            player.x = 0;
-            player.z = -450; // 場景南邊，應該在道路上
+            // Phase 15: 新玩家生成在旺角地圖的指定位置
+            player.x = -835575.4;
+            player.z = -819658.9;
             player.hp = 100;
             player.maxHp = 100;
             player.inCombatWith = "";

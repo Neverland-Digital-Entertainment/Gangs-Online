@@ -262,14 +262,11 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
             const entity = await playerManager.createPlayer(player, sessionId, isSelf);
 
-            // Phase 15: 如果是本地玩家，瞬移到地圖起始位置
+            // Phase 15: 如果是本地玩家，瞬移到伺服器載入的位置（從 Firebase 讀取或新玩家預設位置）
             if (isSelf) {
-                const startPos = sceneManager.getStartPosition();
-                console.log(`📍 [Phase 15] Teleporting to map start position: (${startPos.x.toFixed(1)}, ${startPos.z.toFixed(1)})`);
-                // 瞬移玩家（不是走路）
-                playerManager.teleportPlayer(sessionId, startPos.x, startPos.z);
-                // 同步到伺服器
-                room.send("set_position", { x: startPos.x, z: startPos.z });
+                console.log(`📍 [Phase 15] Teleporting to server position: (${player.x.toFixed(1)}, ${player.z.toFixed(1)})`);
+                // 瞬移玩家（不是走路）- 使用伺服器提供的位置
+                playerManager.teleportPlayer(sessionId, player.x, player.z);
             }
 
             // 同步位置
