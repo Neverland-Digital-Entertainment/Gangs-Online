@@ -130,23 +130,30 @@ export class BuildingOcclusionSystem {
         const cameraPos = camera.position;
         const occludedGroups = new Set<string>();
 
-        // 從相機到玩家創建射線（稍微延長以確保能偵測到玩家附近的建築）
-        const direction = playerPosition.subtract(cameraPos).normalize();
-        const distance = BABYLON.Vector3.Distance(cameraPos, playerPosition) + 5;
-        const ray = new BABYLON.Ray(cameraPos, direction, distance);
+        // 射多條射線來覆蓋玩家的整個身體（腳、腰、頭）
+        const rayTargets = [
+            playerPosition.clone(),                                    // 腳部
+            playerPosition.add(new BABYLON.Vector3(0, 1.0, 0)),       // 腰部
+            playerPosition.add(new BABYLON.Vector3(0, 1.8, 0)),       // 頭部
+        ];
 
-        // 使用 multiPickWithRay 一次找出所有被射線穿過的建築物
-        const hits = this.scene.multiPickWithRay(ray, (mesh) => {
-            // 只檢查建築物
-            return this.buildingMeshes.includes(mesh);
-        });
+        for (const target of rayTargets) {
+            const direction = target.subtract(cameraPos).normalize();
+            const distance = BABYLON.Vector3.Distance(cameraPos, target) + 5;
+            const ray = new BABYLON.Ray(cameraPos, direction, distance);
 
-        if (hits) {
-            for (const hit of hits) {
-                if (hit.hit && hit.pickedMesh) {
-                    const groupName = this.meshToGroup.get(hit.pickedMesh);
-                    if (groupName) {
-                        occludedGroups.add(groupName);
+            // 使用 multiPickWithRay 一次找出所有被射線穿過的建築物
+            const hits = this.scene.multiPickWithRay(ray, (mesh) => {
+                return this.buildingMeshes.includes(mesh);
+            });
+
+            if (hits) {
+                for (const hit of hits) {
+                    if (hit.hit && hit.pickedMesh) {
+                        const groupName = this.meshToGroup.get(hit.pickedMesh);
+                        if (groupName) {
+                            occludedGroups.add(groupName);
+                        }
                     }
                 }
             }
