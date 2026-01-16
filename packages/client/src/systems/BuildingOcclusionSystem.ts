@@ -30,17 +30,30 @@ export class BuildingOcclusionSystem {
      * 例如: "B_Building01_Upper" -> "B_Building01"
      *       "B_Shop_Sign" -> "B_Shop"
      *       "B001_Part1" -> "B001"
+     *       "B35618196460163A0_primitive0" -> "B35618196460163A0"
      */
     private extractBuildingBaseName(meshName: string): string {
-        // 移除常見的部件後綴
+        // 移除常見的部件後綴（按順序處理，先處理 _primitive）
         const suffixPatterns = [
+            /_primitive\d*$/i,  // GLB 導出的 primitive 分割（最重要！）
             /_(?:Upper|Lower|Top|Bottom|Left|Right|Front|Back|Part\d*|Sign|Window|Door|Roof|Wall|Floor|Base)$/i,
             /_\d+$/,  // 移除結尾的數字（如 _01, _1）
         ];
 
         let baseName = meshName;
-        for (const pattern of suffixPatterns) {
-            baseName = baseName.replace(pattern, "");
+
+        // 持續嘗試移除後綴，直到沒有更多匹配
+        let changed = true;
+        while (changed) {
+            changed = false;
+            for (const pattern of suffixPatterns) {
+                const newName = baseName.replace(pattern, "");
+                if (newName !== baseName) {
+                    baseName = newName;
+                    changed = true;
+                    break;  // 從頭開始再檢查一次
+                }
+            }
         }
 
         // 如果處理後名稱為空或只有 B_，返回原名
