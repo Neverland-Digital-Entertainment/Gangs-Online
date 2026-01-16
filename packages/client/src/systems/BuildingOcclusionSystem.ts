@@ -178,19 +178,41 @@ export class BuildingOcclusionSystem {
     }
 
     /**
-     * 設定建築物可見性（隱藏時保留碰撞）
+     * 設定建築物透明度（遮擋時變為 20% 透明）
      */
     private setBuildingVisibility(building: BABYLON.AbstractMesh, visible: boolean): void {
-        // 設定主 mesh 可見性
-        building.isVisible = visible;
-        // 碰撞保持啟用
-        building.checkCollisions = true;
+        const targetAlpha = visible ? 1.0 : 0.2;
+
+        // 設定主 mesh 透明度
+        this.setMeshAlpha(building, targetAlpha);
 
         // 處理子 mesh
         building.getChildMeshes().forEach((child) => {
-            child.isVisible = visible;
-            child.checkCollisions = true;
+            this.setMeshAlpha(child, targetAlpha);
         });
+    }
+
+    /**
+     * 設定單個 mesh 的透明度
+     */
+    private setMeshAlpha(mesh: BABYLON.AbstractMesh, alpha: number): void {
+        if (!mesh.material) return;
+
+        // 設定透明度
+        if (mesh.material instanceof BABYLON.PBRMaterial) {
+            mesh.material.alpha = alpha;
+            mesh.material.transparencyMode = alpha < 1.0
+                ? BABYLON.Material.MATERIAL_ALPHABLEND
+                : BABYLON.Material.MATERIAL_OPAQUE;
+        } else if (mesh.material instanceof BABYLON.StandardMaterial) {
+            mesh.material.alpha = alpha;
+            mesh.material.transparencyMode = alpha < 1.0
+                ? BABYLON.Material.MATERIAL_ALPHABLEND
+                : BABYLON.Material.MATERIAL_OPAQUE;
+        }
+
+        // 碰撞保持啟用
+        mesh.checkCollisions = true;
     }
 
     /**

@@ -790,33 +790,35 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
                 // Phase 15: 如果點擊了建筑物，嘗試找到後面的地形
                 if (isBuildingMesh(pickResult.pickedMesh)) {
-                    // 方法 1: 使用 SceneManager 找到建築物後方的地形
-                    const terrainBehind = sceneManager.getTerrainBehindBuilding(
-                        pickResult.pickedMesh,
-                        camera.position
+                    // 優先使用射線穿透找到實際點擊位置的地形
+                    const ray = scene.createPickingRay(
+                        scene.pointerX,
+                        scene.pointerY,
+                        BABYLON.Matrix.Identity(),
+                        camera
                     );
 
-                    if (terrainBehind) {
-                        targetPoint = terrainBehind;
-                    } else {
-                        // 方法 2: 使用射線穿透找到後面的地形
-                        const ray = scene.createPickingRay(
-                            scene.pointerX,
-                            scene.pointerY,
-                            BABYLON.Matrix.Identity(),
-                            camera
-                        );
-
-                        const hits = scene.multiPickWithRay(ray);
-                        if (hits) {
-                            for (const hit of hits) {
-                                if (hit.pickedMesh &&
-                                    !isBuildingMesh(hit.pickedMesh) &&
-                                    hit.pickedPoint) {
-                                    targetPoint = hit.pickedPoint;
-                                    break;
-                                }
+                    const hits = scene.multiPickWithRay(ray);
+                    if (hits) {
+                        for (const hit of hits) {
+                            // 找到第一個非建築物的地形/物品
+                            if (hit.pickedMesh &&
+                                !isBuildingMesh(hit.pickedMesh) &&
+                                hit.pickedPoint) {
+                                targetPoint = hit.pickedPoint;
+                                break;
                             }
+                        }
+                    }
+
+                    // 如果射線沒找到，才用建築物中心投射（備用方案）
+                    if (!targetPoint) {
+                        const terrainBehind = sceneManager.getTerrainBehindBuilding(
+                            pickResult.pickedMesh,
+                            camera.position
+                        );
+                        if (terrainBehind) {
+                            targetPoint = terrainBehind;
                         }
                     }
                 } else {
