@@ -130,12 +130,26 @@ export class BuildingOcclusionSystem {
         const cameraPos = camera.position;
         const occludedGroups = new Set<string>();
 
-        // 射多條射線來覆蓋玩家的整個身體（腳、腰、頭）
-        const rayTargets = [
-            playerPosition.clone(),                                    // 腳部
-            playerPosition.add(new BABYLON.Vector3(0, 1.0, 0)),       // 腰部
-            playerPosition.add(new BABYLON.Vector3(0, 1.8, 0)),       // 頭部
-        ];
+        // 計算相機到玩家的水平方向（用於左右偏移）
+        const toPlayer = playerPosition.subtract(cameraPos);
+        const horizontalDir = new BABYLON.Vector3(toPlayer.x, 0, toPlayer.z).normalize();
+        const rightDir = BABYLON.Vector3.Cross(BABYLON.Vector3.Up(), horizontalDir).normalize();
+
+        // 射多條射線來覆蓋玩家的整個身體和周圍區域
+        // 1. 垂直覆蓋：從腳部到頭頂上方（0, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0）
+        // 2. 水平覆蓋：中間、左邊、右邊
+        const verticalOffsets = [0, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0];
+        const horizontalOffsets = [0, -0.5, 0.5];  // 中間、左、右
+
+        const rayTargets: BABYLON.Vector3[] = [];
+        for (const vOffset of verticalOffsets) {
+            for (const hOffset of horizontalOffsets) {
+                const target = playerPosition.add(
+                    new BABYLON.Vector3(0, vOffset, 0)
+                ).add(rightDir.scale(hOffset));
+                rayTargets.push(target);
+            }
+        }
 
         for (const target of rayTargets) {
             const direction = target.subtract(cameraPos).normalize();
