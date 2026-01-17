@@ -252,6 +252,27 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
             window.location.reload();
         });
 
+        // Phase 15: 設定場景切換回調（更新其他玩家的可見性）
+        sceneManager.setOnSceneSwitch((sceneName, position) => {
+            console.log(`🌍 [Phase 15] Scene switched to: ${sceneName}`);
+            const localInPrison = (sceneName === "Prison");
+
+            // 更新所有其他玩家的可見性
+            (room.state as any).players.forEach((player: PlayerData, sessionId: string) => {
+                if (sessionId === mySessionId) return; // 跳過自己
+
+                const entity = playerManager.getEntity(sessionId);
+                if (entity && entity.mesh) {
+                    const playerInPrison = (player as any).inPrison || false;
+                    const shouldShow = (localInPrison === playerInPrison);
+                    entity.mesh.setEnabled(shouldShow);
+                    if (entity.ui?.nameplate) {
+                        entity.ui.nameplate.isVisible = shouldShow;
+                    }
+                }
+            });
+        });
+
         // 添加玩家
         (room.state as any).players.onAdd(async (player: PlayerData, sessionId: string) => {
             const isSelf = sessionId === room.sessionId;
@@ -453,16 +474,39 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     }
                 });
 
-                // Phase 14: 監聽監獄狀態變化（本地玩家專用 UI）
-                player.listen("inPrison", (inPrison: boolean) => {
+                // Phase 14: 監聽監獄狀態變化（本地玩家專用 UI + 場景切換）
+                player.listen("inPrison", async (inPrison: boolean) => {
                     if (inPrison) {
                         console.log("🔒 [Phase 14] 你被送進監獄了！");
                         // Show prison overlay with countdown
                         const releaseTime = (player as any).prisonReleaseTime || (Date.now() + 30000);
                         hudManager?.showPrisonOverlay(releaseTime);
+
+                        // Phase 15: 切換到監獄場景
+                        try {
+                            const prisonPos = await sceneManager.enterPrison();
+                            playerManager.teleportPlayer(sessionId, prisonPos.x, prisonPos.z);
+                            // 更新可行走地形為監獄地形
+                            playerManager.setGroundMeshes(sceneManager.getCurrentTerrainMeshes());
+                            console.log(`🔒 [Phase 15] 已切換到監獄場景`);
+                        } catch (error) {
+                            console.error("❌ 無法載入監獄場景:", error);
+                        }
                     } else {
                         console.log("🔓 [Phase 14] 你已從監獄釋放！");
                         hudManager?.hidePrisonOverlay();
+
+                        // Phase 15: 切換回主地圖
+                        const releasePos = new BABYLON.Vector3(
+                            PRISON_CONSTANTS.RELEASE_X,
+                            1,
+                            PRISON_CONSTANTS.RELEASE_Z
+                        );
+                        sceneManager.exitPrison(releasePos);
+                        playerManager.teleportPlayer(sessionId, releasePos.x, releasePos.z);
+                        // 恢復可行走地形為主地圖地形
+                        playerManager.setGroundMeshes(sceneManager.getCurrentTerrainMeshes());
+                        console.log(`🔓 [Phase 15] 已切換回主地圖`);
                     }
                 });
 
@@ -473,32 +517,32 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 }
             }
 
-            // Phase 14: 監聽所有玩家的監獄狀態變化（用於傳送）
+            // Phase 14: 監聽所有玩家的監獄狀態變化（用於顯示/隱藏其他玩家）
             // 這個監聯在 if (isSelf) 區塊外面，所以對所有玩家都有效
-            let prevInPrison: boolean | null = null; // 追蹤之前的狀態，避免初始化時觸發
-            player.listen("inPrison", (inPrison: boolean) => {
-                // Phase 15: 跳過初始化時的觸發（prevInPrison 為 null 時）
-                if (prevInPrison === null) {
-                    prevInPrison = inPrison;
-                    // 如果初始狀態就是在監獄中，才傳送到監獄
-                    if (inPrison) {
-                        playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.PRISON_X, PRISON_CONSTANTS.PRISON_Z);
-                        console.log(`🔒 [Phase 14] 玩家 ${sessionId} 初始狀態在監獄`);
+            // Phase 15: 本地玩家的場景切換在上面的 isSelf 區塊處理，這裡只處理其他玩家的可見性
+            if (!isSelf) {
+                let prevInPrison: boolean | null = null;
+                player.listen("inPrison", (inPrison: boolean) => {
+                    if (prevInPrison === null) {
+                        prevInPrison = inPrison;
+                    } else {
+                        prevInPrison = inPrison;
                     }
-                    return;
-                }
 
-                prevInPrison = inPrison;
-                if (inPrison) {
-                    // 瞬間傳送到監獄位置（跳過走路動畫）
-                    playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.PRISON_X, PRISON_CONSTANTS.PRISON_Z);
-                    console.log(`🔒 [Phase 14] 玩家 ${sessionId} 被傳送到監獄`);
-                } else {
-                    // 瞬間傳送到釋放點
-                    playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.RELEASE_X, PRISON_CONSTANTS.RELEASE_Z);
-                    console.log(`🔓 [Phase 14] 玩家 ${sessionId} 從監獄釋放`);
-                }
-            });
+                    // 根據本地玩家和其他玩家是否在同一場景來決定可見性
+                    const entity = playerManager.getEntity(sessionId);
+                    if (entity && entity.mesh) {
+                        const localInPrison = sceneManager.isInPrisonScene();
+                        // 如果雙方都在監獄或都不在監獄，則顯示；否則隱藏
+                        const shouldShow = (localInPrison === inPrison);
+                        entity.mesh.setEnabled(shouldShow);
+                        if (entity.ui?.nameplate) {
+                            entity.ui.nameplate.isVisible = shouldShow;
+                        }
+                        console.log(`👁️ [Phase 15] 玩家 ${sessionId} 可見性: ${shouldShow ? '顯示' : '隱藏'} (本地在監獄: ${localInPrison}, 對方在監獄: ${inPrison})`);
+                    }
+                });
+            }
         });
 
         // 移除玩家
