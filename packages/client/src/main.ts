@@ -475,7 +475,33 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 });
 
                 // Phase 14: 監聽監獄狀態變化（本地玩家專用 UI + 場景切換）
+                // Phase 15: 追蹤初始狀態，避免一開始就觸發釋放邏輯
+                let localPrevInPrison: boolean | null = null;
                 player.listen("inPrison", async (inPrison: boolean) => {
+                    // 初始化時記錄狀態
+                    if (localPrevInPrison === null) {
+                        localPrevInPrison = inPrison;
+                        // 如果初始狀態就在監獄，才需要切換場景
+                        if (inPrison) {
+                            console.log("🔒 [Phase 15] 初始狀態在監獄，切換場景");
+                            const releaseTime = (player as any).prisonReleaseTime || (Date.now() + 30000);
+                            hudManager?.showPrisonOverlay(releaseTime);
+                            try {
+                                const prisonPos = await sceneManager.enterPrison();
+                                playerManager.teleportPlayer(sessionId, prisonPos.x, prisonPos.z);
+                                playerManager.setGroundMeshes(sceneManager.getCurrentTerrainMeshes());
+                            } catch (error) {
+                                console.error("❌ 無法載入監獄場景:", error);
+                            }
+                        }
+                        // 初始狀態不在監獄，不做任何事（保持在主地圖）
+                        return;
+                    }
+
+                    // 狀態沒有變化，不做任何事
+                    if (localPrevInPrison === inPrison) return;
+                    localPrevInPrison = inPrison;
+
                     if (inPrison) {
                         console.log("🔒 [Phase 14] 你被送進監獄了！");
                         // Show prison overlay with countdown
