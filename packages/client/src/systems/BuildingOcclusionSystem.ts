@@ -1,0 +1,331 @@
+import * as BABYLON from "@babylonjs/core";
+
+/**
+ * 建築物遮擋系統 (Phase 15)
+ *
+ * 當玩家位於建築物後方（被相機與玩家之間的建築物遮擋）時：
+ * - 將遮擋的建築物完全隱藏（但保留碰撞）
+ * - 確保玩家始終可見
+ * - 同一棟建築的多個部件會被當作整體處理
+ *
+ * 支援點擊建築物後移動到建築後方的地形座標
+ */
+export class BuildingOcclusionSystem {
+    private scene: BABYLON.Scene;
+    private buildingMeshes: BABYLON.AbstractMesh[] = [];
+    private terrainMeshes: BABYLON.AbstractMesh[] = [];
+    private occludedBuildings: Set<BABYLON.AbstractMesh> = new Set();
+
+    // 建築物分組：base name -> mesh[]
+    private buildingGroups: Map<string, BABYLON.AbstractMesh[]> = new Map();
+    // mesh -> group base name 的反向查找
+    private meshToGroup: Map<BABYLON.AbstractMesh, string> = new Map();
+
+    constructor(scene: BABYLON.Scene) {
+        this.scene = scene;
+    }
+
+    /**
+     * 從 mesh 名稱提取建築物基礎名稱
+     * 例如: "B_Building01_Upper" -> "B_Building01"
+     *       "B_Shop_Sign" -> "B_Shop"
+     *       "B001_Part1" -> "B001"
+     *       "B35618196460163A0_primitive0" -> "B35618196460163A0"
+     */
+    private extractBuildingBaseName(meshName: string): string {
+        // 移除常見的部件後綴（按順序處理，先處理 _primitive）
+        const suffixPatterns = [
+            /_primitive\d*$/i,  // GLB 導出的 primitive 分割（最重要！）
+            /_(?:Upper|Lower|Top|Bottom|Left|Right|Front|Back|Part\d*|Sign|Window|Door|Roof|Wall|Floor|Base)$/i,
+            /_\d+$/,  // 移除結尾的數字（如 _01, _1）
+        ];
+
+        let baseName = meshName;
+
+        // 持續嘗試移除後綴，直到沒有更多匹配
+        let changed = true;
+        while (changed) {
+            changed = false;
+            for (const pattern of suffixPatterns) {
+                const newName = baseName.replace(pattern, "");
+                if (newName !== baseName) {
+                    baseName = newName;
+                    changed = true;
+                    break;  // 從頭開始再檢查一次
+                }
+            }
+        }
+
+        // 如果處理後名稱為空或只有 B_，返回原名
+        if (!baseName || baseName === "B_" || baseName === "B") {
+            return meshName;
+        }
+
+        return baseName;
+    }
+
+    /**
+     * 設定建築物 mesh 列表並建立分組
+     */
+    setBuildingMeshes(meshes: BABYLON.AbstractMesh[]): void {
+        this.buildingMeshes = meshes;
+        this.buildingGroups.clear();
+        this.meshToGroup.clear();
+
+        // 建立分組
+        for (const mesh of meshes) {
+            const baseName = this.extractBuildingBaseName(mesh.name);
+
+            if (!this.buildingGroups.has(baseName)) {
+                this.buildingGroups.set(baseName, []);
+            }
+            this.buildingGroups.get(baseName)!.push(mesh);
+            this.meshToGroup.set(mesh, baseName);
+        }
+
+        console.log(`🏢 [Occlusion] Tracking ${meshes.length} building meshes in ${this.buildingGroups.size} groups`);
+
+        // 顯示分組資訊（用於調試）
+        for (const [baseName, group] of this.buildingGroups) {
+            if (group.length > 1) {
+                console.log(`   - ${baseName}: ${group.length} parts (${group.map(m => m.name).join(", ")})`);
+            }
+        }
+    }
+
+    /**
+     * 設定地形 mesh 列表
+     */
+    setTerrainMeshes(meshes: BABYLON.AbstractMesh[]): void {
+        this.terrainMeshes = meshes;
+        console.log(`🌍 [Occlusion] Tracking ${meshes.length} terrain meshes`);
+    }
+
+    /**
+     * 新增建築物 mesh
+     */
+    addBuildingMesh(mesh: BABYLON.AbstractMesh): void {
+        if (!this.buildingMeshes.includes(mesh)) {
+            this.buildingMeshes.push(mesh);
+        }
+    }
+
+    /**
+     * 新增地形 mesh
+     */
+    addTerrainMesh(mesh: BABYLON.AbstractMesh): void {
+        if (!this.terrainMeshes.includes(mesh)) {
+            this.terrainMeshes.push(mesh);
+        }
+    }
+
+    /**
+     * 更新建築物遮擋效果
+     * 在每幀調用此方法
+     *
+     * @param playerPosition 玩家位置
+     * @param camera 相機
+     */
+    update(playerPosition: BABYLON.Vector3, camera: BABYLON.Camera): void {
+        const cameraPos = camera.position;
+        const occludedGroups = new Set<string>();
+
+        // 計算相機到玩家的水平方向（用於左右偏移）
+        const toPlayer = playerPosition.subtract(cameraPos);
+        const horizontalDir = new BABYLON.Vector3(toPlayer.x, 0, toPlayer.z).normalize();
+        const rightDir = BABYLON.Vector3.Cross(BABYLON.Vector3.Up(), horizontalDir).normalize();
+
+        // 射多條射線來覆蓋玩家的整個身體和周圍區域
+        // 1. 垂直覆蓋：從腳部到頭頂上方（0, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0）
+        // 2. 水平覆蓋：中間、左邊、右邊
+        const verticalOffsets = [0, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0];
+        const horizontalOffsets = [0, -0.5, 0.5];  // 中間、左、右
+
+        const rayTargets: BABYLON.Vector3[] = [];
+        for (const vOffset of verticalOffsets) {
+            for (const hOffset of horizontalOffsets) {
+                const target = playerPosition.add(
+                    new BABYLON.Vector3(0, vOffset, 0)
+                ).add(rightDir.scale(hOffset));
+                rayTargets.push(target);
+            }
+        }
+
+        for (const target of rayTargets) {
+            const direction = target.subtract(cameraPos).normalize();
+            const distance = BABYLON.Vector3.Distance(cameraPos, target) + 5;
+            const ray = new BABYLON.Ray(cameraPos, direction, distance);
+
+            // 使用 multiPickWithRay 一次找出所有被射線穿過的建築物
+            const hits = this.scene.multiPickWithRay(ray, (mesh) => {
+                return this.buildingMeshes.includes(mesh);
+            });
+
+            if (hits) {
+                for (const hit of hits) {
+                    if (hit.hit && hit.pickedMesh) {
+                        const groupName = this.meshToGroup.get(hit.pickedMesh);
+                        if (groupName) {
+                            occludedGroups.add(groupName);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 計算新的遮擋 mesh 集合（整個群組）
+        const newlyOccluded = new Set<BABYLON.AbstractMesh>();
+        for (const groupName of occludedGroups) {
+            const group = this.buildingGroups.get(groupName);
+            if (group) {
+                for (const mesh of group) {
+                    newlyOccluded.add(mesh);
+                }
+            }
+        }
+
+        // 設定透明度
+        for (const building of newlyOccluded) {
+            if (!this.occludedBuildings.has(building)) {
+                this.setBuildingVisibility(building, false);
+            }
+        }
+
+        // 恢復不再遮擋的建築物
+        for (const building of this.occludedBuildings) {
+            if (!newlyOccluded.has(building)) {
+                this.setBuildingVisibility(building, true);
+            }
+        }
+
+        // 更新遮擋列表
+        this.occludedBuildings = newlyOccluded;
+    }
+
+    /**
+     * 設定建築物透明度（遮擋時變為 20% 透明）
+     */
+    private setBuildingVisibility(building: BABYLON.AbstractMesh, visible: boolean): void {
+        const targetAlpha = visible ? 1.0 : 0.2;
+
+        // 設定主 mesh 透明度
+        this.setMeshAlpha(building, targetAlpha);
+
+        // 處理子 mesh
+        building.getChildMeshes().forEach((child) => {
+            this.setMeshAlpha(child, targetAlpha);
+        });
+    }
+
+    /**
+     * 設定單個 mesh 的透明度
+     */
+    private setMeshAlpha(mesh: BABYLON.AbstractMesh, alpha: number): void {
+        if (!mesh.material) return;
+
+        // 設定透明度
+        if (mesh.material instanceof BABYLON.PBRMaterial) {
+            mesh.material.alpha = alpha;
+            mesh.material.transparencyMode = alpha < 1.0
+                ? BABYLON.Material.MATERIAL_ALPHABLEND
+                : BABYLON.Material.MATERIAL_OPAQUE;
+        } else if (mesh.material instanceof BABYLON.StandardMaterial) {
+            mesh.material.alpha = alpha;
+            mesh.material.transparencyMode = alpha < 1.0
+                ? BABYLON.Material.MATERIAL_ALPHABLEND
+                : BABYLON.Material.MATERIAL_OPAQUE;
+        }
+
+        // 碰撞保持啟用
+        mesh.checkCollisions = true;
+    }
+
+    /**
+     * 獲取點擊建築物後應該移動到的地形位置
+     * 找到建築物後方的可移動地形座標
+     *
+     * @param buildingMesh 被點擊的建築物
+     * @param cameraPos 相機位置
+     * @returns 目標位置，如果找不到則返回 null
+     */
+    getTerrainBehindBuilding(
+        buildingMesh: BABYLON.AbstractMesh,
+        cameraPos: BABYLON.Vector3
+    ): BABYLON.Vector3 | null {
+        // 從相機穿過建築物中心的射線
+        const buildingCenter = buildingMesh.getBoundingInfo().boundingBox.centerWorld;
+        const direction = buildingCenter.subtract(cameraPos).normalize();
+
+        // 計算建築物的大小，用於決定射線長度
+        const boundingBox = buildingMesh.getBoundingInfo().boundingBox;
+        const buildingSize = BABYLON.Vector3.Distance(
+            boundingBox.minimumWorld,
+            boundingBox.maximumWorld
+        );
+
+        // 創建穿透建築物的射線
+        const ray = new BABYLON.Ray(
+            cameraPos,
+            direction,
+            BABYLON.Vector3.Distance(cameraPos, buildingCenter) + buildingSize + 5
+        );
+
+        // 尋找射線擊中的地形
+        for (const terrain of this.terrainMeshes) {
+            const hit = ray.intersectsMesh(terrain, false);
+            if (hit.hit && hit.pickedPoint) {
+                // 確保這個點在建築物後面
+                const distToBuilding = BABYLON.Vector3.Distance(cameraPos, buildingCenter);
+                const distToTerrain = BABYLON.Vector3.Distance(cameraPos, hit.pickedPoint);
+
+                if (distToTerrain > distToBuilding) {
+                    return hit.pickedPoint;
+                }
+            }
+        }
+
+        // 如果射線沒有擊中地形，嘗試在建築物後方投射另一條向下的射線
+        const behindBuilding = buildingCenter.add(direction.scale(buildingSize / 2 + 2));
+        const downRay = new BABYLON.Ray(
+            new BABYLON.Vector3(behindBuilding.x, 100, behindBuilding.z),
+            BABYLON.Vector3.Down(),
+            200
+        );
+
+        for (const terrain of this.terrainMeshes) {
+            const hit = downRay.intersectsMesh(terrain, false);
+            if (hit.hit && hit.pickedPoint) {
+                return hit.pickedPoint;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 檢查一個 mesh 是否是建築物
+     */
+    isBuilding(mesh: BABYLON.AbstractMesh): boolean {
+        return this.buildingMeshes.includes(mesh);
+    }
+
+    /**
+     * 檢查一個 mesh 是否是地形
+     */
+    isTerrain(mesh: BABYLON.AbstractMesh): boolean {
+        return this.terrainMeshes.includes(mesh);
+    }
+
+    /**
+     * 清理資源
+     */
+    dispose(): void {
+        // 恢復所有建築物為可見
+        for (const building of this.occludedBuildings) {
+            this.setBuildingVisibility(building, true);
+        }
+        this.occludedBuildings.clear();
+        this.buildingMeshes = [];
+        this.terrainMeshes = [];
+    }
+}

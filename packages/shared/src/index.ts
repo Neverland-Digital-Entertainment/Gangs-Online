@@ -250,7 +250,7 @@ export const GAME_CONSTANTS = {
     // Enemy/PVE Constants
     ENEMY_SPEED: 0.1, // Slower than players
     ENEMY_DETECT_RANGE: 10.0, // Aggro range
-    ENEMY_SPAWN_COUNT: 5, // 初始 NPC 數量
+    ENEMY_SPAWN_COUNT: 0, // Phase 15: 暫時設為 0 以便測試場景
     ENEMY_ATTACK_DAMAGE: 3, // 降低敵人攻擊力（原本 5）
     ENEMY_ATTACK_CHANCE: 0.02, // 2% chance per tick to attack
 
@@ -316,7 +316,13 @@ export interface ILootTableEntry {
 }
 
 /**
+ * NPC 狀態（Phase 15）
+ */
+export type NPCStatus = 'active' | 'inactive';
+
+/**
  * NPC 數據結構（Phase 14 - Firebase Collection: npcs）
+ * Phase 15: 新增 status 欄位
  */
 export interface INPCData {
     id: string;
@@ -329,6 +335,7 @@ export interface INPCData {
     relatedQuests?: string[]; // 關聯任務 ID
     spawnX?: number;
     spawnZ?: number;
+    status?: NPCStatus; // Phase 15: active/inactive 狀態
 }
 
 /**
@@ -346,16 +353,16 @@ export const EVIL_VALUE_CONSTANTS = {
  * 監獄系統常數（Phase 14）
  */
 export const PRISON_CONSTANTS = {
-    // 監獄位置（隔離區）
-    PRISON_X: -50,
-    PRISON_Z: -50,
-    PRISON_RADIUS: 5.0, // 監獄活動範圍
-    // 釋放後重生點（銅鑼灣）
+    // Phase 15: 監獄位置（場景西北角，避開建築物）
+    PRISON_X: -350,
+    PRISON_Z: 500,
+    PRISON_RADIUS: 10.0, // 監獄活動範圍
+    // Phase 15: 釋放後重生點（場景南邊道路）
     RELEASE_X: 0,
-    RELEASE_Z: 0,
+    RELEASE_Z: -450,
 };
 
 /**
- * 遊戲版本（0.14.0 - Roles & Wanted System）
+ * 遊戲版本（0.15.0 - Real Scene Integration）
  */
-export const GAME_VERSION = "0.14.0";
+export const GAME_VERSION = "0.15.0";

@@ -101,6 +101,9 @@ export class FirebaseService {
         if (!auth) return { success: false, user: null, error: "Auth not initialized" };
 
         try {
+            // 設定為持久化登入（記住登入狀態）
+            await setPersistence(auth, browserLocalPersistence);
+
             const result = await signInWithPopup(auth, googleProvider);
             const isNewUser = result.user.metadata.creationTime === result.user.metadata.lastSignInTime;
             console.log("[Firebase] Google login successful:", result.user.uid);
@@ -119,6 +122,9 @@ export class FirebaseService {
         if (!auth) return { success: false, user: null, error: "Auth not initialized" };
 
         try {
+            // 設定為持久化登入（記住登入狀態）
+            await setPersistence(auth, browserLocalPersistence);
+
             appleProvider.addScope('email');
             appleProvider.addScope('name');
             const result = await signInWithPopup(auth, appleProvider);

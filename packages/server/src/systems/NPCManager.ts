@@ -7,11 +7,13 @@ import { npcService } from "../services/NPCService";
 
 /**
  * NPCManager - 管理 NPC 生成和邏輯 (Phase 9, Phase 14: 擴展 NPC AI)
+ * Phase 15: 僅載入 status === 'active' 的 NPC
  *
  * 功能：
  * - 從 Firebase 載入 NPC 定義
  * - 生成商店 NPC、市民、警察、古惑仔 NPC
  * - 管理 NPC 狀態和 AI 行為
+ * - Phase 15: 根據 status 欄位過濾 NPC
  */
 export class NPCManager {
     private npcs: MapSchema<Enemy>;
@@ -39,18 +41,21 @@ export class NPCManager {
 
     /**
      * 初始化 NPC（從 Firebase 載入 NPC 定義並生成）
+     * Phase 15: 僅載入 status === 'active' 的 NPC
      */
     async initialize(): Promise<void> {
         // 初始化 NPC 服務（從 Firebase 載入）
         await npcService.initialize();
 
-        // 從 NPCService 載入所有 NPC 並生成
+        // Phase 15: 從 NPCService 載入所有活躍的 NPC 並生成
+        const activeNPCs = npcService.getActiveNPCs();
         const allNPCs = npcService.getAllNPCs();
-        allNPCs.forEach((npcData) => {
+
+        activeNPCs.forEach((npcData) => {
             this.spawnNPCFromData(npcData);
         });
 
-        console.log(`✅ [NPCManager] Spawned ${allNPCs.length} NPCs from Firebase/defaults`);
+        console.log(`✅ [NPCManager] Spawned ${activeNPCs.length}/${allNPCs.length} active NPCs (Phase 15: inactive NPCs not loaded)`);
     }
 
     /**

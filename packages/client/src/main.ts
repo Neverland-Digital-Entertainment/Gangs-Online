@@ -15,7 +15,8 @@ import { WeaponSystem } from "./systems/WeaponSystem";
 // Phase 9.1: InventorySystem UI 已移除，金錢改為在 HUD 顯示
 // Phase 10.1: ShopSystem 已整合到 HUDManager 的 Popup 系統
 import { HUDManager } from "./systems/HUDManager"; // Phase 9.1
-import { CityGenerator } from "./world/CityGenerator";
+import { SceneManager } from "./world/SceneManager"; // Phase 15: 取代 CityGenerator
+import { DebugUISystem } from "./systems/DebugUISystem"; // Phase 15: Debug UI
 import { PlayerManager } from "./entities/PlayerManager";
 import { EnemyManager } from "./entities/EnemyManager";
 import { LootManager } from "./entities/LootManager"; // Phase 8
@@ -95,9 +96,22 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
     // 創建相機
     const camera = createIsometricCamera(scene, engine);
 
-    // 創建城市環境
-    const cityGenerator = new CityGenerator(scene);
-    cityGenerator.generate();
+    // Phase 15: 創建場景管理器（取代 CityGenerator）
+    const sceneManager = new SceneManager(scene);
+
+    // Phase 15: 創建 Debug UI 系統
+    const debugUI = new DebugUISystem(scene);
+
+    // Phase 15: 載入場景（帶進度條）
+    loadingScreen.updateText("正在載入場景模型...");
+    try {
+        await sceneManager.initialize((progress) => {
+            loadingScreen.updateProgress(progress);
+        });
+        console.log("✅ Scene loaded successfully");
+    } catch (error) {
+        console.error("❌ Failed to load scene:", error);
+    }
 
     // --- UI Layer ---
     const uiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
@@ -111,6 +125,9 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
     const weaponSystem = new WeaponSystem();
     const playerManager = new PlayerManager(scene, uiSystem, weaponSystem);
     const enemyManager = new EnemyManager(scene, uiSystem); // 敵人管理系統
+
+    // Phase 15: 設定地面 mesh 給 PlayerManager（用於地面偵測）
+    playerManager.setGroundMeshes(sceneManager.getTerrainMeshes());
 
     // === Phase 11: 初始化音效和粒子系統 ===
     const soundManager = new SoundManager(scene);
@@ -180,6 +197,9 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
         hudManager = new HUDManager(uiTexture);
         await hudManager.initialize(room);
 
+        // Phase 15: 暫時隱藏 HUD（測試模式）
+        hudManager.setVisible(false);
+
         // 監聽聊天訊息 (Phase 13: 支援多頻道)
         room.onMessage("chat", (msg: { sessionId: string; text: string; type?: string; senderName?: string }) => {
             const entity = playerManager.getEntity(msg.sessionId);
@@ -232,6 +252,27 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
             window.location.reload();
         });
 
+        // Phase 15: 設定場景切換回調（更新其他玩家的可見性）
+        sceneManager.setOnSceneSwitch((sceneName, position) => {
+            console.log(`🌍 [Phase 15] Scene switched to: ${sceneName}`);
+            const localInPrison = (sceneName === "Prison");
+
+            // 更新所有其他玩家的可見性
+            (room.state as any).players.forEach((player: PlayerData, sessionId: string) => {
+                if (sessionId === mySessionId) return; // 跳過自己
+
+                const entity = playerManager.getEntity(sessionId);
+                if (entity && entity.mesh) {
+                    const playerInPrison = (player as any).inPrison || false;
+                    const shouldShow = (localInPrison === playerInPrison);
+                    entity.mesh.setEnabled(shouldShow);
+                    if (entity.ui?.container) {
+                        entity.ui.container.isVisible = shouldShow;
+                    }
+                }
+            });
+        });
+
         // 添加玩家
         (room.state as any).players.onAdd(async (player: PlayerData, sessionId: string) => {
             const isSelf = sessionId === room.sessionId;
@@ -241,6 +282,13 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
             }
 
             const entity = await playerManager.createPlayer(player, sessionId, isSelf);
+
+            // Phase 15: 如果是本地玩家，瞬移到伺服器載入的位置（從 Firebase 讀取或新玩家預設位置）
+            if (isSelf) {
+                console.log(`📍 [Phase 15] Teleporting to server position: (${player.x.toFixed(1)}, ${player.z.toFixed(1)})`);
+                // 瞬移玩家（不是走路）- 使用伺服器提供的位置
+                playerManager.teleportPlayer(sessionId, player.x, player.z);
+            }
 
             // 同步位置
             player.onChange(() => {
@@ -426,16 +474,65 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     }
                 });
 
-                // Phase 14: 監聽監獄狀態變化（本地玩家專用 UI）
-                player.listen("inPrison", (inPrison: boolean) => {
+                // Phase 14: 監聽監獄狀態變化（本地玩家專用 UI + 場景切換）
+                // Phase 15: 追蹤初始狀態，避免一開始就觸發釋放邏輯
+                let localPrevInPrison: boolean | null = null;
+                player.listen("inPrison", async (inPrison: boolean) => {
+                    // 初始化時記錄狀態
+                    if (localPrevInPrison === null) {
+                        localPrevInPrison = inPrison;
+                        // 如果初始狀態就在監獄，才需要切換場景
+                        if (inPrison) {
+                            console.log("🔒 [Phase 15] 初始狀態在監獄，切換場景");
+                            const releaseTime = (player as any).prisonReleaseTime || (Date.now() + 30000);
+                            hudManager?.showPrisonOverlay(releaseTime);
+                            try {
+                                const prisonPos = await sceneManager.enterPrison();
+                                playerManager.teleportPlayer(sessionId, prisonPos.x, prisonPos.z);
+                                playerManager.setGroundMeshes(sceneManager.getCurrentTerrainMeshes());
+                            } catch (error) {
+                                console.error("❌ 無法載入監獄場景:", error);
+                            }
+                        }
+                        // 初始狀態不在監獄，不做任何事（保持在主地圖）
+                        return;
+                    }
+
+                    // 狀態沒有變化，不做任何事
+                    if (localPrevInPrison === inPrison) return;
+                    localPrevInPrison = inPrison;
+
                     if (inPrison) {
                         console.log("🔒 [Phase 14] 你被送進監獄了！");
                         // Show prison overlay with countdown
                         const releaseTime = (player as any).prisonReleaseTime || (Date.now() + 30000);
                         hudManager?.showPrisonOverlay(releaseTime);
+
+                        // Phase 15: 切換到監獄場景
+                        try {
+                            const prisonPos = await sceneManager.enterPrison();
+                            playerManager.teleportPlayer(sessionId, prisonPos.x, prisonPos.z);
+                            // 更新可行走地形為監獄地形
+                            playerManager.setGroundMeshes(sceneManager.getCurrentTerrainMeshes());
+                            console.log(`🔒 [Phase 15] 已切換到監獄場景`);
+                        } catch (error) {
+                            console.error("❌ 無法載入監獄場景:", error);
+                        }
                     } else {
                         console.log("🔓 [Phase 14] 你已從監獄釋放！");
                         hudManager?.hidePrisonOverlay();
+
+                        // Phase 15: 切換回主地圖
+                        const releasePos = new BABYLON.Vector3(
+                            PRISON_CONSTANTS.RELEASE_X,
+                            1,
+                            PRISON_CONSTANTS.RELEASE_Z
+                        );
+                        sceneManager.exitPrison(releasePos);
+                        playerManager.teleportPlayer(sessionId, releasePos.x, releasePos.z);
+                        // 恢復可行走地形為主地圖地形
+                        playerManager.setGroundMeshes(sceneManager.getCurrentTerrainMeshes());
+                        console.log(`🔓 [Phase 15] 已切換回主地圖`);
                     }
                 });
 
@@ -446,19 +543,32 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 }
             }
 
-            // Phase 14: 監聽所有玩家的監獄狀態變化（用於傳送）
+            // Phase 14: 監聽所有玩家的監獄狀態變化（用於顯示/隱藏其他玩家）
             // 這個監聯在 if (isSelf) 區塊外面，所以對所有玩家都有效
-            player.listen("inPrison", (inPrison: boolean) => {
-                if (inPrison) {
-                    // 瞬間傳送到監獄位置（跳過走路動畫）
-                    playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.PRISON_X, PRISON_CONSTANTS.PRISON_Z);
-                    console.log(`🔒 [Phase 14] 玩家 ${sessionId} 被傳送到監獄`);
-                } else {
-                    // 瞬間傳送到釋放點
-                    playerManager.teleportPlayer(sessionId, PRISON_CONSTANTS.RELEASE_X, PRISON_CONSTANTS.RELEASE_Z);
-                    console.log(`🔓 [Phase 14] 玩家 ${sessionId} 從監獄釋放`);
-                }
-            });
+            // Phase 15: 本地玩家的場景切換在上面的 isSelf 區塊處理，這裡只處理其他玩家的可見性
+            if (!isSelf) {
+                let prevInPrison: boolean | null = null;
+                player.listen("inPrison", (inPrison: boolean) => {
+                    if (prevInPrison === null) {
+                        prevInPrison = inPrison;
+                    } else {
+                        prevInPrison = inPrison;
+                    }
+
+                    // 根據本地玩家和其他玩家是否在同一場景來決定可見性
+                    const entity = playerManager.getEntity(sessionId);
+                    if (entity && entity.mesh) {
+                        const localInPrison = sceneManager.isInPrisonScene();
+                        // 如果雙方都在監獄或都不在監獄，則顯示；否則隱藏
+                        const shouldShow = (localInPrison === inPrison);
+                        entity.mesh.setEnabled(shouldShow);
+                        if (entity.ui?.container) {
+                            entity.ui.container.isVisible = shouldShow;
+                        }
+                        console.log(`👁️ [Phase 15] 玩家 ${sessionId} 可見性: ${shouldShow ? '顯示' : '隱藏'} (本地在監獄: ${localInPrison}, 對方在監獄: ${inPrison})`);
+                    }
+                });
+            }
         });
 
         // 移除玩家
@@ -522,6 +632,21 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
         // 延遲執行以確保房間狀態完全初始化
         setTimeout(setupEnemySystem, 100);
 
+        // --- Helper: 檢查是否為建築物 (Phase 15: 支援 b_ 和 B_ 開頭) ---
+        const isBuildingMesh = (mesh: BABYLON.AbstractMesh): boolean => {
+            return mesh.name.startsWith("b_") ||
+                   mesh.name.toUpperCase().startsWith("B") ||
+                   sceneManager.isBuilding(mesh);
+        };
+
+        // --- Helper: 檢查是否為地形 (Phase 15: 支援 T_ 開頭) ---
+        const isTerrainMesh = (mesh: BABYLON.AbstractMesh): boolean => {
+            return mesh.name.toUpperCase().startsWith("T") ||
+                   mesh.name === "ground" ||
+                   mesh.name === "road" ||
+                   sceneManager.isTerrain(mesh);
+        };
+
         // --- Helper: 找到可互動物件（穿透建築物）---
         const findInteractiveTarget = (x: number, y: number): { type: 'loot' | 'npc' | 'enemy' | 'player' | null, mesh: BABYLON.AbstractMesh | null, id?: string } => {
             // 創建射線
@@ -529,10 +654,10 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
             // 使用 multiPickWithRay 並設定 predicate 跳過建築物
             const pickResults = scene.multiPickWithRay(ray, (mesh) => {
-                // 跳過建築物（名稱以 b_ 開頭）
-                if (mesh.name.startsWith("b_")) return false;
-                // 跳過地面
-                if (mesh.name === "ground") return false;
+                // Phase 15: 跳過建築物（支援 b_ 和 B_ 開頭）
+                if (isBuildingMesh(mesh)) return false;
+                // Phase 15: 跳過地形（支援 T_ 開頭）
+                if (isTerrainMesh(mesh)) return false;
                 return true;
             });
 
@@ -733,8 +858,9 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
             if (pickResult.hit && pickResult.pickedMesh && pickResult.pickedPoint) {
                 let targetPoint = null;
 
-                // 如果點擊了建筑物，嘗試穿透找到後面的道路
-                if (pickResult.pickedMesh.name.startsWith("b_")) {
+                // Phase 15: 如果點擊了建筑物，嘗試找到後面的地形
+                if (isBuildingMesh(pickResult.pickedMesh)) {
+                    // 優先使用射線穿透找到實際點擊位置的地形
                     const ray = scene.createPickingRay(
                         scene.pointerX,
                         scene.pointerY,
@@ -745,12 +871,24 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     const hits = scene.multiPickWithRay(ray);
                     if (hits) {
                         for (const hit of hits) {
+                            // 找到第一個非建築物的地形/物品
                             if (hit.pickedMesh &&
-                                !hit.pickedMesh.name.startsWith("b_") &&
+                                !isBuildingMesh(hit.pickedMesh) &&
                                 hit.pickedPoint) {
                                 targetPoint = hit.pickedPoint;
                                 break;
                             }
+                        }
+                    }
+
+                    // 如果射線沒找到，才用建築物中心投射（備用方案）
+                    if (!targetPoint) {
+                        const terrainBehind = sceneManager.getTerrainBehindBuilding(
+                            pickResult.pickedMesh,
+                            camera.position
+                        );
+                        if (terrainBehind) {
+                            targetPoint = terrainBehind;
                         }
                     }
                 } else {
@@ -774,15 +912,18 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
             // 更新所有敵人
             enemyManager.updateAll();
 
-            // Phase 10: 更新建築物遮擋效果
+            // Phase 15: 更新建築物遮擋效果（使用 SceneManager）
             if (mySessionId) {
                 const myEntity = playerManager.getEntity(mySessionId);
                 if (myEntity) {
                     // 相機跟隨
                     updateCameraFollow(camera, myEntity.mesh);
 
-                    // 檢查並更新建築物透明度（當玩家在建築物後面時）
-                    cityGenerator.updateBuildingOcclusion(myEntity.mesh.position, camera);
+                    // Phase 15: 更新 Debug UI 座標
+                    debugUI.setPlayerPosition(myEntity.mesh.position);
+
+                    // Phase 15: 檢查並更新建築物透明度（當玩家在建築物後面時）
+                    sceneManager.updateBuildingOcclusion(myEntity.mesh.position, camera);
 
                     // Phase 11: 自動走路拾取
                     if (pendingPickup) {

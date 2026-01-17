@@ -1,15 +1,18 @@
 /**
  * NPC Service - Firebase NPC 資料管理 (Phase 14)
+ * Phase 15: 新增 status 欄位過濾功能
  *
  * 負責：
  * 1. 從 Firebase npcs 集合載入 NPC 定義
  * 2. 提供 NPC 資料查詢
+ * 3. 根據 status 欄位過濾 NPC（僅載入 active 狀態的 NPC）
  */
 import { getFirestore, isFirebaseInitialized } from "./FirebaseService";
-import { INPCData, NPCType } from "@gangs-online/shared";
+import { INPCData, NPCType, NPCStatus } from "@gangs-online/shared";
 
 /**
  * 預設 NPC 定義（當 Firebase 不可用時使用）
+ * Phase 15: 新增 status 欄位，預設為 inactive 以便專注於場景測試
  */
 const DEFAULT_NPCS: INPCData[] = [
     // 商店 NPC
@@ -22,6 +25,7 @@ const DEFAULT_NPCS: INPCData[] = [
         dialogue: "歡迎光臨！有咩幫到你？",
         spawnX: 0,
         spawnZ: 0,
+        status: "inactive", // Phase 15: 預設 inactive
     },
     // 任務 NPC
     {
@@ -34,6 +38,7 @@ const DEFAULT_NPCS: INPCData[] = [
         relatedQuests: ["kill_enemies"],
         spawnX: 5,
         spawnZ: 5,
+        status: "inactive", // Phase 15: 預設 inactive
     },
     // 市民 NPC
     {
@@ -45,6 +50,7 @@ const DEFAULT_NPCS: INPCData[] = [
         dialogue: "唔好搞我！",
         spawnX: -10,
         spawnZ: 8,
+        status: "inactive", // Phase 15: 預設 inactive
     },
     {
         id: "npc_citizen_2",
@@ -55,6 +61,7 @@ const DEFAULT_NPCS: INPCData[] = [
         dialogue: "年輕人，唔好學人打打殺殺！",
         spawnX: 12,
         spawnZ: -5,
+        status: "inactive", // Phase 15: 預設 inactive
     },
     {
         id: "npc_citizen_3",
@@ -65,6 +72,7 @@ const DEFAULT_NPCS: INPCData[] = [
         dialogue: "我要返學喇！",
         spawnX: -8,
         spawnZ: -12,
+        status: "inactive", // Phase 15: 預設 inactive
     },
     // 警察 NPC - Phase 14: 警察很難被打敗（高 HP、高攻擊）
     {
@@ -75,6 +83,7 @@ const DEFAULT_NPCS: INPCData[] = [
         attack: 35, // 較高的攻擊力
         spawnX: 15,
         spawnZ: 15,
+        status: "inactive", // Phase 15: 預設 inactive
     },
     {
         id: "npc_police_2",
@@ -84,6 +93,7 @@ const DEFAULT_NPCS: INPCData[] = [
         attack: 35,
         spawnX: -15,
         spawnZ: 15,
+        status: "inactive", // Phase 15: 預設 inactive
     },
 ];
 
@@ -164,10 +174,29 @@ class NPCService {
     }
 
     /**
+     * 獲取所有活躍的 NPC (Phase 15)
+     * 僅返回 status === 'active' 的 NPC
+     */
+    getActiveNPCs(): INPCData[] {
+        return Array.from(this.npcCache.values()).filter(
+            (npc) => npc.status === "active"
+        );
+    }
+
+    /**
      * 根據類型獲取 NPC
      */
     getNPCsByType(type: NPCType): INPCData[] {
         return Array.from(this.npcCache.values()).filter((npc) => npc.type === type);
+    }
+
+    /**
+     * 根據類型獲取活躍的 NPC (Phase 15)
+     */
+    getActiveNPCsByType(type: NPCType): INPCData[] {
+        return Array.from(this.npcCache.values()).filter(
+            (npc) => npc.type === type && npc.status === "active"
+        );
     }
 
     /**

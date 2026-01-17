@@ -4,7 +4,7 @@ import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle, IQuestDef, Chat
 import { EnemyManager } from "../systems/EnemyManager";
 import { ProgressionSystem } from "../systems/ProgressionSystem";
 import { LootSystem } from "../systems/LootSystem"; // Phase 8
-import { SafeZoneSystem } from "../systems/SafeZoneSystem"; // Phase 9
+// Phase 15: 移除安全區系統 - import { SafeZoneSystem } from "../systems/SafeZoneSystem";
 import { ShopSystem } from "../systems/ShopSystem"; // Phase 9
 import { NPCManager } from "../systems/NPCManager"; // Phase 9
 import { QuestManager } from "../systems/QuestManager"; // Phase 10
@@ -21,7 +21,7 @@ export class GameRoom extends Room<GameState> {
     private enemyManager!: EnemyManager; // 敵人管理系統
     private progressionSystem!: ProgressionSystem; // 進度系統 (Phase 7)
     private lootSystem!: LootSystem; // 戰利品系統 (Phase 8)
-    private safeZoneSystem!: SafeZoneSystem; // 安全區系統 (Phase 9)
+    // Phase 15: 移除安全區系統 - private safeZoneSystem!: SafeZoneSystem;
     private shopSystem!: ShopSystem; // 商店系統 (Phase 9)
     private npcManager!: NPCManager; // NPC 管理系統 (Phase 9)
     private questManager!: QuestManager; // 任務管理系統 (Phase 10)
@@ -45,8 +45,8 @@ export class GameRoom extends Room<GameState> {
         // 初始化戰利品系統 (Phase 8)
         this.lootSystem = new LootSystem(this);
 
-        // 初始化安全區系統 (Phase 9)
-        this.safeZoneSystem = new SafeZoneSystem();
+        // Phase 15: 移除安全區系統初始化
+        // this.safeZoneSystem = new SafeZoneSystem();
 
         // 初始化商店系統 (Phase 9)
         this.shopSystem = new ShopSystem();
@@ -120,7 +120,17 @@ export class GameRoom extends Room<GameState> {
             }
         });
 
-        // Handle Attack (支援攻擊玩家或敵人) - Phase 9: 增加安全區檢查, Phase 14: 增加紅名系統
+        // Phase 15: Handle set_position (客戶端載入地圖後設定起始位置)
+        this.onMessage("set_position", (client, input: { x: number; z: number }) => {
+            const player = this.state.players.get(client.sessionId);
+            if (player) {
+                console.log(`📍 [Phase 15] Setting player ${client.sessionId} position to (${input.x.toFixed(1)}, ${input.z.toFixed(1)})`);
+                player.x = input.x;
+                player.z = input.z;
+            }
+        });
+
+        // Handle Attack (支援攻擊玩家或敵人) - Phase 14: 增加紅名系統, Phase 15: 移除安全區檢查
         this.onMessage("attack", (client, payload: { targetId: string; type: EntityType }) => {
             const attacker = this.state.players.get(client.sessionId);
 
@@ -135,11 +145,11 @@ export class GameRoom extends Room<GameState> {
                 return;
             }
 
-            // Phase 9: 檢查攻擊者是否在安全區內
-            if (this.safeZoneSystem.isInSafeZone(attacker.x, attacker.z)) {
-                client.send("notification", "這裡是安全區，不能打架！");
-                return;
-            }
+            // Phase 15: 移除安全區檢查 - 全地圖回歸實戰狀態
+            // if (this.safeZoneSystem.isInSafeZone(attacker.x, attacker.z)) {
+            //     client.send("notification", "這裡是安全區，不能打架！");
+            //     return;
+            // }
 
             if (payload.type === "player") {
                 // 攻擊玩家（PVP）
@@ -605,17 +615,17 @@ export class GameRoom extends Room<GameState> {
     }
 
     /**
-     * 處理玩家對玩家的攻擊（PVP） - Phase 9: 增加安全區檢查
+     * 處理玩家對玩家的攻擊（PVP） - Phase 15: 移除安全區檢查
      */
     private handlePlayerVsPlayer(client: Client, attacker: Player, targetSessionId: string): void {
         const target = this.state.players.get(targetSessionId);
 
         if (target && target.hp > 0) {
-            // Phase 9: 檢查目標是否在安全區內
-            if (this.safeZoneSystem.isInSafeZone(target.x, target.z)) {
-                client.send("notification", "對方在安全區內！");
-                return;
-            }
+            // Phase 15: 移除安全區檢查 - 全地圖回歸實戰狀態
+            // if (this.safeZoneSystem.isInSafeZone(target.x, target.z)) {
+            //     client.send("notification", "對方在安全區內！");
+            //     return;
+            // }
 
             // Phase 14: 檢查目標是否在監獄中
             if (target.inPrison) {
@@ -876,8 +886,9 @@ export class GameRoom extends Room<GameState> {
         if (!loaded) {
             // 新玩家：使用客戶端提供的角色名稱
             player.name = characterName || `玩家${client.sessionId.substring(0, 6)}`;
-            player.x = Math.random() * 10 - 5;
-            player.z = Math.random() * 10 - 5;
+            // Phase 15: 新玩家生成在旺角地圖的指定位置
+            player.x = -835575.4;
+            player.z = -819658.9;
             player.hp = 100;
             player.maxHp = 100;
             player.inCombatWith = "";
