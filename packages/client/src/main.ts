@@ -266,8 +266,8 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     const playerInPrison = (player as any).inPrison || false;
                     const shouldShow = (localInPrison === playerInPrison);
                     entity.mesh.setEnabled(shouldShow);
-                    if (entity.ui?.nameplate) {
-                        entity.ui.nameplate.isVisible = shouldShow;
+                    if (entity.ui?.container) {
+                        entity.ui.container.isVisible = shouldShow;
                     }
                 }
             });
@@ -536,8 +536,8 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                         // 如果雙方都在監獄或都不在監獄，則顯示；否則隱藏
                         const shouldShow = (localInPrison === inPrison);
                         entity.mesh.setEnabled(shouldShow);
-                        if (entity.ui?.nameplate) {
-                            entity.ui.nameplate.isVisible = shouldShow;
+                        if (entity.ui?.container) {
+                            entity.ui.container.isVisible = shouldShow;
                         }
                         console.log(`👁️ [Phase 15] 玩家 ${sessionId} 可見性: ${shouldShow ? '顯示' : '隱藏'} (本地在監獄: ${localInPrison}, 對方在監獄: ${inPrison})`);
                     }
