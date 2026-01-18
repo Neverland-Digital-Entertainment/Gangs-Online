@@ -1,13 +1,12 @@
 {
-  "name": "@gangs-online/dashboard-item",
-  "version": "1.0.0",
+  "name": "@gangs-online/dashboard",
+  "version": "0.16.1",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
-    "lint": "eslint .",
-    "format": "prettier --write ."
+    "lint": "next lint"
   },
   "dependencies": {
     "firebase": "^11.1.0",

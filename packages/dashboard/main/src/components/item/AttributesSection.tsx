@@ -1,6 +1,6 @@
 'use client';
 
-import type { ItemCategory } from '@/types/items';
+import type { ItemCategory } from '@/types/item';
 
 interface AttributesSectionProps {
   category: ItemCategory;

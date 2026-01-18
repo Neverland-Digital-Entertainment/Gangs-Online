@@ -1,7 +1,7 @@
 'use client';
 
 import { Upload } from 'lucide-react';
-import type { ItemFormData, ItemCategory } from '@/types/items';
+import type { ItemFormData, ItemCategory } from '@/types/item';
 
 interface BasicInfoSectionProps {
   formData: ItemFormData;
@@ -20,7 +20,6 @@ export function BasicInfoSection({ formData, updateFormData }: BasicInfoSectionP
     const file = e.target.files?.[0];
     if (file) {
       updateFormData({ imageFile: file });
-      // Preview
       const reader = new FileReader();
       reader.onloadend = () => {
         updateFormData({ imageUrl: reader.result as string });
@@ -66,7 +65,7 @@ export function BasicInfoSection({ formData, updateFormData }: BasicInfoSectionP
               onChange={(e) => {
                 updateFormData({
                   category: e.target.value as ItemCategory,
-                  attributes: {} // Reset attributes when category changes
+                  attributes: {}
                 });
               }}
               className="select"

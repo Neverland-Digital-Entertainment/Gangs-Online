@@ -1,6 +1,6 @@
 /**
  * Item Service for Firebase Operations
- * Phase 16 - Item Module
+ * Version 0.16.1
  */
 
 import {
@@ -18,8 +18,8 @@ import {
   DocumentData,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { getFirebaseServices } from './firebase';
-import type { Item, ItemFormData, ItemFilter } from '../types/items';
+import { getFirebaseServices } from '../firebase/config';
+import type { Item, ItemFormData, ItemFilter } from '@/types/item';
 
 const COLLECTION_NAME = 'items';
 const STORAGE_PATH = 'item-images';
@@ -28,7 +28,6 @@ export class ItemService {
   private static instance: ItemService;
 
   private constructor() {
-    // Initialize Firebase
     getFirebaseServices();
   }
 
@@ -39,9 +38,6 @@ export class ItemService {
     return ItemService.instance;
   }
 
-  /**
-   * Upload item image to Firebase Storage
-   */
   async uploadItemImage(file: File, itemId: string): Promise<string> {
     const { storage } = getFirebaseServices();
     const fileExtension = file.name.split('.').pop();
@@ -54,9 +50,6 @@ export class ItemService {
     return downloadURL;
   }
 
-  /**
-   * Delete item image from Firebase Storage
-   */
   async deleteItemImage(imageUrl: string): Promise<void> {
     try {
       const { storage } = getFirebaseServices();
@@ -64,13 +57,9 @@ export class ItemService {
       await deleteObject(imageRef);
     } catch (error) {
       console.error('Error deleting image:', error);
-      // Don't throw error if image doesn't exist
     }
   }
 
-  /**
-   * Convert Firestore document to Item
-   */
   private documentToItem(id: string, data: DocumentData): Item {
     return {
       id,
@@ -89,19 +78,15 @@ export class ItemService {
     };
   }
 
-  /**
-   * Create a new item
-   */
   async createItem(formData: ItemFormData): Promise<string> {
     const { db } = getFirebaseServices();
     const itemsCollection = collection(db, COLLECTION_NAME);
 
-    // Create document first to get ID
     const docRef = await addDoc(itemsCollection, {
       name: formData.name,
       description: formData.description,
       category: formData.category,
-      imageUrl: '', // Temporary
+      imageUrl: '',
       price: formData.price,
       sellPrice: formData.sellPrice,
       isTradeable: formData.isTradeable,
@@ -112,7 +97,6 @@ export class ItemService {
       updatedAt: Timestamp.now(),
     });
 
-    // Upload image if provided
     let imageUrl = '/images/no-image.png';
     if (formData.imageFile) {
       imageUrl = await this.uploadItemImage(formData.imageFile, docRef.id);
@@ -120,15 +104,11 @@ export class ItemService {
       imageUrl = formData.imageUrl;
     }
 
-    // Update document with image URL
     await updateDoc(docRef, { imageUrl });
 
     return docRef.id;
   }
 
-  /**
-   * Get item by ID
-   */
   async getItem(itemId: string): Promise<Item | null> {
     const { db } = getFirebaseServices();
     const docRef = doc(db, COLLECTION_NAME, itemId);
@@ -141,16 +121,12 @@ export class ItemService {
     return null;
   }
 
-  /**
-   * Get all items with optional filters
-   */
   async getItems(filter?: ItemFilter): Promise<Item[]> {
     const { db } = getFirebaseServices();
     const itemsCollection = collection(db, COLLECTION_NAME);
 
     let q = query(itemsCollection, orderBy('createdAt', 'desc'));
 
-    // Apply filters
     if (filter?.category) {
       q = query(itemsCollection, where('category', '==', filter.category), orderBy('createdAt', 'desc'));
     }
@@ -170,7 +146,6 @@ export class ItemService {
       items.push(this.documentToItem(doc.id, doc.data()));
     });
 
-    // Client-side search filter
     if (filter?.search) {
       const searchLower = filter.search.toLowerCase();
       return items.filter(
@@ -183,17 +158,12 @@ export class ItemService {
     return items;
   }
 
-  /**
-   * Update an existing item
-   */
   async updateItem(itemId: string, formData: ItemFormData): Promise<void> {
     const { db } = getFirebaseServices();
     const docRef = doc(db, COLLECTION_NAME, itemId);
 
-    // Handle image upload if new file provided
     let imageUrl = formData.imageUrl || '/images/no-image.png';
     if (formData.imageFile) {
-      // Delete old image if exists and not default
       if (imageUrl && !imageUrl.includes('no-image.png')) {
         await this.deleteItemImage(imageUrl);
       }
@@ -215,13 +185,9 @@ export class ItemService {
     });
   }
 
-  /**
-   * Delete an item
-   */
   async deleteItem(itemId: string): Promise<void> {
     const { db } = getFirebaseServices();
 
-    // Get item to delete image
     const item = await this.getItem(itemId);
     if (item && item.imageUrl && !item.imageUrl.includes('no-image.png')) {
       await this.deleteItemImage(item.imageUrl);
@@ -231,9 +197,6 @@ export class ItemService {
     await deleteDoc(docRef);
   }
 
-  /**
-   * Duplicate an existing item
-   */
   async duplicateItem(itemId: string): Promise<string> {
     const item = await this.getItem(itemId);
     if (!item) {
@@ -249,7 +212,7 @@ export class ItemService {
       sellPrice: item.sellPrice,
       isTradeable: item.isTradeable,
       isDroppable: item.isDroppable,
-      isActive: false, // Set inactive by default for duplicates
+      isActive: false,
       attributes: item.attributes,
     };
 

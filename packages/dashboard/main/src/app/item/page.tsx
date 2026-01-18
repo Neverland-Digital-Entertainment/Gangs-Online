@@ -12,8 +12,8 @@ import {
   AlertCircle,
   Package,
 } from 'lucide-react';
-import { itemService } from '@/lib/item-service';
-import type { Item, ItemFilter, ItemCategory } from '@/types/items';
+import { itemService } from '@/lib/item/service';
+import type { Item, ItemFilter, ItemCategory } from '@/types/item';
 
 const CATEGORY_LABELS: Record<ItemCategory, string> = {
   consumable: '消耗品',
@@ -105,7 +105,7 @@ export default function ItemsPage() {
       <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
         <div className="flex flex-col justify-center gap-2">
           <h1 className="text-3xl font-bold leading-none text-gray-900">
-            道具管理系統
+            道具管理
           </h1>
           <div className="flex items-center gap-4 text-sm font-medium text-gray-600">
             <span className="flex items-center gap-1">
@@ -117,7 +117,7 @@ export default function ItemsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2.5">
-          <Link href="/new" className="btn btn-primary">
+          <Link href="/dashboard/item/new" className="btn btn-primary">
             <Plus className="w-4 h-4" />
             新增道具
           </Link>
@@ -213,7 +213,7 @@ export default function ItemsPage() {
           <div className="card-body text-center py-20">
             <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600 mb-4">尚無道具</p>
-            <Link href="/new" className="btn btn-primary inline-flex">
+            <Link href="/dashboard/item/new" className="btn btn-primary inline-flex">
               <Plus className="w-4 h-4" />
               新增第一個道具
             </Link>
@@ -262,7 +262,7 @@ export default function ItemsPage() {
 
                   <div className="flex items-center gap-2 pt-2 border-t">
                     <Link
-                      href={`/edit/${item.id}`}
+                      href={`/dashboard/item/edit/${item.id}`}
                       className="btn btn-sm btn-light flex-1"
                     >
                       <Edit className="w-3 h-3" />

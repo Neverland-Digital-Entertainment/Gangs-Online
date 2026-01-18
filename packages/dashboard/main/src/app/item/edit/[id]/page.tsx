@@ -1,23 +1,27 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { AlertCircle, Save, ArrowLeft } from 'lucide-react';
-import { itemService } from '@/lib/item-service';
-import type { ItemFormData, ItemCategory } from '@/types/items';
-import { BasicInfoSection } from '@/components/BasicInfoSection';
-import { EconomicSection } from '@/components/EconomicSection';
-import { AttributesSection } from '@/components/AttributesSection';
+import { itemService } from '@/lib/item/service';
+import type { ItemFormData } from '@/types/item';
+import { BasicInfoSection } from '@/components/item/BasicInfoSection';
+import { EconomicSection } from '@/components/item/EconomicSection';
+import { AttributesSection } from '@/components/item/AttributesSection';
 
-export default function NewItemPage() {
+export default function EditItemPage() {
   const router = useRouter();
+  const params = useParams();
+  const itemId = params.id as string;
+
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<ItemFormData>({
     name: '',
     description: '',
-    category: 'consumable' as ItemCategory,
+    category: 'consumable',
     imageUrl: '/images/no-image.png',
     price: 0,
     sellPrice: 0,
@@ -26,6 +30,37 @@ export default function NewItemPage() {
     isActive: false,
     attributes: {},
   });
+
+  useEffect(() => {
+    loadItem();
+  }, [itemId]);
+
+  async function loadItem() {
+    try {
+      setLoading(true);
+      const item = await itemService.getItem(itemId);
+      if (item) {
+        setFormData({
+          name: item.name,
+          description: item.description,
+          category: item.category,
+          imageUrl: item.imageUrl,
+          price: item.price,
+          sellPrice: item.sellPrice,
+          isTradeable: item.isTradeable,
+          isDroppable: item.isDroppable,
+          isActive: item.isActive,
+          attributes: item.attributes,
+        });
+      } else {
+        setError('找不到此道具');
+      }
+    } catch (err: any) {
+      setError(err.message || '載入失敗');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,10 +78,10 @@ export default function NewItemPage() {
     try {
       setSaving(true);
       setError(null);
-      await itemService.createItem(formData);
-      router.push('/');
+      await itemService.updateItem(itemId, formData);
+      router.push('/dashboard/item');
     } catch (err: any) {
-      setError(err.message || '新增失敗');
+      setError(err.message || '儲存失敗');
     } finally {
       setSaving(false);
     }
@@ -63,21 +98,31 @@ export default function NewItemPage() {
     });
   }
 
+  if (loading) {
+    return (
+      <div className="container-fixed">
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container-fixed">
       <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
         <div className="flex flex-col justify-center gap-2">
           <h1 className="text-3xl font-bold leading-none text-gray-900">
-            新增道具
+            編輯道具
           </h1>
           <div className="text-sm text-gray-600">
-            建立新的遊戲道具
+            ID: {itemId}
           </div>
         </div>
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/dashboard/item')}
             className="btn btn-light"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -132,11 +177,11 @@ export default function NewItemPage() {
                     className="btn btn-primary"
                   >
                     <Save className="w-4 h-4" />
-                    {saving ? '建立中...' : '建立道具'}
+                    {saving ? '儲存中...' : '儲存變更'}
                   </button>
                   <button
                     type="button"
-                    onClick={() => router.push('/')}
+                    onClick={() => router.push('/dashboard/item')}
                     className="btn btn-light"
                   >
                     取消

@@ -1,6 +1,6 @@
 'use client';
 
-import type { ItemFormData } from '@/types/items';
+import type { ItemFormData } from '@/types/item';
 
 interface EconomicSectionProps {
   formData: ItemFormData;

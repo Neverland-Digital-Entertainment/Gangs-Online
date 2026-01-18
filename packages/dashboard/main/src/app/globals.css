@@ -7,7 +7,7 @@
     @apply border-gray-200;
   }
   body {
-    @apply text-gray-900;
+    @apply text-gray-900 bg-gray-50;
   }
 }
 
@@ -70,5 +70,17 @@
 
   .container-fixed {
     @apply container mx-auto px-4 py-8;
+  }
+
+  .sidebar {
+    @apply w-64 bg-white border-r border-gray-200 h-screen sticky top-0 overflow-y-auto;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer;
+  }
+
+  .sidebar-item.active {
+    @apply bg-primary-light text-primary font-medium;
   }
 }

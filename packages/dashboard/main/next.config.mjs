@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  basePath: '/item-admin',
+  basePath: '/dashboard',
   images: {
     unoptimized: true,
   },

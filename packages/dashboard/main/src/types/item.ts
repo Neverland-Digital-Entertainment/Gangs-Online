@@ -1,6 +1,6 @@
 /**
  * Item Management Types for Gangs Online
- * Phase 16 - Item Module
+ * Version 0.16.1
  */
 
 export enum ItemCategory {
@@ -29,7 +29,7 @@ export interface ItemBase {
 export interface ConsumableAttributes {
   hpRestore: number;
   vpRestore: number;
-  cooldown: number; // in seconds
+  cooldown: number;
 }
 
 export interface SpecialAttributes {
