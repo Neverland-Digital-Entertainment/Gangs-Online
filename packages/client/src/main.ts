@@ -22,7 +22,7 @@ import { EnemyManager } from "./entities/EnemyManager";
 import { LootManager } from "./entities/LootManager"; // Phase 8
 import { SoundManager } from "./systems/SoundManager"; // Phase 11
 import { ParticleSystem } from "./systems/ParticleSystem"; // Phase 11
-import { createEngine, createIsometricCamera, setupScene, updateCameraFollow, updateCameraOrtho } from "./utils/BabylonUtils";
+import { createEngine, createIsometricCamera, setupScene, updateCameraFollow, updateCameraOrtho, teleportCamera } from "./utils/BabylonUtils";
 import { firebaseService } from "./services/FirebaseService"; // Phase 13: 自動登入
 
 /**
@@ -288,6 +288,8 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 console.log(`📍 [Phase 15] Teleporting to server position: (${player.x.toFixed(1)}, ${player.z.toFixed(1)})`);
                 // 瞬移玩家（不是走路）- 使用伺服器提供的位置
                 playerManager.teleportPlayer(sessionId, player.x, player.z);
+                // 同時瞬移相機，避免相機從遠處慢慢移過來
+                teleportCamera(camera, new BABYLON.Vector3(player.x, 0, player.z));
             }
 
             // 同步位置
@@ -489,6 +491,7 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                             try {
                                 const prisonPos = await sceneManager.enterPrison();
                                 playerManager.teleportPlayer(sessionId, prisonPos.x, prisonPos.z);
+                                teleportCamera(camera, prisonPos);
                                 playerManager.setGroundMeshes(sceneManager.getCurrentTerrainMeshes());
                             } catch (error) {
                                 console.error("❌ 無法載入監獄場景:", error);
@@ -512,6 +515,7 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                         try {
                             const prisonPos = await sceneManager.enterPrison();
                             playerManager.teleportPlayer(sessionId, prisonPos.x, prisonPos.z);
+                            teleportCamera(camera, prisonPos);
                             // 更新可行走地形為監獄地形
                             playerManager.setGroundMeshes(sceneManager.getCurrentTerrainMeshes());
                             console.log(`🔒 [Phase 15] 已切換到監獄場景`);
@@ -530,6 +534,7 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                         );
                         sceneManager.exitPrison(releasePos);
                         playerManager.teleportPlayer(sessionId, releasePos.x, releasePos.z);
+                        teleportCamera(camera, releasePos);
                         // 恢復可行走地形為主地圖地形
                         playerManager.setGroundMeshes(sceneManager.getCurrentTerrainMeshes());
                         console.log(`🔓 [Phase 15] 已切換回主地圖`);

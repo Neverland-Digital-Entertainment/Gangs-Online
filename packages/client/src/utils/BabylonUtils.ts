@@ -88,6 +88,19 @@ export function updateCameraFollow(
 }
 
 /**
+ * 即時傳送相機到指定位置（不使用 Lerp）
+ * 用於玩家傳送時，避免相機慢慢移動
+ */
+export function teleportCamera(
+    camera: BABYLON.FreeCamera,
+    targetPosition: BABYLON.Vector3
+): void {
+    camera.position.x = targetPosition.x + cameraConfig.offset.x;
+    camera.position.y = targetPosition.y + cameraConfig.offset.y;
+    camera.position.z = targetPosition.z + cameraConfig.offset.z;
+}
+
+/**
  * 創建基礎場景設置（光照、碰撞等）
  */
 export function setupScene(scene: BABYLON.Scene): void {
