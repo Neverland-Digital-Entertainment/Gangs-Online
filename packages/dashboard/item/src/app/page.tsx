@@ -1,10 +1,5 @@
 'use client';
 
-/**
- * Item List Content Component
- * Phase 16 - Item Module
- */
-
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -15,8 +10,9 @@ import {
   Trash2,
   Copy,
   AlertCircle,
+  Package,
 } from 'lucide-react';
-import { itemService } from '@/services/item-service';
+import { itemService } from '@/lib/item-service';
 import type { Item, ItemFilter, ItemCategory } from '@/types/items';
 
 const CATEGORY_LABELS: Record<ItemCategory, string> = {
@@ -26,7 +22,7 @@ const CATEGORY_LABELS: Record<ItemCategory, string> = {
   material: '素材',
 };
 
-export function ItemListContent() {
+export default function ItemsPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,24 +97,29 @@ export function ItemListContent() {
     }
   }
 
+  const totalItems = items.length;
+  const activeItems = items.filter((item) => item.isActive).length;
+
   return (
     <div className="container-fixed">
       <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
         <div className="flex flex-col justify-center gap-2">
-          <h1 className="text-xl font-semibold leading-none text-gray-900">
-            All Items
+          <h1 className="text-3xl font-bold leading-none text-gray-900">
+            道具管理系統
           </h1>
-          <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-            {filteredItems.length} items found
+          <div className="flex items-center gap-4 text-sm font-medium text-gray-600">
+            <span className="flex items-center gap-1">
+              <Package className="w-4 h-4" />
+              總數: {totalItems}
+            </span>
+            <span className="text-success">啟用: {activeItems}</span>
+            <span className="text-gray-500">停用: {totalItems - activeItems}</span>
           </div>
         </div>
         <div className="flex items-center gap-2.5">
-          <Link
-            href="/item-admin/items/new"
-            className="btn btn-sm btn-primary"
-          >
+          <Link href="/new" className="btn btn-primary">
             <Plus className="w-4 h-4" />
-            Add New Item
+            新增道具
           </Link>
         </div>
       </div>
@@ -136,12 +137,10 @@ export function ItemListContent() {
         </div>
       )}
 
-      <div className="card">
-        <div className="card-header gap-2">
-          <h3 className="card-title">
-            <Filter className="w-4 h-4" />
-            Filters
-          </h3>
+      <div className="card mb-5">
+        <div className="card-header flex items-center gap-2">
+          <Filter className="w-4 h-4" />
+          <h3 className="card-title">篩選條件</h3>
         </div>
         <div className="card-body">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -149,7 +148,7 @@ export function ItemListContent() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
                 type="text"
-                placeholder="Search by name or ID..."
+                placeholder="搜尋名稱或 ID..."
                 value={filter.search || ''}
                 onChange={(e) =>
                   setFilter({ ...filter, search: e.target.value })
@@ -170,7 +169,7 @@ export function ItemListContent() {
               }
               className="select"
             >
-              <option value="">All Categories</option>
+              <option value="">所有分類</option>
               {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
@@ -197,9 +196,9 @@ export function ItemListContent() {
               }
               className="select"
             >
-              <option value="">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="">所有狀態</option>
+              <option value="active">啟用</option>
+              <option value="inactive">停用</option>
             </select>
           </div>
         </div>
@@ -210,38 +209,36 @@ export function ItemListContent() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="card mt-5">
+        <div className="card">
           <div className="card-body text-center py-20">
-            <p className="text-gray-600">No items found</p>
-            <Link
-              href="/item-admin/items/new"
-              className="btn btn-primary mt-4 inline-flex"
-            >
+            <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-600 mb-4">尚無道具</p>
+            <Link href="/new" className="btn btn-primary inline-flex">
               <Plus className="w-4 h-4" />
-              Create First Item
+              新增第一個道具
             </Link>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 mt-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {filteredItems.map((item) => (
-            <div key={item.id} className="card">
+            <div key={item.id} className="card hover:shadow-md transition-shadow">
               <div className="card-body p-4">
                 <div className="flex flex-col gap-3">
                   <div className="relative">
                     <img
                       src={item.imageUrl}
                       alt={item.name}
-                      className="w-full h-40 object-cover rounded-lg"
+                      className="w-full h-40 object-cover rounded-lg bg-gray-100"
                     />
                     <span
-                      className={`absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded ${
+                      className={`absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded shadow ${
                         item.isActive
                           ? 'bg-success text-white'
                           : 'bg-gray-500 text-white'
                       }`}
                     >
-                      {item.isActive ? 'Active' : 'Inactive'}
+                      {item.isActive ? '啟用' : '停用'}
                     </span>
                   </div>
 
@@ -255,7 +252,7 @@ export function ItemListContent() {
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">
+                    <span className="text-gray-600 text-xs">
                       {CATEGORY_LABELS[item.category]}
                     </span>
                     <span className="font-semibold text-primary">
@@ -265,16 +262,16 @@ export function ItemListContent() {
 
                   <div className="flex items-center gap-2 pt-2 border-t">
                     <Link
-                      href={`/item-admin/items/${item.id}`}
+                      href={`/edit/${item.id}`}
                       className="btn btn-sm btn-light flex-1"
                     >
                       <Edit className="w-3 h-3" />
-                      Edit
+                      編輯
                     </Link>
                     <button
                       onClick={() => handleDuplicate(item.id)}
                       className="btn btn-sm btn-light"
-                      title="Duplicate"
+                      title="複製"
                     >
                       <Copy className="w-3 h-3" />
                     </button>
@@ -283,14 +280,14 @@ export function ItemListContent() {
                         <button
                           onClick={() => handleDelete(item.id)}
                           className="btn btn-sm btn-danger"
-                          title="Confirm Delete"
+                          title="確認刪除"
                         >
                           ✓
                         </button>
                         <button
                           onClick={() => setDeleteConfirm(null)}
                           className="btn btn-sm btn-light"
-                          title="Cancel"
+                          title="取消"
                         >
                           ✕
                         </button>
@@ -298,8 +295,8 @@ export function ItemListContent() {
                     ) : (
                       <button
                         onClick={() => setDeleteConfirm(item.id)}
-                        className="btn btn-sm btn-light"
-                        title="Delete"
+                        className="btn btn-sm btn-light hover:bg-red-50"
+                        title="刪除"
                       >
                         <Trash2 className="w-3 h-3 text-danger" />
                       </button>

@@ -18,7 +18,7 @@ import {
   DocumentData,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { getFirebaseServices } from './firebase-config';
+import { getFirebaseServices } from './firebase';
 import type { Item, ItemFormData, ItemFilter } from '../types/items';
 
 const COLLECTION_NAME = 'items';

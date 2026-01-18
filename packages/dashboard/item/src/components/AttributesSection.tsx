@@ -1,10 +1,5 @@
 'use client';
 
-/**
- * Attributes Section Component
- * Phase 16 - Item Module
- */
-
 import type { ItemCategory } from '@/types/items';
 
 interface AttributesSectionProps {
@@ -21,7 +16,7 @@ export function AttributesSection({
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="card-title">動態屬性 (Category Attributes)</h3>
+        <h3 className="card-title">動態屬性</h3>
       </div>
       <div className="card-body">
         {category === 'consumable' && (
@@ -53,12 +48,11 @@ export function AttributesSection({
   );
 }
 
-// Consumable Attributes
 function ConsumableAttributes({ attributes, updateAttributes }: any) {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <label className="form-label">HP 恢復值 (HP Restore)</label>
+        <label className="form-label">HP 恢復值</label>
         <input
           type="number"
           min="0"
@@ -73,7 +67,7 @@ function ConsumableAttributes({ attributes, updateAttributes }: any) {
       </div>
 
       <div>
-        <label className="form-label">VP 恢復值 (VP Restore)</label>
+        <label className="form-label">VP 恢復值</label>
         <input
           type="number"
           min="0"
@@ -88,34 +82,28 @@ function ConsumableAttributes({ attributes, updateAttributes }: any) {
       </div>
 
       <div>
-        <label className="form-label">冷卻時間 (Cooldown)</label>
-        <div className="relative">
-          <input
-            type="number"
-            min="0"
-            value={attributes.cooldown || 0}
-            onChange={(e) =>
-              updateAttributes({ cooldown: parseInt(e.target.value) || 0 })
-            }
-            className="input pr-16"
-            placeholder="0"
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-            秒
-          </span>
-        </div>
-        <span className="form-hint">使用後需等待的時間 (秒)</span>
+        <label className="form-label">冷卻時間 (秒)</label>
+        <input
+          type="number"
+          min="0"
+          value={attributes.cooldown || 0}
+          onChange={(e) =>
+            updateAttributes({ cooldown: parseInt(e.target.value) || 0 })
+          }
+          className="input"
+          placeholder="0"
+        />
+        <span className="form-hint">使用後需等待的時間</span>
       </div>
     </div>
   );
 }
 
-// Special Item Attributes
 function SpecialAttributes({ attributes, updateAttributes }: any) {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <label className="form-label">信仰消耗量 (Faith Cost)</label>
+        <label className="form-label">信仰消耗量</label>
         <input
           type="number"
           min="0"
@@ -130,7 +118,7 @@ function SpecialAttributes({ attributes, updateAttributes }: any) {
       </div>
 
       <div>
-        <label className="form-label">神祇 ID (Deity ID)</label>
+        <label className="form-label">神祇 ID</label>
         <input
           type="text"
           value={attributes.deityId || ''}
@@ -144,12 +132,11 @@ function SpecialAttributes({ attributes, updateAttributes }: any) {
   );
 }
 
-// Contraband Attributes
 function ContrabandAttributes({ attributes, updateAttributes }: any) {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <label className="form-label">罪惡值 (Crime Value)</label>
+        <label className="form-label">罪惡值</label>
         <input
           type="number"
           min="0"
@@ -164,9 +151,7 @@ function ContrabandAttributes({ attributes, updateAttributes }: any) {
       </div>
 
       <div>
-        <label className="form-label">
-          警察查獲機率倍率 (Police Detection Multiplier)
-        </label>
+        <label className="form-label">警察查獲機率倍率</label>
         <input
           type="number"
           min="0"
@@ -186,12 +171,11 @@ function ContrabandAttributes({ attributes, updateAttributes }: any) {
   );
 }
 
-// Material Attributes
 function MaterialAttributes({ attributes, updateAttributes }: any) {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <label className="form-label">堆疊上限 (Stack Limit)</label>
+        <label className="form-label">堆疊上限</label>
         <input
           type="number"
           min="1"
