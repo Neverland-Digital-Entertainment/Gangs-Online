@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Save, ArrowLeft } from 'lucide-react';
 import { itemService } from '@/lib/item/service';
-import type { ItemFormData, ItemCategory } from '@/types/item';
+import { ItemCategory, type ItemFormData } from '@/types/item';
 import { BasicInfoSection } from '@/components/item/BasicInfoSection';
 import { EconomicSection } from '@/components/item/EconomicSection';
 import { AttributesSection } from '@/components/item/AttributesSection';
@@ -17,7 +17,7 @@ export default function NewItemPage() {
   const [formData, setFormData] = useState<ItemFormData>({
     name: '',
     description: '',
-    category: 'consumable' as ItemCategory,
+    category: ItemCategory.CONSUMABLE,
     imageUrl: '/images/no-image.png',
     price: 0,
     sellPrice: 0,
