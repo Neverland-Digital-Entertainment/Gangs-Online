@@ -254,7 +254,6 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
         // Phase 15: 設定場景切換回調（更新其他玩家的可見性）
         sceneManager.setOnSceneSwitch((sceneName, position) => {
-            console.log(`🌍 [Phase 15] Scene switched to: ${sceneName}`);
             const localInPrison = (sceneName === "Prison");
 
             // 更新所有其他玩家的可見性
@@ -570,7 +569,6 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                         if (entity.ui?.container) {
                             entity.ui.container.isVisible = shouldShow;
                         }
-                        console.log(`👁️ [Phase 15] 玩家 ${sessionId} 可見性: ${shouldShow ? '顯示' : '隱藏'} (本地在監獄: ${localInPrison}, 對方在監獄: ${inPrison})`);
                     }
                 });
             }
@@ -582,54 +580,34 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
         });
 
         // --- 敵人事件處理 ---
-        // 使用延遲來確保狀態完全同步
         const setupEnemySystem = async () => {
-            console.log("🔄 Setting up enemy system...");
-            console.log("Room state:", room.state);
-            console.log("Enemies map:", (room.state as any).enemies);
-
             try {
                 const enemiesMap = (room.state as any).enemies;
 
                 if (!enemiesMap) {
-                    console.error("❌ enemies map is undefined, retrying in 500ms...");
                     setTimeout(setupEnemySystem, 500);
                     return;
                 }
 
-                console.log("✅ Enemies map found, setting up listeners...");
-
-                // 為已存在的敵人創建實體（先創建，避免 onAdd 重複創建）
-                console.log(`📦 Loading ${enemiesMap.size} existing enemies...`);
+                // 為已存在的敵人創建實體
                 const enemyCreationPromises: Promise<any>[] = [];
                 enemiesMap.forEach((enemy: any, enemyId: string) => {
-                    console.log(`🧟 Creating existing enemy: ${enemyId}`);
                     enemyCreationPromises.push(enemyManager.createEnemy(enemy, enemyId));
                 });
                 await Promise.all(enemyCreationPromises);
-                console.log(`✅ Existing enemies loaded (${enemyCreationPromises.length})`);
 
-                // 設置新敵人加入的監聽器（放在初始化之後，避免重複觸發）
+                // 設置新敵人加入的監聽器
                 enemiesMap.onAdd(async (enemy: any, enemyId: string) => {
-                    // 檢查是否已經存在，避免重複創建
-                    if (enemyManager.getEntity(enemyId)) {
-                        console.log(`⚠️ Enemy ${enemyId} already exists, skipping creation`);
-                        return;
-                    }
-                    console.log(`🧟 Enemy joined: ${enemyId}`);
+                    if (enemyManager.getEntity(enemyId)) return;
                     await enemyManager.createEnemy(enemy, enemyId);
                 });
 
                 // 設置敵人移除的監聽器
                 enemiesMap.onRemove((enemy: any, enemyId: string) => {
-                    console.log(`🧟 Enemy left: ${enemyId}`);
                     enemyManager.removeEnemy(enemyId);
                 });
-
-                console.log(`✅ Enemy system initialized successfully`);
             } catch (error) {
                 console.error("❌ Error setting up enemy system:", error);
-                console.log("Retrying in 500ms...");
                 setTimeout(setupEnemySystem, 500);
             }
         };

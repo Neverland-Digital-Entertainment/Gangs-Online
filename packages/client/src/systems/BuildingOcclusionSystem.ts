@@ -83,14 +83,6 @@ export class BuildingOcclusionSystem {
             this.meshToGroup.set(mesh, baseName);
         }
 
-        console.log(`🏢 [Occlusion] Tracking ${meshes.length} building meshes in ${this.buildingGroups.size} groups`);
-
-        // 顯示分組資訊（用於調試）
-        for (const [baseName, group] of this.buildingGroups) {
-            if (group.length > 1) {
-                console.log(`   - ${baseName}: ${group.length} parts (${group.map(m => m.name).join(", ")})`);
-            }
-        }
     }
 
     /**
@@ -98,7 +90,6 @@ export class BuildingOcclusionSystem {
      */
     setTerrainMeshes(meshes: BABYLON.AbstractMesh[]): void {
         this.terrainMeshes = meshes;
-        console.log(`🌍 [Occlusion] Tracking ${meshes.length} terrain meshes`);
     }
 
     /**
