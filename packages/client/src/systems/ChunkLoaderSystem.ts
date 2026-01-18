@@ -76,17 +76,13 @@ export class ChunkLoaderSystem {
      * 載入 manifest.json
      */
     async loadManifest(manifestPath: string = "/maps/manifest.json"): Promise<MapManifest> {
-        console.log(`📋 [ChunkLoader] Loading manifest: ${manifestPath}`);
-
         const response = await fetch(manifestPath);
         if (!response.ok) {
             throw new Error(`Failed to load manifest: ${response.statusText}`);
         }
 
         this.manifest = await response.json();
-        console.log(`✅ [ChunkLoader] Manifest loaded: ${this.manifest!.mapName} v${this.manifest!.version}`);
-        console.log(`   - Start chunk: ${this.manifest!.startChunk}`);
-        console.log(`   - Total chunks: ${this.manifest!.chunks.length}`);
+        console.log(`📋 [ChunkLoader] ${this.manifest!.mapName} v${this.manifest!.version}, ${this.manifest!.chunks.length} chunks`);
 
         return this.manifest!;
     }
@@ -108,14 +104,11 @@ export class ChunkLoaderSystem {
     async loadChunk(chunkId: string, onProgress?: (progress: number) => void): Promise<LoadedChunk> {
         // 已載入則直接返回
         if (this.loadedChunks.has(chunkId)) {
-            console.log(`ℹ️ [ChunkLoader] Chunk ${chunkId} already loaded`);
             return this.loadedChunks.get(chunkId)!;
         }
 
-        // 正在載入中
+        // 正在載入中，等待完成
         if (this.loadingChunks.has(chunkId)) {
-            console.log(`⏳ [ChunkLoader] Chunk ${chunkId} is loading...`);
-            // 等待載入完成
             while (this.loadingChunks.has(chunkId)) {
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
@@ -132,7 +125,6 @@ export class ChunkLoaderSystem {
         }
 
         this.loadingChunks.add(chunkId);
-        console.log(`📦 [ChunkLoader] Loading chunk: ${chunkId} (${chunkInfo.file})`);
 
         return new Promise((resolve, reject) => {
             BABYLON.SceneLoader.ImportMesh(
@@ -141,8 +133,6 @@ export class ChunkLoaderSystem {
                 chunkInfo.file,
                 this.scene,
                 (meshes) => {
-                    console.log(`✅ [ChunkLoader] Chunk ${chunkId} loaded: ${meshes.length} meshes`);
-
                     // 處理 meshes（保持原始座標）
                     const loadedChunk = this.processChunkMeshes(chunkId, meshes);
 
@@ -182,24 +172,15 @@ export class ChunkLoaderSystem {
         let minY = Infinity, maxY = -Infinity;
         let minZ = Infinity, maxZ = -Infinity;
 
-        // Debug: 記錄所有 mesh 的資訊
-        console.log(`📦 [ChunkLoader] Processing ${meshes.length} meshes from chunk ${chunkId}:`);
         let totalTriangles = 0;
 
         for (const mesh of meshes) {
             if (mesh.name === "__root__") continue;
 
             // 計算三角形數
-            let triangles = 0;
             if (mesh instanceof BABYLON.Mesh && mesh.geometry) {
-                triangles = Math.round(mesh.geometry.getTotalIndices() / 3);
-                totalTriangles += triangles;
+                totalTriangles += Math.round(mesh.geometry.getTotalIndices() / 3);
             }
-
-            // Debug: 輸出每個 mesh 的名稱和三角形數
-            const firstChar = mesh.name.charAt(0).toUpperCase();
-            const category = (firstChar === "T") ? "T" : (firstChar === "B") ? "B" : (firstChar === "I") ? "I" : "?";
-            console.log(`   [${category}] ${mesh.name}: ${triangles.toLocaleString()} tris`);
 
             // 計算世界矩陣以獲取正確的邊界
             mesh.computeWorldMatrix(true);
@@ -220,6 +201,7 @@ export class ChunkLoaderSystem {
             mesh.metadata = { ...mesh.metadata, chunkId };
 
             // 根據名稱首字母分類
+            const firstChar = mesh.name.charAt(0).toUpperCase();
             if (firstChar === "T") {
                 this.setupTerrainMesh(mesh, chunkId);
                 terrainMeshes.push(mesh);
@@ -234,20 +216,13 @@ export class ChunkLoaderSystem {
             }
         }
 
-        console.log(`📊 [ChunkLoader] Total triangles in chunk: ${totalTriangles.toLocaleString()}`);
-
         const center = new BABYLON.Vector3(
             (minX + maxX) / 2,
             (minY + maxY) / 2,
             (minZ + maxZ) / 2
         );
 
-        console.log(`📐 [ChunkLoader] Chunk ${chunkId} bounds:`);
-        console.log(`   - X: ${minX.toFixed(1)} to ${maxX.toFixed(1)}`);
-        console.log(`   - Y: ${minY.toFixed(1)} to ${maxY.toFixed(1)}`);
-        console.log(`   - Z: ${minZ.toFixed(1)} to ${maxZ.toFixed(1)}`);
-        console.log(`   - Center: (${center.x.toFixed(1)}, ${center.y.toFixed(1)}, ${center.z.toFixed(1)})`);
-        console.log(`   - Terrain: ${terrainMeshes.length}, Buildings: ${buildingMeshes.length}`);
+        console.log(`📦 [ChunkLoader] ${chunkId}: ${meshes.length} meshes, ${totalTriangles.toLocaleString()} tris, T:${terrainMeshes.length} B:${buildingMeshes.length}`);
 
         return {
             id: chunkId,

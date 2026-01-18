@@ -22,7 +22,7 @@ import { EnemyManager } from "./entities/EnemyManager";
 import { LootManager } from "./entities/LootManager"; // Phase 8
 import { SoundManager } from "./systems/SoundManager"; // Phase 11
 import { ParticleSystem } from "./systems/ParticleSystem"; // Phase 11
-import { createEngine, createIsometricCamera, setupScene, updateCameraFollow, updateCameraOrtho } from "./utils/BabylonUtils";
+import { createEngine, createIsometricCamera, setupScene, updateCameraFollow, updateCameraOrtho, teleportCamera } from "./utils/BabylonUtils";
 import { firebaseService } from "./services/FirebaseService"; // Phase 13: 自動登入
 
 /**
@@ -254,7 +254,6 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
         // Phase 15: 設定場景切換回調（更新其他玩家的可見性）
         sceneManager.setOnSceneSwitch((sceneName, position) => {
-            console.log(`🌍 [Phase 15] Scene switched to: ${sceneName}`);
             const localInPrison = (sceneName === "Prison");
 
             // 更新所有其他玩家的可見性
@@ -288,6 +287,8 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 console.log(`📍 [Phase 15] Teleporting to server position: (${player.x.toFixed(1)}, ${player.z.toFixed(1)})`);
                 // 瞬移玩家（不是走路）- 使用伺服器提供的位置
                 playerManager.teleportPlayer(sessionId, player.x, player.z);
+                // 同時瞬移相機，避免相機從遠處慢慢移過來
+                teleportCamera(camera, new BABYLON.Vector3(player.x, 0, player.z));
             }
 
             // 同步位置
@@ -475,7 +476,34 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 });
 
                 // Phase 14: 監聽監獄狀態變化（本地玩家專用 UI + 場景切換）
+                // Phase 15: 追蹤初始狀態，避免一開始就觸發釋放邏輯
+                let localPrevInPrison: boolean | null = null;
                 player.listen("inPrison", async (inPrison: boolean) => {
+                    // 初始化時記錄狀態
+                    if (localPrevInPrison === null) {
+                        localPrevInPrison = inPrison;
+                        // 如果初始狀態就在監獄，才需要切換場景
+                        if (inPrison) {
+                            console.log("🔒 [Phase 15] 初始狀態在監獄，切換場景");
+                            const releaseTime = (player as any).prisonReleaseTime || (Date.now() + 30000);
+                            hudManager?.showPrisonOverlay(releaseTime);
+                            try {
+                                const prisonPos = await sceneManager.enterPrison();
+                                playerManager.teleportPlayer(sessionId, prisonPos.x, prisonPos.z);
+                                teleportCamera(camera, prisonPos);
+                                playerManager.setGroundMeshes(sceneManager.getCurrentTerrainMeshes());
+                            } catch (error) {
+                                console.error("❌ 無法載入監獄場景:", error);
+                            }
+                        }
+                        // 初始狀態不在監獄，不做任何事（保持在主地圖）
+                        return;
+                    }
+
+                    // 狀態沒有變化，不做任何事
+                    if (localPrevInPrison === inPrison) return;
+                    localPrevInPrison = inPrison;
+
                     if (inPrison) {
                         console.log("🔒 [Phase 14] 你被送進監獄了！");
                         // Show prison overlay with countdown
@@ -486,6 +514,7 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                         try {
                             const prisonPos = await sceneManager.enterPrison();
                             playerManager.teleportPlayer(sessionId, prisonPos.x, prisonPos.z);
+                            teleportCamera(camera, prisonPos);
                             // 更新可行走地形為監獄地形
                             playerManager.setGroundMeshes(sceneManager.getCurrentTerrainMeshes());
                             console.log(`🔒 [Phase 15] 已切換到監獄場景`);
@@ -504,6 +533,7 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                         );
                         sceneManager.exitPrison(releasePos);
                         playerManager.teleportPlayer(sessionId, releasePos.x, releasePos.z);
+                        teleportCamera(camera, releasePos);
                         // 恢復可行走地形為主地圖地形
                         playerManager.setGroundMeshes(sceneManager.getCurrentTerrainMeshes());
                         console.log(`🔓 [Phase 15] 已切換回主地圖`);
@@ -539,7 +569,6 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                         if (entity.ui?.container) {
                             entity.ui.container.isVisible = shouldShow;
                         }
-                        console.log(`👁️ [Phase 15] 玩家 ${sessionId} 可見性: ${shouldShow ? '顯示' : '隱藏'} (本地在監獄: ${localInPrison}, 對方在監獄: ${inPrison})`);
                     }
                 });
             }
@@ -551,54 +580,34 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
         });
 
         // --- 敵人事件處理 ---
-        // 使用延遲來確保狀態完全同步
         const setupEnemySystem = async () => {
-            console.log("🔄 Setting up enemy system...");
-            console.log("Room state:", room.state);
-            console.log("Enemies map:", (room.state as any).enemies);
-
             try {
                 const enemiesMap = (room.state as any).enemies;
 
                 if (!enemiesMap) {
-                    console.error("❌ enemies map is undefined, retrying in 500ms...");
                     setTimeout(setupEnemySystem, 500);
                     return;
                 }
 
-                console.log("✅ Enemies map found, setting up listeners...");
-
-                // 為已存在的敵人創建實體（先創建，避免 onAdd 重複創建）
-                console.log(`📦 Loading ${enemiesMap.size} existing enemies...`);
+                // 為已存在的敵人創建實體
                 const enemyCreationPromises: Promise<any>[] = [];
                 enemiesMap.forEach((enemy: any, enemyId: string) => {
-                    console.log(`🧟 Creating existing enemy: ${enemyId}`);
                     enemyCreationPromises.push(enemyManager.createEnemy(enemy, enemyId));
                 });
                 await Promise.all(enemyCreationPromises);
-                console.log(`✅ Existing enemies loaded (${enemyCreationPromises.length})`);
 
-                // 設置新敵人加入的監聽器（放在初始化之後，避免重複觸發）
+                // 設置新敵人加入的監聽器
                 enemiesMap.onAdd(async (enemy: any, enemyId: string) => {
-                    // 檢查是否已經存在，避免重複創建
-                    if (enemyManager.getEntity(enemyId)) {
-                        console.log(`⚠️ Enemy ${enemyId} already exists, skipping creation`);
-                        return;
-                    }
-                    console.log(`🧟 Enemy joined: ${enemyId}`);
+                    if (enemyManager.getEntity(enemyId)) return;
                     await enemyManager.createEnemy(enemy, enemyId);
                 });
 
                 // 設置敵人移除的監聽器
                 enemiesMap.onRemove((enemy: any, enemyId: string) => {
-                    console.log(`🧟 Enemy left: ${enemyId}`);
                     enemyManager.removeEnemy(enemyId);
                 });
-
-                console.log(`✅ Enemy system initialized successfully`);
             } catch (error) {
                 console.error("❌ Error setting up enemy system:", error);
-                console.log("Retrying in 500ms...");
                 setTimeout(setupEnemySystem, 500);
             }
         };
