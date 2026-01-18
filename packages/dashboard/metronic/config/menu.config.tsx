@@ -278,6 +278,24 @@ export const MENU_SIDEBAR: MenuConfig = [
   },
   { heading: 'Apps' },
   {
+    title: 'Item Management',
+    icon: Gift,
+    children: [
+      {
+        title: 'Dashboard',
+        path: '/item-admin/dashboard',
+      },
+      {
+        title: 'All Items',
+        path: '/item-admin/items',
+      },
+      {
+        title: 'Add New Item',
+        path: '/item-admin/items/new',
+      },
+    ],
+  },
+  {
     title: 'User Management',
     icon: ShieldUser,
     children: [
@@ -673,6 +691,24 @@ export const MENU_SIDEBAR_COMPACT: MenuConfig = [
     ],
   },
   {
+    title: 'Item Management',
+    icon: Gift,
+    children: [
+      {
+        title: 'Dashboard',
+        path: '/item-admin/dashboard',
+      },
+      {
+        title: 'All Items',
+        path: '/item-admin/items',
+      },
+      {
+        title: 'Add New Item',
+        path: '/item-admin/items/new',
+      },
+    ],
+  },
+  {
     title: 'User Management',
     icon: ShieldUser,
     children: [
@@ -1053,6 +1089,27 @@ export const MENU_MEGA: MenuConfig = [
     title: 'Apps',
     children: [
       {
+        title: 'Item Management',
+        children: [
+          {
+            children: [
+              {
+                title: 'Dashboard',
+                path: '/item-admin/dashboard',
+              },
+              {
+                title: 'All Items',
+                path: '/item-admin/items',
+              },
+              {
+                title: 'Add New Item',
+                path: '/item-admin/items/new',
+              },
+            ],
+          },
+        ],
+      },
+      {
         title: 'Store - Client',
         children: [
           {
@@ -1403,6 +1460,24 @@ export const MENU_MEGA_MOBILE: MenuConfig = [
             ],
           },
         ],
+      },
+    ],
+  },
+  {
+    title: 'Item Management',
+    icon: Gift,
+    children: [
+      {
+        title: 'Dashboard',
+        path: '/item-admin/dashboard',
+      },
+      {
+        title: 'All Items',
+        path: '/item-admin/items',
+      },
+      {
+        title: 'Add New Item',
+        path: '/item-admin/items/new',
       },
     ],
   },

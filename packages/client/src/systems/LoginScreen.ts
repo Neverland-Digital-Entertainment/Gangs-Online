@@ -36,7 +36,7 @@ export class LoginScreen {
         this.container.id = "loginScreen";
         this.container.innerHTML = `
             <div class="login-box">
-                <img src="/logo-small.png" alt="Gangs Online" class="login-logo" />
+                <img src="/images/logo-small.png" alt="Gangs Online" class="login-logo" />
                 <h2>歡迎來到 Gangs Online</h2>
 
                 <!-- 登入選項 -->
