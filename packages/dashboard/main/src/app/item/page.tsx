@@ -262,7 +262,7 @@ export default function ItemsPage() {
 
                   <div className="flex items-center gap-2 pt-2 border-t">
                     <Link
-                      href={`/dashboard/item/edit/${item.id}`}
+                      href={`/dashboard/item/edit?id=${item.id}`}
                       className="btn btn-sm btn-light flex-1"
                     >
                       <Edit className="w-3 h-3" />

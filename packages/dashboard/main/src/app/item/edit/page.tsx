@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, Save, ArrowLeft } from 'lucide-react';
 import { itemService } from '@/lib/item/service';
 import { ItemCategory, type ItemFormData } from '@/types/item';
@@ -11,8 +11,8 @@ import { AttributesSection } from '@/components/item/AttributesSection';
 
 export default function EditItemPage() {
   const router = useRouter();
-  const params = useParams();
-  const itemId = params.id as string;
+  const searchParams = useSearchParams();
+  const itemId = searchParams.get('id');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -32,10 +32,17 @@ export default function EditItemPage() {
   });
 
   useEffect(() => {
+    if (!itemId) {
+      setError('缺少道具 ID');
+      setLoading(false);
+      return;
+    }
     loadItem();
   }, [itemId]);
 
   async function loadItem() {
+    if (!itemId) return;
+
     try {
       setLoading(true);
       const item = await itemService.getItem(itemId);
@@ -64,6 +71,11 @@ export default function EditItemPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!itemId) {
+      setError('缺少道具 ID');
+      return;
+    }
 
     if (!formData.name.trim()) {
       setError('請輸入道具名稱');
@@ -103,6 +115,17 @@ export default function EditItemPage() {
       <div className="container-fixed">
         <div className="flex justify-center items-center py-20">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!itemId) {
+    return (
+      <div className="container-fixed">
+        <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <AlertCircle className="w-5 h-5 text-red-600" />
+          <p className="text-sm text-red-600">缺少道具 ID</p>
         </div>
       </div>
     );
