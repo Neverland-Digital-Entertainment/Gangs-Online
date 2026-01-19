@@ -13,6 +13,7 @@ import {
   Package,
 } from 'lucide-react';
 import { itemService } from '@/lib/item/service';
+import { ItemImage } from '@/components/common/ItemImage';
 import type { Item, ItemFilter, ItemCategory } from '@/types/item';
 
 const CATEGORY_LABELS: Record<ItemCategory, string> = {
@@ -226,7 +227,7 @@ export default function ItemsPage() {
               <div className="card-body p-4">
                 <div className="flex flex-col gap-3">
                   <div className="relative">
-                    <img
+                    <ItemImage
                       src={item.imageUrl}
                       alt={item.name}
                       className="w-full h-40 object-cover rounded-lg bg-gray-100"

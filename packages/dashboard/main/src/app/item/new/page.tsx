@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Save, ArrowLeft } from 'lucide-react';
 import { itemService } from '@/lib/item/service';
 import { ItemCategory, type ItemFormData } from '@/types/item';
+import { ItemImage } from '@/components/common/ItemImage';
 import { BasicInfoSection } from '@/components/item/BasicInfoSection';
 import { EconomicSection } from '@/components/item/EconomicSection';
 import { AttributesSection } from '@/components/item/AttributesSection';
@@ -151,7 +152,7 @@ export default function NewItemPage() {
               </div>
               <div className="card-body">
                 <div className="flex flex-col gap-3">
-                  <img
+                  <ItemImage
                     src={formData.imageUrl}
                     alt="Preview"
                     className="w-full h-40 object-cover rounded-lg bg-gray-100"
