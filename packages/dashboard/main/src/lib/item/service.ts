@@ -122,40 +122,69 @@ export class ItemService {
   }
 
   async getItems(filter?: ItemFilter): Promise<Item[]> {
+    console.log('📖 開始讀取道具列表...');
     const { db } = getFirebaseServices();
     const itemsCollection = collection(db, COLLECTION_NAME);
 
-    let q = query(itemsCollection, orderBy('createdAt', 'desc'));
+    try {
+      // 先嘗試不使用 orderBy，避免索引問題
+      let q = query(itemsCollection);
 
-    if (filter?.category) {
-      q = query(itemsCollection, where('category', '==', filter.category), orderBy('createdAt', 'desc'));
+      if (filter?.category) {
+        console.log('🔍 篩選分類:', filter.category);
+        q = query(itemsCollection, where('category', '==', filter.category));
+      }
+
+      if (filter?.isActive !== undefined) {
+        console.log('🔍 篩選狀態:', filter.isActive);
+        q = query(itemsCollection, where('isActive', '==', filter.isActive));
+      }
+
+      console.log('⏳ 正在從 Firestore 讀取資料...');
+      const querySnapshot = await getDocs(q);
+      console.log(`✅ 讀取成功！找到 ${querySnapshot.size} 個道具`);
+
+      const items: Item[] = [];
+
+      querySnapshot.forEach((doc) => {
+        console.log('📦 道具:', doc.id, doc.data());
+        items.push(this.documentToItem(doc.id, doc.data()));
+      });
+
+      // 手動排序（避免 Firestore 索引問題）
+      items.sort((a, b) => {
+        const timeA = a.createdAt?.getTime() || 0;
+        const timeB = b.createdAt?.getTime() || 0;
+        return timeB - timeA; // 降序
+      });
+
+      if (filter?.search) {
+        const searchLower = filter.search.toLowerCase();
+        const filtered = items.filter(
+          (item) =>
+            item.name.toLowerCase().includes(searchLower) ||
+            item.id.toLowerCase().includes(searchLower)
+        );
+        console.log(`🔍 搜尋 "${filter.search}" 後剩餘 ${filtered.length} 個道具`);
+        return filtered;
+      }
+
+      console.log(`✨ 最終返回 ${items.length} 個道具`);
+      return items;
+    } catch (error: any) {
+      console.error('❌ 讀取道具失敗！');
+      console.error('錯誤訊息:', error.message);
+      console.error('錯誤代碼:', error.code);
+      console.error('完整錯誤:', error);
+
+      // 如果是索引錯誤，提供解決方案
+      if (error.message?.includes('index')) {
+        console.error('⚠️ 可能需要建立 Firestore 索引');
+        console.error('請查看 Firebase Console 的錯誤訊息中的索引建立連結');
+      }
+
+      throw error;
     }
-
-    if (filter?.isActive !== undefined) {
-      q = query(
-        itemsCollection,
-        where('isActive', '==', filter.isActive),
-        orderBy('createdAt', 'desc')
-      );
-    }
-
-    const querySnapshot = await getDocs(q);
-    const items: Item[] = [];
-
-    querySnapshot.forEach((doc) => {
-      items.push(this.documentToItem(doc.id, doc.data()));
-    });
-
-    if (filter?.search) {
-      const searchLower = filter.search.toLowerCase();
-      return items.filter(
-        (item) =>
-          item.name.toLowerCase().includes(searchLower) ||
-          item.id.toLowerCase().includes(searchLower)
-      );
-    }
-
-    return items;
   }
 
   async updateItem(itemId: string, formData: ItemFormData): Promise<void> {

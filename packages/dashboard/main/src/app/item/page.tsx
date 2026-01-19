@@ -47,10 +47,27 @@ export default function ItemsPage() {
   async function loadItems() {
     try {
       setLoading(true);
+      setError(null);
+      console.log('🚀 頁面：開始載入道具...');
       const fetchedItems = await itemService.getItems();
+      console.log('✅ 頁面：道具載入完成，共', fetchedItems.length, '個');
       setItems(fetchedItems);
     } catch (err: any) {
-      setError(err.message || 'Failed to load items');
+      console.error('❌ 頁面：載入道具失敗', err);
+
+      let errorMessage = '載入道具失敗';
+
+      if (err.code === 'permission-denied') {
+        errorMessage = 'Firebase 權限不足。請檢查 Firestore 安全規則。';
+      } else if (err.message?.includes('Failed to get document')) {
+        errorMessage = 'Firebase 連線失敗。請檢查網路連接。';
+      } else if (err.message?.includes('index')) {
+        errorMessage = 'Firestore 索引錯誤。請查看 Console 的錯誤訊息。';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
