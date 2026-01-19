@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase 測試頁面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover { background: #45a049; }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #log {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .info { color: #2196F3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 Firebase 連線測試</h1>
+        <p>這個頁面會直接測試 Firebase API，不經過任何 React 組件。</p>
+        
+        <div>
+            <button onclick="testFirebaseConnection()">1️⃣ 測試 Firebase 連線</button>
+            <button onclick="testCreateItem()">2️⃣ 測試新增道具</button>
+            <button onclick="testReadItems()">3️⃣ 測試讀取道具列表</button>
+            <button onclick="clearLog()">🗑️ 清除日誌</button>
+        </div>
+        
+        <div id="log"></div>
+    </div>
+
+    <script type="module">
+        // 從環境變數獲取 Firebase 配置
+        const firebaseConfig = {
+            apiKey: "{{FIREBASE_API_KEY}}",
+            authDomain: "{{FIREBASE_AUTH_DOMAIN}}",
+            projectId: "{{FIREBASE_PROJECT_ID}}",
+            storageBucket: "{{FIREBASE_STORAGE_BUCKET}}",
+            messagingSenderId: "{{FIREBASE_MESSAGING_SENDER_ID}}",
+            appId: "{{FIREBASE_APP_ID}}"
+        };
+
+        let app, db;
+        const logElement = document.getElementById('log');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            
+            const logLine = document.createElement('div');
+            logLine.className = className;
+            logLine.textContent = `[${timestamp}] ${prefix} ${message}`;
+            logElement.appendChild(logLine);
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            console.log(`${prefix} ${message}`);
+        }
+
+        window.clearLog = function() {
+            logElement.innerHTML = '';
+        }
+
+        window.testFirebaseConnection = async function() {
+            try {
+                log('開始測試 Firebase 連線...', 'info');
+                
+                // 動態載入 Firebase SDK
+                log('載入 Firebase SDK...', 'info');
+                
+                const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js');
+                const { getFirestore, collection, getDocs } = await import('https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js');
+                
+                log('初始化 Firebase...', 'info');
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                
+                log('Firebase 連線成功！', 'success');
+                log(`專案 ID: ${firebaseConfig.projectId}`, 'info');
+                
+                return true;
+            } catch (error) {
+                log(`Firebase 連線失敗: ${error.message}`, 'error');
+                console.error('詳細錯誤:', error);
+                return false;
+            }
+        }
+
+        window.testReadItems = async function() {
+            try {
+                log('測試讀取道具列表...', 'info');
+                
+                if (!db) {
+                    log('請先執行「測試 Firebase 連線」', 'error');
+                    return;
+                }
+                
+                const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js');
+                
+                const itemsRef = collection(db, 'items');
+                log('正在查詢 items collection...', 'info');
+                
+                const snapshot = await getDocs(itemsRef);
+                log(`成功讀取！共 ${snapshot.size} 個道具`, 'success');
+                
+                snapshot.forEach((doc) => {
+                    log(`- ${doc.id}: ${doc.data().name}`, 'info');
+                });
+                
+            } catch (error) {
+                log(`讀取失敗: ${error.message}`, 'error');
+                log(`錯誤代碼: ${error.code}`, 'error');
+                console.error('詳細錯誤:', error);
+            }
+        }
+
+        window.testCreateItem = async function() {
+            try {
+                log('測試新增道具...', 'info');
+                
+                if (!db) {
+                    log('請先執行「測試 Firebase 連線」', 'error');
+                    return;
+                }
+                
+                const { collection, addDoc, Timestamp } = await import('https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js');
+                
+                const testItem = {
+                    name: '測試道具_' + Date.now(),
+                    description: '這是測試新增的道具',
+                    category: 'consumable',
+                    imageUrl: '/images/no-image.png',
+                    price: 100,
+                    sellPrice: 50,
+                    isTradeable: true,
+                    isDroppable: true,
+                    isActive: true,
+                    attributes: {
+                        hpRestore: 10
+                    },
+                    createdAt: Timestamp.now(),
+                    updatedAt: Timestamp.now()
+                };
+                
+                log('正在新增道具到 Firestore...', 'info');
+                log(`道具名稱: ${testItem.name}`, 'info');
+                
+                const itemsRef = collection(db, 'items');
+                const docRef = await addDoc(itemsRef, testItem);
+                
+                log(`✨ 新增成功！道具 ID: ${docRef.id}`, 'success');
+                log('請到 Firebase Console 確認', 'info');
+                
+            } catch (error) {
+                log(`新增失敗: ${error.message}`, 'error');
+                log(`錯誤代碼: ${error.code}`, 'error');
+                
+                if (error.code === 'permission-denied') {
+                    log('', 'error');
+                    log('⚠️ 權限不足！請檢查 Firestore 安全規則', 'error');
+                    log('建議的測試規則:', 'info');
+                    log('rules_version = \'2\';', 'info');
+                    log('service cloud.firestore {', 'info');
+                    log('  match /databases/{database}/documents {', 'info');
+                    log('    match /{document=**} {', 'info');
+                    log('      allow read, write: if true;', 'info');
+                    log('    }', 'info');
+                    log('  }', 'info');
+                    log('}', 'info');
+                }
+                
+                console.error('詳細錯誤:', error);
+            }
+        }
+
+        // 自動執行連線測試
+        window.addEventListener('load', () => {
+            log('頁面載入完成', 'info');
+            log('點擊上方按鈕開始測試', 'info');
+        });
+    </script>
+</body>
+</html>
