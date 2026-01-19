@@ -182,7 +182,7 @@ export default function NewItemPage() {
                   <ItemImage
                     src={formData.imageUrl}
                     alt="Preview"
-                    className="w-full h-40 object-cover rounded-lg bg-gray-100"
+                    className="w-full aspect-square object-cover rounded-lg bg-gray-100"
                   />
                   <div>
                     <h4 className="font-semibold text-gray-900">
