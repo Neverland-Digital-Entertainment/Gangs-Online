@@ -1,6 +1,6 @@
 /**
  * Firebase Configuration
- * Version 0.16.1
+ * Version 0.16.2
  */
 
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
@@ -15,6 +15,15 @@ const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
+
+// Debug: 顯示環境變數狀態（不顯示實際值）
+console.log('🔧 [Firebase Config] 環境變數檢查:');
+console.log('  - NEXT_PUBLIC_FIREBASE_API_KEY:', firebaseConfig.apiKey ? '✅ 已設定' : '❌ 未設定');
+console.log('  - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:', firebaseConfig.authDomain ? '✅ 已設定' : '❌ 未設定');
+console.log('  - NEXT_PUBLIC_FIREBASE_PROJECT_ID:', firebaseConfig.projectId ? `✅ ${firebaseConfig.projectId}` : '❌ 未設定');
+console.log('  - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:', firebaseConfig.storageBucket ? '✅ 已設定' : '❌ 未設定');
+console.log('  - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:', firebaseConfig.messagingSenderId ? '✅ 已設定' : '❌ 未設定');
+console.log('  - NEXT_PUBLIC_FIREBASE_APP_ID:', firebaseConfig.appId ? '✅ 已設定' : '❌ 未設定');
 
 // Validate Firebase configuration
 function validateFirebaseConfig() {
@@ -38,6 +47,8 @@ function validateFirebaseConfig() {
     console.error('參考 .env.example 檔案');
     throw new Error('Firebase 配置不完整，請設定所有必要的環境變數');
   }
+
+  console.log('✅ [Firebase Config] 所有環境變數已設定');
 }
 
 let app: FirebaseApp;

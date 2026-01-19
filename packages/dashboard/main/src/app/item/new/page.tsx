@@ -30,31 +30,49 @@ export default function NewItemPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    console.log('📝 [NewItemPage] handleSubmit 被觸發');
 
     if (!formData.name.trim()) {
+      console.log('⚠️ [NewItemPage] 驗證失敗：名稱為空');
       setError('請輸入道具名稱');
       return;
     }
 
     if (formData.price < 0 || formData.sellPrice < 0) {
+      console.log('⚠️ [NewItemPage] 驗證失敗：價格為負數');
       setError('價格不能為負數');
       return;
     }
 
+    console.log('✅ [NewItemPage] 驗證通過，開始建立道具');
+
     try {
       setSaving(true);
       setError(null);
-      console.log('🚀 開始新增道具...', formData);
-      await itemService.createItem(formData);
-      console.log('✅ 道具新增成功！');
+      console.log('🚀 [NewItemPage] 呼叫 itemService.createItem...');
+      console.log('📦 [NewItemPage] 表單資料:', JSON.stringify(formData, null, 2));
+
+      const newItemId = await itemService.createItem(formData);
+
+      console.log(`✅ [NewItemPage] 道具建立成功！ID: ${newItemId}`);
+      console.log('🔄 [NewItemPage] 準備跳轉到道具列表頁面...');
+
+      // 短暫延遲確保資料已寫入
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       router.push('/item');
     } catch (err: any) {
-      console.error('❌ 新增道具失敗:', err);
+      console.error('❌ [NewItemPage] 新增道具失敗!');
+      console.error('錯誤類型:', err.constructor?.name);
+      console.error('錯誤代碼:', err.code);
+      console.error('錯誤訊息:', err.message);
 
       // 提供更詳細的錯誤訊息
       let errorMessage = '新增失敗';
 
-      if (err.message?.includes('Firebase')) {
+      if (err.message?.includes('Firebase 配置不完整')) {
+        errorMessage = 'Firebase 環境變數未設定。請在 Cloudflare Pages 設定環境變數。';
+      } else if (err.message?.includes('Firebase')) {
         errorMessage = 'Firebase 連線失敗。請確認環境變數已正確設定。';
       } else if (err.message?.includes('ERR_BLOCKED_BY_CLIENT')) {
         errorMessage = '請求被瀏覽器阻擋。請檢查是否有廣告攔截器或防火牆擴充功能正在運作。';
@@ -77,6 +95,7 @@ export default function NewItemPage() {
       });
     } finally {
       setSaving(false);
+      console.log('🏁 [NewItemPage] handleSubmit 結束');
     }
   }
 

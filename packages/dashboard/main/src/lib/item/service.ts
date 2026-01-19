@@ -79,34 +79,72 @@ export class ItemService {
   }
 
   async createItem(formData: ItemFormData): Promise<string> {
-    const { db } = getFirebaseServices();
-    const itemsCollection = collection(db, COLLECTION_NAME);
-
-    const docRef = await addDoc(itemsCollection, {
+    console.log('🚀 [ItemService] createItem 開始執行...');
+    console.log('📝 [ItemService] 表單資料:', JSON.stringify({
       name: formData.name,
       description: formData.description,
       category: formData.category,
-      imageUrl: '',
       price: formData.price,
       sellPrice: formData.sellPrice,
       isTradeable: formData.isTradeable,
       isDroppable: formData.isDroppable,
       isActive: formData.isActive,
-      attributes: formData.attributes,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
+      hasImageFile: !!formData.imageFile,
+      imageUrl: formData.imageUrl,
+    }, null, 2));
 
-    let imageUrl = '/images/no-image.png';
-    if (formData.imageFile) {
-      imageUrl = await this.uploadItemImage(formData.imageFile, docRef.id);
-    } else if (formData.imageUrl) {
-      imageUrl = formData.imageUrl;
+    try {
+      console.log('🔥 [ItemService] 獲取 Firebase 服務...');
+      const { db } = getFirebaseServices();
+      console.log('✅ [ItemService] Firebase db 已獲取');
+
+      const itemsCollection = collection(db, COLLECTION_NAME);
+      console.log(`📂 [ItemService] Collection 參考已建立: ${COLLECTION_NAME}`);
+
+      const itemData = {
+        name: formData.name,
+        description: formData.description,
+        category: formData.category,
+        imageUrl: '',
+        price: formData.price,
+        sellPrice: formData.sellPrice,
+        isTradeable: formData.isTradeable,
+        isDroppable: formData.isDroppable,
+        isActive: formData.isActive,
+        attributes: formData.attributes,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+      console.log('📄 [ItemService] 準備寫入的資料:', JSON.stringify(itemData, null, 2));
+
+      console.log('⏳ [ItemService] 正在執行 addDoc...');
+      const docRef = await addDoc(itemsCollection, itemData);
+      console.log(`✅ [ItemService] addDoc 成功！文件 ID: ${docRef.id}`);
+
+      let imageUrl = '/images/no-image.png';
+      if (formData.imageFile) {
+        console.log('📷 [ItemService] 開始上傳圖片...');
+        imageUrl = await this.uploadItemImage(formData.imageFile, docRef.id);
+        console.log(`✅ [ItemService] 圖片上傳成功: ${imageUrl}`);
+      } else if (formData.imageUrl && formData.imageUrl !== '/images/no-image.png') {
+        imageUrl = formData.imageUrl;
+        console.log(`📷 [ItemService] 使用現有圖片 URL: ${imageUrl}`);
+      }
+
+      console.log('⏳ [ItemService] 正在更新圖片 URL...');
+      await updateDoc(docRef, { imageUrl });
+      console.log('✅ [ItemService] 圖片 URL 更新成功');
+
+      console.log(`🎉 [ItemService] createItem 完成！道具 ID: ${docRef.id}`);
+      return docRef.id;
+    } catch (error: any) {
+      console.error('❌ [ItemService] createItem 失敗！');
+      console.error('錯誤類型:', error.constructor.name);
+      console.error('錯誤代碼:', error.code);
+      console.error('錯誤訊息:', error.message);
+      console.error('完整錯誤:', error);
+      throw error;
     }
-
-    await updateDoc(docRef, { imageUrl });
-
-    return docRef.id;
   }
 
   async getItem(itemId: string): Promise<Item | null> {
