@@ -9,7 +9,7 @@ interface ItemImageProps {
 }
 
 export function ItemImage({ src, alt, className = '' }: ItemImageProps) {
-  const defaultImage = '/images/no-image.svg';
+  const defaultImage = '/images/no-image.png';
   const [imgSrc, setImgSrc] = useState(src || defaultImage);
   const [hasError, setHasError] = useState(false);
 

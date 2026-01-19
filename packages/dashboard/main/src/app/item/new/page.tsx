@@ -44,10 +44,37 @@ export default function NewItemPage() {
     try {
       setSaving(true);
       setError(null);
+      console.log('🚀 開始新增道具...', formData);
       await itemService.createItem(formData);
+      console.log('✅ 道具新增成功！');
       router.push('/item');
     } catch (err: any) {
-      setError(err.message || '新增失敗');
+      console.error('❌ 新增道具失敗:', err);
+
+      // 提供更詳細的錯誤訊息
+      let errorMessage = '新增失敗';
+
+      if (err.message?.includes('Firebase')) {
+        errorMessage = 'Firebase 連線失敗。請確認環境變數已正確設定。';
+      } else if (err.message?.includes('ERR_BLOCKED_BY_CLIENT')) {
+        errorMessage = '請求被瀏覽器阻擋。請檢查是否有廣告攔截器或防火牆擴充功能正在運作。';
+      } else if (err.code === 'permission-denied') {
+        errorMessage = 'Firebase 權限不足。請檢查 Firestore 安全規則。';
+      } else if (err.code === 'unavailable') {
+        errorMessage = 'Firebase 服務暫時無法使用。請稍後再試。';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
+
+      // 在控制台輸出完整錯誤供除錯
+      console.error('完整錯誤資訊:', {
+        code: err.code,
+        message: err.message,
+        name: err.name,
+        stack: err.stack
+      });
     } finally {
       setSaving(false);
     }
