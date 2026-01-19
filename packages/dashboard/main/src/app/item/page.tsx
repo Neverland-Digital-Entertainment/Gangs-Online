@@ -117,7 +117,7 @@ export default function ItemsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2.5">
-          <Link href="/dashboard/item/new" className="btn btn-primary">
+          <Link href="/item/new" className="btn btn-primary">
             <Plus className="w-4 h-4" />
             新增道具
           </Link>
@@ -213,7 +213,7 @@ export default function ItemsPage() {
           <div className="card-body text-center py-20">
             <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600 mb-4">尚無道具</p>
-            <Link href="/dashboard/item/new" className="btn btn-primary inline-flex">
+            <Link href="/item/new" className="btn btn-primary inline-flex">
               <Plus className="w-4 h-4" />
               新增第一個道具
             </Link>
@@ -262,7 +262,7 @@ export default function ItemsPage() {
 
                   <div className="flex items-center gap-2 pt-2 border-t">
                     <Link
-                      href={`/dashboard/item/edit?id=${item.id}`}
+                      href={`/item/edit?id=${item.id}`}
                       className="btn btn-sm btn-light flex-1"
                     >
                       <Edit className="w-3 h-3" />

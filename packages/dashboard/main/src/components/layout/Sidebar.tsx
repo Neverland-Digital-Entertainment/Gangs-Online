@@ -15,30 +15,30 @@ const menuItems = [
   {
     title: '主頁',
     icon: Home,
-    href: '/dashboard',
+    href: '/',
     exact: true,
   },
   {
     title: '道具管理',
     icon: Package,
-    href: '/dashboard/item',
+    href: '/item',
   },
   {
     title: 'NPC 管理',
     icon: Users,
-    href: '/dashboard/npc',
+    href: '/npc',
     disabled: true,
   },
   {
     title: '任務管理',
     icon: ScrollText,
-    href: '/dashboard/quest',
+    href: '/quest',
     disabled: true,
   },
   {
     title: '設定',
     icon: Settings,
-    href: '/dashboard/settings',
+    href: '/settings',
     disabled: true,
   },
 ];

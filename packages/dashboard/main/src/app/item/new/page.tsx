@@ -44,7 +44,7 @@ export default function NewItemPage() {
       setSaving(true);
       setError(null);
       await itemService.createItem(formData);
-      router.push('/dashboard/item');
+      router.push('/item');
     } catch (err: any) {
       setError(err.message || '新增失敗');
     } finally {
@@ -77,7 +77,7 @@ export default function NewItemPage() {
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => router.push('/dashboard/item')}
+            onClick={() => router.push('/item')}
             className="btn btn-light"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -136,7 +136,7 @@ export default function NewItemPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => router.push('/dashboard/item')}
+                    onClick={() => router.push('/item')}
                     className="btn btn-light"
                   >
                     取消

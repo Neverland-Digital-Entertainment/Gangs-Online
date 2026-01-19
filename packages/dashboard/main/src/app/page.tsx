@@ -15,7 +15,7 @@ export default function DashboardHome() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Item Management */}
-        <Link href="/dashboard/item" className="group">
+        <Link href="/item" className="group">
           <div className="card hover:shadow-lg transition-all duration-200 h-full">
             <div className="card-body">
               <div className="flex items-start justify-between mb-4">
