@@ -11,6 +11,8 @@ import {
   Copy,
   AlertCircle,
   Package,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { itemService } from '@/lib/item/service';
 import { ItemImage } from '@/components/common/ItemImage';
@@ -29,6 +31,7 @@ export default function ItemsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const [filter, setFilter] = useState<ItemFilter>({
     search: '',
@@ -118,6 +121,22 @@ export default function ItemsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2.5">
+          <div className="btn-group">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`btn btn-sm ${viewMode === 'grid' ? 'btn-primary' : 'btn-light'}`}
+              title="網格檢視"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-light'}`}
+              title="列表檢視"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
           <Link href="/item/new" className="btn btn-primary">
             <Plus className="w-4 h-4" />
             新增道具
@@ -220,7 +239,7 @@ export default function ItemsPage() {
             </Link>
           </div>
         </div>
-      ) : (
+      ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {filteredItems.map((item) => (
             <div key={item.id} className="card hover:shadow-md transition-shadow">
@@ -235,7 +254,7 @@ export default function ItemsPage() {
                     <span
                       className={`absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded shadow ${
                         item.isActive
-                          ? 'bg-success text-white'
+                          ? 'bg-green-500 text-white'
                           : 'bg-gray-500 text-white'
                       }`}
                     >
@@ -307,6 +326,115 @@ export default function ItemsPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="card">
+          <div className="overflow-x-auto">
+            <table className="table-auto w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    圖片
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    名稱
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    分類
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    價格
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    狀態
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    操作
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredItems.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <ItemImage
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="w-12 h-12 object-cover rounded bg-gray-100"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div>
+                        <div className="font-medium text-gray-900">{item.name}</div>
+                        <div className="text-xs text-gray-500">ID: {item.id}</div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {CATEGORY_LABELS[item.category]}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium text-primary">
+                      ${item.price.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded ${
+                          item.isActive
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        {item.isActive ? '啟用' : '停用'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/item/edit?id=${item.id}`}
+                          className="btn btn-sm btn-light"
+                          title="編輯"
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Link>
+                        <button
+                          onClick={() => handleDuplicate(item.id)}
+                          className="btn btn-sm btn-light"
+                          title="複製"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                        {deleteConfirm === item.id ? (
+                          <>
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="btn btn-sm btn-danger"
+                              title="確認刪除"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirm(null)}
+                              className="btn btn-sm btn-light"
+                              title="取消"
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirm(item.id)}
+                            className="btn btn-sm btn-light hover:bg-red-50"
+                            title="刪除"
+                          >
+                            <Trash2 className="w-3 h-3 text-danger" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
