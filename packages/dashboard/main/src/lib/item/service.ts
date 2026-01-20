@@ -50,10 +50,35 @@ export class ItemService {
     return downloadURL;
   }
 
+  private extractStoragePath(imageUrl: string): string | null {
+    // 只處理 Firebase Storage URL
+    if (!imageUrl.includes('firebasestorage.googleapis.com')) {
+      return null;
+    }
+
+    try {
+      // Firebase Storage URL 格式: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encoded-path}?...
+      const url = new URL(imageUrl);
+      const pathMatch = url.pathname.match(/\/o\/(.+)$/);
+      if (pathMatch) {
+        return decodeURIComponent(pathMatch[1]);
+      }
+    } catch {
+      // URL 解析失敗
+    }
+    return null;
+  }
+
   async deleteItemImage(imageUrl: string): Promise<void> {
     try {
+      const storagePath = this.extractStoragePath(imageUrl);
+      if (!storagePath) {
+        console.log('Skipping image deletion - not a Firebase Storage URL');
+        return;
+      }
+
       const { storage } = getFirebaseServices();
-      const imageRef = ref(storage, imageUrl);
+      const imageRef = ref(storage, storagePath);
       await deleteObject(imageRef);
     } catch (error) {
       console.error('Error deleting image:', error);
@@ -189,7 +214,14 @@ export class ItemService {
     const { db } = getFirebaseServices();
 
     const item = await this.getItem(itemId);
-    if (item && item.imageUrl && !item.imageUrl.includes('no-image.png')) {
+    // 只刪除屬於這個 item 的圖片（圖片路徑包含 item ID）
+    // 這樣複製的 item 不會刪除原始 item 的圖片
+    if (
+      item &&
+      item.imageUrl &&
+      !item.imageUrl.includes('no-image.png') &&
+      item.imageUrl.includes(itemId)
+    ) {
       await this.deleteItemImage(item.imageUrl);
     }
 
