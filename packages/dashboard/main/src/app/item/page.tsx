@@ -82,7 +82,7 @@ export default function ItemsPage() {
   async function handleDelete(itemId: string) {
     try {
       await itemService.deleteItem(itemId);
-      setItems(items.filter((item) => item.id !== itemId));
+      setItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
       setDeleteConfirm(null);
     } catch (err: any) {
       setError(err.message || 'Failed to delete item');
