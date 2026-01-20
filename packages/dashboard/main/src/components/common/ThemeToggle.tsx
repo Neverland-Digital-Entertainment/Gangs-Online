@@ -15,7 +15,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <button className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800">
+      <button className="theme-toggle">
         <Sun className="w-5 h-5" />
       </button>
     );
@@ -24,7 +24,7 @@ export function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      className="theme-toggle"
       title={theme === 'dark' ? '切換至淺色模式' : '切換至深色模式'}
     >
       {theme === 'dark' ? (

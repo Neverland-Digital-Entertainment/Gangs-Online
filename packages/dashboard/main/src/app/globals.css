@@ -301,4 +301,26 @@
   .text-primary {
     color: var(--primary);
   }
+
+  /* Theme toggle button */
+  .theme-toggle {
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    background-color: rgb(255 255 255);
+    border: 1px solid rgb(209 213 219);
+    transition: background-color 150ms;
+  }
+
+  .theme-toggle:hover {
+    background-color: rgb(249 250 251);
+  }
+
+  .dark .theme-toggle {
+    background-color: rgb(31 41 55);
+    border-color: rgb(55 65 81);
+  }
+
+  .dark .theme-toggle:hover {
+    background-color: rgb(55 65 81);
+  }
 }
