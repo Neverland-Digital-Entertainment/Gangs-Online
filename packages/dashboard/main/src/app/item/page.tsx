@@ -31,7 +31,7 @@ export default function ItemsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
   const [filter, setFilter] = useState<ItemFilter>({
     search: '',
@@ -333,22 +333,22 @@ export default function ItemsPage() {
             <table className="table-auto w-full">
               <thead>
                 <tr className="bg-gray-50 border-b">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-16">
                     圖片
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    名稱
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    名稱 / 說明
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">
                     分類
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">
                     價格
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">
                     狀態
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase w-32">
                     操作
                   </th>
                 </tr>
@@ -356,26 +356,28 @@ export default function ItemsPage() {
               <tbody className="divide-y divide-gray-200">
                 {filteredItems.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 w-16">
                       <ItemImage
                         src={item.imageUrl}
                         alt={item.name}
-                        className="w-12 h-12 object-cover rounded bg-gray-100"
+                        className="w-10 h-10 object-cover rounded bg-gray-100"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <div>
                         <div className="font-medium text-gray-900">{item.name}</div>
-                        <div className="text-xs text-gray-500">ID: {item.id}</div>
+                        <div className="text-xs text-gray-500 truncate max-w-md">
+                          {item.description || `ID: ${item.id}`}
+                        </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-3 py-2 text-sm text-gray-600 w-24">
                       {CATEGORY_LABELS[item.category]}
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium text-primary">
+                    <td className="px-3 py-2 text-sm font-medium text-primary w-24">
                       ${item.price.toLocaleString()}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 w-20">
                       <span
                         className={`px-2 py-1 text-xs font-medium rounded ${
                           item.isActive
@@ -386,7 +388,7 @@ export default function ItemsPage() {
                         {item.isActive ? '啟用' : '停用'}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 w-32">
                       <div className="flex items-center justify-end gap-2">
                         <Link
                           href={`/item/edit?id=${item.id}`}
