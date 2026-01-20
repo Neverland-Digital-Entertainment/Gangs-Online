@@ -11,10 +11,14 @@ import {
   Copy,
   AlertCircle,
   Package,
+  LayoutGrid,
+  LayoutList,
 } from 'lucide-react';
 import { itemService } from '@/lib/item/service';
 import { ItemImage } from '@/components/common/ItemImage';
 import type { Item, ItemFilter, ItemCategory } from '@/types/item';
+
+type ViewMode = 'list' | 'grid';
 
 const CATEGORY_LABELS: Record<ItemCategory, string> = {
   consumable: '消耗品',
@@ -29,6 +33,7 @@ export default function ItemsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   const [filter, setFilter] = useState<ItemFilter>({
     search: '',
@@ -135,6 +140,30 @@ export default function ItemsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-primary text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+              title="列表視圖"
+            >
+              <LayoutList className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'grid'
+                  ? 'bg-primary text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+              title="網格視圖"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
           <Link href="/item/new" className="btn btn-primary">
             <Plus className="w-4 h-4" />
             新增道具
@@ -237,6 +266,133 @@ export default function ItemsPage() {
             </Link>
           </div>
         </div>
+      ) : viewMode === 'list' ? (
+        <div className="card">
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th className="w-16">圖示</th>
+                  <th>名稱</th>
+                  <th>分類</th>
+                  <th>價格</th>
+                  <th>賣出價</th>
+                  <th className="text-center">可交易</th>
+                  <th className="text-center">可丟棄</th>
+                  <th className="text-center">狀態</th>
+                  <th className="text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredItems.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <ItemImage
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="w-10 h-10 object-cover rounded bg-gray-100"
+                      />
+                    </td>
+                    <td>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-900">
+                          {item.name}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          ID: {item.id.substring(0, 8)}...
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="text-sm text-gray-600">
+                        {CATEGORY_LABELS[item.category]}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="font-medium text-gray-900">
+                        ${item.price.toLocaleString()}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="text-gray-600">
+                        ${item.sellPrice.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="text-center">
+                      {item.isTradeable ? (
+                        <span className="text-green-600">✓</span>
+                      ) : (
+                        <span className="text-gray-400">✕</span>
+                      )}
+                    </td>
+                    <td className="text-center">
+                      {item.isDroppable ? (
+                        <span className="text-green-600">✓</span>
+                      ) : (
+                        <span className="text-gray-400">✕</span>
+                      )}
+                    </td>
+                    <td className="text-center">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded ${
+                          item.isActive
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        {item.isActive ? '啟用' : '停用'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="flex items-center justify-end gap-1">
+                        <Link
+                          href={`/item/edit?id=${item.id}`}
+                          className="p-2 text-gray-600 hover:text-primary hover:bg-gray-100 rounded transition-colors"
+                          title="編輯"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Link>
+                        <button
+                          onClick={() => handleDuplicate(item.id)}
+                          className="p-2 text-gray-600 hover:text-primary hover:bg-gray-100 rounded transition-colors"
+                          title="複製"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                        {deleteConfirm === item.id ? (
+                          <>
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="p-2 text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+                              title="確認刪除"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirm(null)}
+                              className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                              title="取消"
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirm(item.id)}
+                            className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="刪除"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {filteredItems.map((item) => (
@@ -247,12 +403,12 @@ export default function ItemsPage() {
                     <ItemImage
                       src={item.imageUrl}
                       alt={item.name}
-                      className="w-full h-40 object-cover rounded-lg bg-gray-100"
+                      className="w-full h-40 object-contain rounded-lg bg-gray-100"
                     />
                     <span
                       className={`absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded shadow ${
                         item.isActive
-                          ? 'bg-success text-white'
+                          ? 'bg-green-600 text-white'
                           : 'bg-gray-500 text-white'
                       }`}
                     >

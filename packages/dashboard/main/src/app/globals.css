@@ -215,4 +215,50 @@
     color: rgb(25 118 210);
     font-weight: 500;
   }
+
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .table thead {
+    background-color: rgb(249 250 251);
+    border-bottom-width: 1px;
+    border-color: rgb(229 231 235);
+  }
+
+  .table th {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    text-align: left;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 600;
+    color: rgb(107 114 128);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .table tbody tr {
+    border-bottom-width: 1px;
+    border-color: rgb(229 231 235);
+    transition-property: background-color;
+    transition-duration: 150ms;
+  }
+
+  .table tbody tr:hover {
+    background-color: rgb(249 250 251);
+  }
+
+  .table td {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: rgb(55 65 81);
+  }
 }
