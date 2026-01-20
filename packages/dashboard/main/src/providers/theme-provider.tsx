@@ -11,9 +11,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="light"
+      defaultTheme="dark"
       storageKey="gangs-online-theme"
-      enableSystem
+      enableSystem={false}
       disableTransitionOnChange
     >
       {children}
