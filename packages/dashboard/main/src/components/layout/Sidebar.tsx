@@ -59,7 +59,7 @@ export function Sidebar() {
         <img
           src="/images/logo-small.png"
           alt="Gangs Online"
-          className="w-12 h-12"
+          className="h-12 w-auto"
         />
       </div>
 
