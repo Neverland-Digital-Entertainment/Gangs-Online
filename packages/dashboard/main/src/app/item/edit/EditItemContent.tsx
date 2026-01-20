@@ -124,9 +124,9 @@ export default function EditItemContent() {
   if (!itemId) {
     return (
       <div className="container-fixed">
-        <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <AlertCircle className="w-5 h-5 text-red-600" />
-          <p className="text-sm text-red-600">缺少道具 ID</p>
+        <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+          <p className="text-sm text-red-600 dark:text-red-400">缺少道具 ID</p>
         </div>
       </div>
     );
@@ -136,10 +136,10 @@ export default function EditItemContent() {
     <div className="container-fixed">
       <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
         <div className="flex flex-col justify-center gap-2">
-          <h1 className="text-3xl font-bold leading-none text-gray-900">
+          <h1 className="text-3xl font-bold leading-none text-[var(--foreground)]">
             編輯道具
           </h1>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-[var(--muted-foreground)]">
             ID: {itemId}
           </div>
         </div>
@@ -156,12 +156,12 @@ export default function EditItemContent() {
       </div>
 
       {error && (
-        <div className="mb-5 flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <AlertCircle className="w-5 h-5 text-red-600" />
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="mb-5 flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           <button
             onClick={() => setError(null)}
-            className="ml-auto text-red-600 hover:text-red-800"
+            className="ml-auto text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
           >
             ✕
           </button>
@@ -223,18 +223,18 @@ export default function EditItemContent() {
                   <ItemImage
                     src={formData.imageUrl}
                     alt="Preview"
-                    className="w-full aspect-square object-cover rounded-lg bg-gray-100"
+                    className="w-full aspect-square object-cover rounded-lg bg-gray-100 dark:bg-gray-800"
                   />
                   <div>
-                    <h4 className="font-semibold text-gray-900">
+                    <h4 className="font-semibold text-[var(--foreground)]">
                       {formData.name || '未命名道具'}
                     </h4>
-                    <p className="text-sm text-gray-600 line-clamp-2">
+                    <p className="text-sm text-[var(--muted-foreground)] line-clamp-2">
                       {formData.description || '無說明'}
                     </p>
                   </div>
-                  <div className="flex items-center justify-between text-sm pt-2 border-t">
-                    <span className="text-gray-600">價格</span>
+                  <div className="flex items-center justify-between text-sm pt-2 border-t border-[var(--border)]">
+                    <span className="text-[var(--muted-foreground)]">價格</span>
                     <span className="font-semibold text-primary">
                       ${formData.price.toLocaleString()}
                     </span>
