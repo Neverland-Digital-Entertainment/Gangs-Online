@@ -55,12 +55,17 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="p-6 border-b border-gray-200 flex justify-center">
-        <img
-          src="/images/logo-small.png"
-          alt="Gangs Online"
-          className="h-12 w-auto"
-        />
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex flex-col items-center gap-2">
+          <img
+            src="/images/logo-small.png"
+            alt="Gangs Online"
+            className="h-12 w-auto"
+          />
+          <span className="text-sm font-semibold text-gray-700 tracking-wider">
+            DASHBOARD
+          </span>
+        </div>
       </div>
 
       <nav className="py-4">
