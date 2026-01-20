@@ -1,12 +1,51 @@
 @import "tailwindcss";
 
+/* CSS Variables for theming */
+:root {
+  --background: rgb(249 250 251);
+  --foreground: rgb(17 24 39);
+  --card: rgb(255 255 255);
+  --card-foreground: rgb(17 24 39);
+  --border: rgb(229 231 235);
+  --input: rgb(255 255 255);
+  --input-border: rgb(209 213 219);
+  --primary: rgb(25 118 210);
+  --primary-hover: rgb(13 71 161);
+  --primary-light: rgb(227 242 253);
+  --muted: rgb(107 114 128);
+  --muted-foreground: rgb(55 65 81);
+  --sidebar-bg: rgb(255 255 255);
+  --sidebar-hover: rgb(249 250 251);
+  --table-header: rgb(249 250 251);
+  --table-hover: rgb(249 250 251);
+}
+
+.dark {
+  --background: rgb(17 24 39);
+  --foreground: rgb(243 244 246);
+  --card: rgb(31 41 55);
+  --card-foreground: rgb(243 244 246);
+  --border: rgb(55 65 81);
+  --input: rgb(31 41 55);
+  --input-border: rgb(75 85 99);
+  --primary: rgb(59 130 246);
+  --primary-hover: rgb(37 99 235);
+  --primary-light: rgb(30 58 138);
+  --muted: rgb(156 163 175);
+  --muted-foreground: rgb(209 213 219);
+  --sidebar-bg: rgb(31 41 55);
+  --sidebar-hover: rgb(55 65 81);
+  --table-header: rgb(55 65 81);
+  --table-hover: rgb(55 65 81);
+}
+
 @layer base {
   * {
-    border-color: rgb(229 231 235);
+    border-color: var(--border);
   }
   body {
-    color: rgb(17 24 39);
-    background-color: rgb(249 250 251);
+    color: var(--foreground);
+    background-color: var(--background);
   }
 }
 
@@ -27,23 +66,23 @@
   }
 
   .btn-primary {
-    background-color: rgb(25 118 210);
+    background-color: var(--primary);
     color: white;
   }
 
   .btn-primary:hover {
-    background-color: rgb(13 71 161);
+    background-color: var(--primary-hover);
   }
 
   .btn-light {
-    background-color: white;
+    background-color: var(--card);
     border-width: 1px;
-    border-color: rgb(209 213 219);
-    color: rgb(55 65 81);
+    border-color: var(--input-border);
+    color: var(--muted-foreground);
   }
 
   .btn-light:hover {
-    background-color: rgb(249 250 251);
+    background-color: var(--sidebar-hover);
   }
 
   .btn-danger {
@@ -69,7 +108,7 @@
     border-radius: 0.5rem;
     overflow: hidden;
     border-width: 1px;
-    border-color: rgb(209 213 219);
+    border-color: var(--input-border);
   }
 
   .btn-group .btn {
@@ -79,15 +118,15 @@
 
   .btn-group .btn:not(:last-child) {
     border-right-width: 1px;
-    border-color: rgb(209 213 219);
+    border-color: var(--input-border);
   }
 
   .card {
-    background-color: white;
+    background-color: var(--card);
     border-radius: 0.5rem;
     box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     border-width: 1px;
-    border-color: rgb(229 231 235);
+    border-color: var(--border);
   }
 
   .card-header {
@@ -96,14 +135,14 @@
     padding-top: 1rem;
     padding-bottom: 1rem;
     border-bottom-width: 1px;
-    border-color: rgb(229 231 235);
+    border-color: var(--border);
   }
 
   .card-title {
     font-size: 1.125rem;
     line-height: 1.75rem;
     font-weight: 600;
-    color: rgb(17 24 39);
+    color: var(--foreground);
   }
 
   .card-body {
@@ -120,16 +159,20 @@
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
     border-width: 1px;
-    border-color: rgb(209 213 219);
+    border-color: var(--input-border);
     border-radius: 0.5rem;
+    background-color: var(--input);
+    color: var(--foreground);
   }
 
   .input:focus {
     outline: 2px solid transparent;
     outline-offset: 2px;
-    ring-width: 2px;
-    ring-color: rgb(25 118 210);
-    border-color: transparent;
+    border-color: var(--primary);
+  }
+
+  .input::placeholder {
+    color: var(--muted);
   }
 
   .select {
@@ -139,17 +182,16 @@
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
     border-width: 1px;
-    border-color: rgb(209 213 219);
+    border-color: var(--input-border);
     border-radius: 0.5rem;
-    background-color: white;
+    background-color: var(--input);
+    color: var(--foreground);
   }
 
   .select:focus {
     outline: 2px solid transparent;
     outline-offset: 2px;
-    ring-width: 2px;
-    ring-color: rgb(25 118 210);
-    border-color: transparent;
+    border-color: var(--primary);
   }
 
   .textarea {
@@ -159,17 +201,21 @@
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
     border-width: 1px;
-    border-color: rgb(209 213 219);
+    border-color: var(--input-border);
     border-radius: 0.5rem;
     resize: none;
+    background-color: var(--input);
+    color: var(--foreground);
   }
 
   .textarea:focus {
     outline: 2px solid transparent;
     outline-offset: 2px;
-    ring-width: 2px;
-    ring-color: rgb(25 118 210);
-    border-color: transparent;
+    border-color: var(--primary);
+  }
+
+  .textarea::placeholder {
+    color: var(--muted);
   }
 
   .form-label {
@@ -177,14 +223,14 @@
     font-size: 0.875rem;
     line-height: 1.25rem;
     font-weight: 500;
-    color: rgb(55 65 81);
+    color: var(--muted-foreground);
     margin-bottom: 0.25rem;
   }
 
   .form-hint {
     font-size: 0.75rem;
     line-height: 1rem;
-    color: rgb(107 114 128);
+    color: var(--muted);
     margin-top: 0.25rem;
     display: block;
   }
@@ -201,9 +247,9 @@
 
   .sidebar {
     width: 16rem;
-    background-color: white;
+    background-color: var(--sidebar-bg);
     border-right-width: 1px;
-    border-color: rgb(229 231 235);
+    border-color: var(--border);
     height: 100vh;
     position: sticky;
     top: 0;
@@ -218,19 +264,41 @@
     padding-right: 1rem;
     padding-top: 0.75rem;
     padding-bottom: 0.75rem;
-    color: rgb(55 65 81);
+    color: var(--muted-foreground);
     transition-property: color, background-color;
     transition-duration: 150ms;
     cursor: pointer;
   }
 
   .sidebar-item:hover {
-    background-color: rgb(249 250 251);
+    background-color: var(--sidebar-hover);
   }
 
   .sidebar-item.active {
-    background-color: rgb(227 242 253);
-    color: rgb(25 118 210);
+    background-color: var(--primary-light);
+    color: var(--primary);
     font-weight: 500;
+  }
+
+  /* Table dark mode support */
+  .table-header {
+    background-color: var(--table-header);
+  }
+
+  .table-row:hover {
+    background-color: var(--table-hover);
+  }
+
+  /* Text utilities with theme support */
+  .text-foreground {
+    color: var(--foreground);
+  }
+
+  .text-muted {
+    color: var(--muted);
+  }
+
+  .text-primary {
+    color: var(--primary);
   }
 }

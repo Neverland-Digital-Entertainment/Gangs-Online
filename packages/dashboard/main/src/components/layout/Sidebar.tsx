@@ -12,6 +12,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/common/ThemeToggle';
 
 const menuItems = [
   {
@@ -57,14 +58,14 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
 
   return (
     <>
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-[var(--border)]">
         <div className="flex flex-col items-center gap-2">
           <img
             src="/images/logo-small.png"
             alt="Gangs Online"
             className="w-auto h-auto max-w-full"
           />
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-[var(--muted)]">
             DASHBOARD
           </span>
         </div>
@@ -83,7 +84,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
               >
                 <Icon className="w-5 h-5" />
                 <span>{item.title}</span>
-                <span className="ml-auto text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">
+                <span className="ml-auto text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
                   即將推出
                 </span>
               </div>
@@ -104,9 +105,10 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
         })}
       </nav>
 
-      <div className="p-4 border-t border-gray-200 bg-white">
-        <div className="text-xs text-gray-500 text-center">
-          v0.16.1
+      <div className="p-4 border-t border-[var(--border)] bg-[var(--sidebar-bg)]">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-[var(--muted)]">v0.16.1</span>
+          <ThemeToggle />
         </div>
       </div>
     </>
@@ -125,18 +127,21 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
-        <button
-          onClick={() => setIsOpen(true)}
-          className="p-2 hover:bg-gray-100 rounded-lg"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-        <img
-          src="/images/logo-small.png"
-          alt="Gangs Online"
-          className="h-8 w-auto"
-        />
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-[var(--card)] border-b border-[var(--border)] px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsOpen(true)}
+            className="p-2 hover:bg-[var(--sidebar-hover)] rounded-lg"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <img
+            src="/images/logo-small.png"
+            alt="Gangs Online"
+            className="h-8 w-auto"
+          />
+        </div>
+        <ThemeToggle />
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -149,13 +154,13 @@ export function Sidebar() {
 
       {/* Mobile Sidebar */}
       <aside
-        className={`lg:hidden fixed top-0 left-0 bottom-0 w-64 bg-white z-50 transform transition-transform duration-300 flex flex-col ${
+        className={`lg:hidden fixed top-0 left-0 bottom-0 w-64 bg-[var(--sidebar-bg)] z-50 transform transition-transform duration-300 flex flex-col ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <button
           onClick={() => setIsOpen(false)}
-          className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded"
+          className="absolute top-4 right-4 p-1 hover:bg-[var(--sidebar-hover)] rounded"
         >
           <X className="w-5 h-5" />
         </button>
