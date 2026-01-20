@@ -245,11 +245,11 @@ export default function ItemsPage() {
             <div key={item.id} className="card hover:shadow-md transition-shadow">
               <div className="card-body p-4">
                 <div className="flex flex-col gap-3">
-                  <div className="relative">
+                  <div className="relative aspect-square">
                     <ItemImage
                       src={item.imageUrl}
                       alt={item.name}
-                      className="w-full h-40 object-cover rounded-lg bg-gray-100"
+                      className="w-full h-full object-cover rounded-lg bg-gray-100"
                     />
                     <span
                       className={`absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded shadow ${
