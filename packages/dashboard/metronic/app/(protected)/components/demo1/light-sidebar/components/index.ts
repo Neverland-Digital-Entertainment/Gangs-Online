@@ -4,4 +4,3 @@ export * from './entry-callout';
 export * from './highlights';
 export * from './team-meeting';
 export * from './teams';
-export * from './npc-management-quick-links';
