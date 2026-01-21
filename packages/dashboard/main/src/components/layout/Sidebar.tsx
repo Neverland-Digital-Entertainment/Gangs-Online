@@ -30,7 +30,6 @@ const menuItems = [
     title: 'NPC 管理',
     icon: Users,
     href: '/npc',
-    disabled: true,
   },
   {
     title: '任務管理',
