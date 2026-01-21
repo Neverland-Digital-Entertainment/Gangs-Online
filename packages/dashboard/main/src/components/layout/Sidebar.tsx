@@ -11,6 +11,8 @@ import {
   Home,
   Menu,
   X,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
@@ -32,6 +34,16 @@ const menuItems = [
     titleKey: 'nav.npc',
     icon: Users,
     href: '/npc',
+    subItems: [
+      {
+        titleKey: 'nav.npcTemplates',
+        href: '/npc/templates',
+      },
+      {
+        titleKey: 'nav.npcInstances',
+        href: '/npc/instances',
+      },
+    ],
   },
   {
     titleKey: 'nav.comingSoon',
@@ -50,12 +62,26 @@ const menuItems = [
 function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
   const { t } = useI18n();
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+
+  // Auto-expand NPC menu if on NPC pages
+  useEffect(() => {
+    if (pathname.startsWith('/npc')) {
+      setExpandedItems((prev) => prev.includes('/npc') ? prev : [...prev, '/npc']);
+    }
+  }, [pathname]);
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) {
       return pathname === href;
     }
     return pathname.startsWith(href);
+  };
+
+  const toggleExpand = (href: string) => {
+    setExpandedItems((prev) =>
+      prev.includes(href) ? prev.filter((h) => h !== href) : [...prev, href]
+    );
   };
 
   return (
@@ -77,6 +103,8 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
         {menuItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href, item.exact);
+          const isExpanded = expandedItems.includes(item.href);
+          const hasSubItems = item.subItems && item.subItems.length > 0;
 
           if (item.disabled) {
             return (
@@ -89,6 +117,42 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                 <span className="ml-auto text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
                   {t('nav.comingSoon')}
                 </span>
+              </div>
+            );
+          }
+
+          if (hasSubItems) {
+            return (
+              <div key={item.href}>
+                <button
+                  onClick={() => toggleExpand(item.href)}
+                  className={`sidebar-item w-full ${active ? 'active' : ''}`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span>{t(item.titleKey)}</span>
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4 ml-auto" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 ml-auto" />
+                  )}
+                </button>
+                {isExpanded && (
+                  <div className="ml-6 border-l border-[var(--border)]">
+                    {item.subItems.map((subItem) => {
+                      const subActive = isActive(subItem.href);
+                      return (
+                        <Link
+                          key={subItem.href}
+                          href={subItem.href}
+                          onClick={onItemClick}
+                          className={`sidebar-item pl-6 ${subActive ? 'active' : ''}`}
+                        >
+                          <span className="text-sm">{t(subItem.titleKey)}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           }

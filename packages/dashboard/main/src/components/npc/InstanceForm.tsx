@@ -61,7 +61,8 @@ export default function InstanceForm({
   async function loadTemplates() {
     try {
       setLoadingTemplates(true);
-      const data = await npcTemplateService.getAllTemplates({ isActive: true });
+      // Load all templates (including inactive ones) for selection
+      const data = await npcTemplateService.getAllTemplates();
       setTemplates(data);
     } catch (err) {
       console.error('載入模板失敗:', err);
@@ -202,7 +203,7 @@ export default function InstanceForm({
                 <option value="">請選擇...</option>
                 {templates.map((template) => (
                   <option key={template.id} value={template.id}>
-                    {template.name} (Lv.{formData.level})
+                    {template.name}{!template.isActive ? ' (停用)' : ''}
                   </option>
                 ))}
               </select>

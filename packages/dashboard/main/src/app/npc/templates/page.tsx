@@ -12,6 +12,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { npcTemplateService } from '@/lib/npc/template-service';
+import { useI18n } from '@/contexts/i18n-context';
 import type {
   NpcTemplate,
   NpcTemplateFilter,
@@ -20,6 +21,7 @@ import type {
 import { NPC_TYPE_LABELS } from '@/types/npc';
 
 export default function NpcTemplatesPage() {
+  const { t } = useI18n();
   const [templates, setTemplates] = useState<NpcTemplate[]>([]);
   const [filteredTemplates, setFilteredTemplates] = useState<NpcTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +50,7 @@ export default function NpcTemplatesPage() {
       setTemplates(data);
     } catch (err) {
       console.error('載入 NPC 模板失敗:', err);
-      setError('無法載入 NPC 模板列表');
+      setError(t('error.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -88,7 +90,7 @@ export default function NpcTemplatesPage() {
       setDeleteConfirm(null);
     } catch (err) {
       console.error('刪除 NPC 模板失敗:', err);
-      alert('刪除失敗，請稍後再試');
+      alert(t('error.deleteFailed'));
     }
   }
 
@@ -102,7 +104,7 @@ export default function NpcTemplatesPage() {
       );
     } catch (err) {
       console.error('切換狀態失敗:', err);
-      alert('操作失敗，請稍後再試');
+      alert(t('error.saveFailed'));
     }
   }
 
@@ -112,7 +114,7 @@ export default function NpcTemplatesPage() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-[var(--muted-foreground)]">載入中...</p>
+            <p className="text-[var(--muted-foreground)]">{t('common.loading')}</p>
           </div>
         </div>
       </div>
@@ -128,14 +130,14 @@ export default function NpcTemplatesPage() {
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-red-900 dark:text-red-100 mb-1">
-                  載入失敗
+                  {t('npc.template.loadFailed')}
                 </h3>
                 <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
                 <button
                   onClick={loadTemplates}
                   className="btn btn-sm btn-outline mt-3"
                 >
-                  重新載入
+                  {t('error.reload')}
                 </button>
               </div>
             </div>
@@ -151,16 +153,16 @@ export default function NpcTemplatesPage() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">
-            NPC 模板管理
+            {t('npc.templates.title')}
           </h1>
           <p className="text-[var(--muted-foreground)]">
-            共 {filteredTemplates.length} 個模板
+            {t('common.total')} {filteredTemplates.length} {t('common.items')}
           </p>
         </div>
         <Link href="/npc/templates/new">
           <button className="btn btn-primary">
             <Plus className="w-4 h-4 mr-2" />
-            新增模板
+            {t('npc.templates.create')}
           </button>
         </Link>
       </div>
@@ -171,12 +173,12 @@ export default function NpcTemplatesPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div>
-              <label className="label">搜尋</label>
+              <label className="label">{t('common.search')}</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="搜尋模板名稱或模型 ID..."
+                  placeholder={t('npc.templates.searchPlaceholder')}
                   className="input pl-10"
                   value={filter.search}
                   onChange={(e) =>
@@ -188,7 +190,7 @@ export default function NpcTemplatesPage() {
 
             {/* Type Filter */}
             <div>
-              <label className="label">NPC 類型</label>
+              <label className="label">{t('npc.template.type')}</label>
               <select
                 className="input"
                 value={filter.type || ''}
@@ -199,7 +201,7 @@ export default function NpcTemplatesPage() {
                   })
                 }
               >
-                <option value="">所有類型</option>
+                <option value="">{t('common.all')}</option>
                 {Object.entries(NPC_TYPE_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
@@ -210,7 +212,7 @@ export default function NpcTemplatesPage() {
 
             {/* Status Filter */}
             <div>
-              <label className="label">狀態</label>
+              <label className="label">{t('common.status')}</label>
               <select
                 className="input"
                 value={
@@ -230,9 +232,9 @@ export default function NpcTemplatesPage() {
                   })
                 }
               >
-                <option value="">所有狀態</option>
-                <option value="active">啟用</option>
-                <option value="inactive">停用</option>
+                <option value="">{t('common.all')}</option>
+                <option value="active">{t('common.active')}</option>
+                <option value="inactive">{t('common.inactive')}</option>
               </select>
             </div>
           </div>
@@ -246,14 +248,14 @@ export default function NpcTemplatesPage() {
             <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-[var(--muted-foreground)] mb-4">
               {templates.length === 0
-                ? '尚未建立任何 NPC 模板'
-                : '沒有符合條件的模板'}
+                ? t('npc.templates.noTemplates')
+                : t('npc.templates.noMatchingTemplates')}
             </p>
             {templates.length === 0 && (
               <Link href="/npc/templates/new">
                 <button className="btn btn-primary">
                   <Plus className="w-4 h-4 mr-2" />
-                  建立第一個模板
+                  {t('npc.templates.createFirst')}
                 </button>
               </Link>
             )}
@@ -273,9 +275,15 @@ export default function NpcTemplatesPage() {
                       <span className="badge badge-primary flex-shrink-0">
                         {NPC_TYPE_LABELS[template.type]}
                       </span>
-                      {!template.isActive && (
-                        <span className="badge badge-gray flex-shrink-0">停用</span>
-                      )}
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded shadow flex-shrink-0 ${
+                          template.isActive
+                            ? 'bg-green-500 text-white'
+                            : 'bg-gray-500 text-white'
+                        }`}
+                      >
+                        {template.isActive ? t('common.active') : t('common.inactive')}
+                      </span>
                     </div>
 
                     {template.description && (
@@ -286,21 +294,21 @@ export default function NpcTemplatesPage() {
 
                     <div className="flex flex-wrap gap-4 text-sm text-[var(--muted-foreground)]">
                       <div>
-                        模型 ID: <span className="font-mono">{template.modelId}</span>
+                        {t('npc.template.modelId')}: <span className="font-mono">{template.modelId}</span>
                       </div>
                       <div>
-                        HP: <span className="font-semibold">{template.baseHp}</span>
+                        {t('npc.template.hp')}: <span className="font-semibold">{template.baseHp}</span>
                       </div>
                       <div>
-                        攻擊: <span className="font-semibold">{template.baseAttack}</span>
+                        {t('npc.template.attack')}: <span className="font-semibold">{template.baseAttack}</span>
                       </div>
                       <div>
-                        防禦: <span className="font-semibold">{template.baseDefense}</span>
+                        {t('npc.template.defense')}: <span className="font-semibold">{template.baseDefense}</span>
                       </div>
                       {template.dialogueTree && (
                         <div className="flex items-center gap-1">
                           <MessageSquare className="w-4 h-4" />
-                          <span>有對話樹</span>
+                          <span>{t('npc.template.hasDialogue')} {template.dialogueTree.nodes.length} {t('npc.template.nodes')}</span>
                         </div>
                       )}
                     </div>
@@ -313,12 +321,12 @@ export default function NpcTemplatesPage() {
                         handleToggleStatus(template.id, template.isActive)
                       }
                       className="btn btn-sm btn-outline"
-                      title={template.isActive ? '停用' : '啟用'}
+                      title={template.isActive ? t('common.disable') : t('common.enable')}
                     >
-                      {template.isActive ? '停用' : '啟用'}
+                      {template.isActive ? t('common.disable') : t('common.enable')}
                     </button>
                     <Link href={`/npc/templates/edit?id=${template.id}`}>
-                      <button className="btn btn-sm btn-outline" title="編輯">
+                      <button className="btn btn-sm btn-outline" title={t('common.edit')}>
                         <Edit className="w-4 h-4" />
                       </button>
                     </Link>
@@ -328,20 +336,20 @@ export default function NpcTemplatesPage() {
                           onClick={() => handleDelete(template.id)}
                           className="btn btn-sm btn-danger"
                         >
-                          確認刪除
+                          {t('npc.templates.deleteConfirm')}
                         </button>
                         <button
                           onClick={() => setDeleteConfirm(null)}
                           className="btn btn-sm btn-outline"
                         >
-                          取消
+                          {t('common.cancel')}
                         </button>
                       </>
                     ) : (
                       <button
                         onClick={() => setDeleteConfirm(template.id)}
                         className="btn btn-sm btn-outline text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        title="刪除"
+                        title={t('common.delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

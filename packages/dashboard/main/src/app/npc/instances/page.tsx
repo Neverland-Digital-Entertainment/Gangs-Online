@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { npcInstanceService } from '@/lib/npc/instance-service';
 import { npcTemplateService } from '@/lib/npc/template-service';
+import { useI18n } from '@/contexts/i18n-context';
 import type {
   NpcInstance,
   NpcInstanceFilter,
@@ -22,6 +23,7 @@ import type {
 import { MOVEMENT_PATTERN_LABELS } from '@/types/npc';
 
 export default function InstancesPage() {
+  const { t } = useI18n();
   const [instances, setInstances] = useState<NpcInstance[]>([]);
   const [filteredInstances, setFilteredInstances] = useState<NpcInstance[]>([]);
   const [templates, setTemplates] = useState<NpcTemplate[]>([]);
@@ -56,7 +58,7 @@ export default function InstancesPage() {
       setTemplates(templatesData);
     } catch (err) {
       console.error('載入 NPC 實例失敗:', err);
-      setError('無法載入 NPC 實例列表');
+      setError(t('error.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -105,7 +107,7 @@ export default function InstancesPage() {
       setDeleteConfirm(null);
     } catch (err) {
       console.error('刪除 NPC 實例失敗:', err);
-      alert('刪除失敗，請稍後再試');
+      alert(t('error.deleteFailed'));
     }
   }
 
@@ -119,7 +121,7 @@ export default function InstancesPage() {
       );
     } catch (err) {
       console.error('切換狀態失敗:', err);
-      alert('操作失敗，請稍後再試');
+      alert(t('error.saveFailed'));
     }
   }
 
@@ -129,7 +131,7 @@ export default function InstancesPage() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-[var(--muted-foreground)]">載入中...</p>
+            <p className="text-[var(--muted-foreground)]">{t('common.loading')}</p>
           </div>
         </div>
       </div>
@@ -145,14 +147,14 @@ export default function InstancesPage() {
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-red-900 dark:text-red-100 mb-1">
-                  載入失敗
+                  {t('npc.instance.loadFailed')}
                 </h3>
                 <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
                 <button
                   onClick={loadData}
                   className="btn btn-sm btn-outline mt-3"
                 >
-                  重新載入
+                  {t('error.reload')}
                 </button>
               </div>
             </div>
@@ -168,16 +170,16 @@ export default function InstancesPage() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">
-            NPC 實例管理
+            {t('npc.instances.title')}
           </h1>
           <p className="text-[var(--muted-foreground)]">
-            共 {filteredInstances.length} 個實例
+            {t('common.total')} {filteredInstances.length} {t('common.items')}
           </p>
         </div>
         <Link href="/npc/instances/new">
           <button className="btn btn-primary">
             <Plus className="w-4 h-4 mr-2" />
-            新增實例
+            {t('npc.instances.create')}
           </button>
         </Link>
       </div>
@@ -188,12 +190,12 @@ export default function InstancesPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Search */}
             <div>
-              <label className="label">搜尋</label>
+              <label className="label">{t('common.search')}</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="搜尋模板名稱、地圖 ID..."
+                  placeholder={t('npc.instances.searchPlaceholder')}
                   className="input pl-10"
                   value={filter.search}
                   onChange={(e) =>
@@ -205,7 +207,7 @@ export default function InstancesPage() {
 
             {/* Template Filter */}
             <div>
-              <label className="label">NPC 模板</label>
+              <label className="label">{t('npc.instance.templateSelection')}</label>
               <select
                 className="input"
                 value={filter.templateId || ''}
@@ -213,7 +215,7 @@ export default function InstancesPage() {
                   setFilter({ ...filter, templateId: e.target.value || undefined })
                 }
               >
-                <option value="">所有模板</option>
+                <option value="">{t('common.all')}</option>
                 {templates.map((template) => (
                   <option key={template.id} value={template.id}>
                     {template.name}
@@ -224,7 +226,7 @@ export default function InstancesPage() {
 
             {/* Movement Pattern Filter */}
             <div>
-              <label className="label">移動模式</label>
+              <label className="label">{t('npc.instance.movementPattern')}</label>
               <select
                 className="input"
                 value={filter.movementPattern || ''}
@@ -235,7 +237,7 @@ export default function InstancesPage() {
                   })
                 }
               >
-                <option value="">所有模式</option>
+                <option value="">{t('common.all')}</option>
                 {Object.entries(MOVEMENT_PATTERN_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
@@ -246,7 +248,7 @@ export default function InstancesPage() {
 
             {/* Status Filter */}
             <div>
-              <label className="label">狀態</label>
+              <label className="label">{t('common.status')}</label>
               <select
                 className="input"
                 value={
@@ -266,9 +268,9 @@ export default function InstancesPage() {
                   })
                 }
               >
-                <option value="">所有狀態</option>
-                <option value="active">啟用</option>
-                <option value="inactive">停用</option>
+                <option value="">{t('common.all')}</option>
+                <option value="active">{t('common.active')}</option>
+                <option value="inactive">{t('common.inactive')}</option>
               </select>
             </div>
           </div>
@@ -282,14 +284,14 @@ export default function InstancesPage() {
             <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-[var(--muted-foreground)] mb-4">
               {instances.length === 0
-                ? '尚未建立任何 NPC 實例'
-                : '沒有符合條件的實例'}
+                ? t('npc.instances.noInstances')
+                : t('npc.instances.noMatchingInstances')}
             </p>
             {instances.length === 0 && (
               <Link href="/npc/instances/new">
                 <button className="btn btn-primary">
                   <Plus className="w-4 h-4 mr-2" />
-                  建立第一個實例
+                  {t('npc.instances.createFirst')}
                 </button>
               </Link>
             )}
@@ -304,7 +306,7 @@ export default function InstancesPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-xl font-semibold text-[var(--foreground)] truncate">
-                        {instance.template?.name || '未知模板'}
+                        {instance.template?.name || t('npc.instance.notFound')}
                       </h3>
                       <span className="badge badge-primary flex-shrink-0">
                         Lv.{instance.level}
@@ -312,28 +314,34 @@ export default function InstancesPage() {
                       <span className="badge badge-gray flex-shrink-0">
                         {MOVEMENT_PATTERN_LABELS[instance.movementPattern]}
                       </span>
-                      {!instance.isActive && (
-                        <span className="badge badge-gray flex-shrink-0">停用</span>
-                      )}
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded shadow flex-shrink-0 ${
+                          instance.isActive
+                            ? 'bg-green-500 text-white'
+                            : 'bg-gray-500 text-white'
+                        }`}
+                      >
+                        {instance.isActive ? t('common.active') : t('common.inactive')}
+                      </span>
                     </div>
 
                     <div className="flex flex-wrap gap-4 text-sm text-[var(--muted-foreground)]">
                       <div className="flex items-center gap-1">
                         <MapPin className="w-4 h-4" />
-                        座標: ({instance.positionX.toFixed(1)}, {instance.positionZ.toFixed(1)})
+                        {t('npc.instance.position')}: ({instance.positionX.toFixed(1)}, {instance.positionZ.toFixed(1)})
                       </div>
                       <div className="flex items-center gap-1">
                         <Target className="w-4 h-4" />
-                        旋轉: {instance.rotation}°
+                        {t('npc.instance.rotation')}: {instance.rotation}°
                       </div>
                       {instance.mapId && (
-                        <div>地圖: {instance.mapId}</div>
+                        <div>{t('npc.instance.mapId')}: {instance.mapId}</div>
                       )}
                       {instance.territoryId && (
-                        <div>區域: {instance.territoryId}</div>
+                        <div>{t('npc.instance.territoryId')}: {instance.territoryId}</div>
                       )}
                       {instance.shopId && (
-                        <div>商店: {instance.shopId}</div>
+                        <div>{t('npc.instance.shopId')}: {instance.shopId}</div>
                       )}
                     </div>
                   </div>
@@ -345,12 +353,12 @@ export default function InstancesPage() {
                         handleToggleStatus(instance.id, instance.isActive)
                       }
                       className="btn btn-sm btn-outline"
-                      title={instance.isActive ? '停用' : '啟用'}
+                      title={instance.isActive ? t('common.disable') : t('common.enable')}
                     >
-                      {instance.isActive ? '停用' : '啟用'}
+                      {instance.isActive ? t('common.disable') : t('common.enable')}
                     </button>
                     <Link href={`/npc/instances/edit?id=${instance.id}`}>
-                      <button className="btn btn-sm btn-outline" title="編輯">
+                      <button className="btn btn-sm btn-outline" title={t('common.edit')}>
                         <Edit className="w-4 h-4" />
                       </button>
                     </Link>
@@ -360,20 +368,20 @@ export default function InstancesPage() {
                           onClick={() => handleDelete(instance.id)}
                           className="btn btn-sm btn-danger"
                         >
-                          確認刪除
+                          {t('npc.instances.deleteConfirm')}
                         </button>
                         <button
                           onClick={() => setDeleteConfirm(null)}
                           className="btn btn-sm btn-outline"
                         >
-                          取消
+                          {t('common.cancel')}
                         </button>
                       </>
                     ) : (
                       <button
                         onClick={() => setDeleteConfirm(instance.id)}
                         className="btn btn-sm btn-outline text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        title="刪除"
+                        title={t('common.delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
