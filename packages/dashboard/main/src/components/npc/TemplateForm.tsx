@@ -2,18 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Save, X, AlertCircle } from 'lucide-react';
+import { Save, X, AlertCircle, MessageSquare } from 'lucide-react';
 import type {
   NpcTemplate,
   NpcTemplateFormData,
   NpcType,
   CombatType,
+  DialogueTree,
 } from '@/types/npc';
 import {
   NPC_TYPE_LABELS,
   COMBAT_TYPE_LABELS,
 } from '@/types/npc';
 import { npcTemplateService } from '@/lib/npc/template-service';
+import DialogueEditor from './DialogueEditor';
 
 interface TemplateFormProps {
   template?: NpcTemplate;
@@ -44,6 +46,7 @@ export default function TemplateForm({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showDialogueEditor, setShowDialogueEditor] = useState(false);
 
   function validateForm(): boolean {
     const newErrors: Record<string, string> = {};
@@ -359,6 +362,73 @@ export default function TemplateForm({
               </p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Dialogue Tree */}
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">對話設定</h3>
+            {formData.dialogueTree && !showDialogueEditor && (
+              <span className="badge badge-primary">
+                {formData.dialogueTree.nodes.length} 個節點
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="card-body">
+          {!showDialogueEditor ? (
+            <div className="text-center py-8">
+              <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              {formData.dialogueTree ? (
+                <>
+                  <p className="text-[var(--muted-foreground)] mb-4">
+                    已設定對話樹，包含 {formData.dialogueTree.nodes.length} 個節點
+                  </p>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowDialogueEditor(true)}
+                      className="btn btn-outline"
+                    >
+                      編輯對話樹
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, dialogueTree: undefined })}
+                      className="btn btn-outline text-red-600"
+                    >
+                      移除對話樹
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-[var(--muted-foreground)] mb-4">
+                    尚未設定對話樹
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowDialogueEditor(true)}
+                    className="btn btn-primary"
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    建立對話樹
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
+            <DialogueEditor
+              initialTree={formData.dialogueTree}
+              onSave={(tree: DialogueTree) => {
+                setFormData({ ...formData, dialogueTree: tree });
+                setShowDialogueEditor(false);
+              }}
+              onCancel={() => setShowDialogueEditor(false)}
+            />
+          )}
         </div>
       </div>
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Save, X, AlertCircle, Plus, Trash2, MapPin } from 'lucide-react';
+import { Save, X, AlertCircle, Plus, Trash2, MapPin, Map } from 'lucide-react';
 import type {
   NpcInstance,
   NpcInstanceFormData,
@@ -13,6 +13,7 @@ import type {
 import { MOVEMENT_PATTERN_LABELS } from '@/types/npc';
 import { npcInstanceService } from '@/lib/npc/instance-service';
 import { npcTemplateService } from '@/lib/npc/template-service';
+import MapPositionPicker from './MapPositionPicker';
 
 interface InstanceFormProps {
   instance?: NpcInstance;
@@ -51,6 +52,7 @@ export default function InstanceForm({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -330,6 +332,45 @@ export default function InstanceForm({
                 <p className="text-sm text-red-600 mt-1">{errors.interactionRadius}</p>
               )}
             </div>
+          </div>
+
+          {/* Map Picker Toggle */}
+          <div className="mt-4 pt-4 border-t">
+            {!showMapPicker ? (
+              <button
+                type="button"
+                onClick={() => setShowMapPicker(true)}
+                className="btn btn-outline w-full"
+              >
+                <Map className="w-4 h-4 mr-2" />
+                使用視覺化地圖選擇位置
+              </button>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold">視覺化地圖</h4>
+                  <button
+                    type="button"
+                    onClick={() => setShowMapPicker(false)}
+                    className="btn btn-sm btn-outline"
+                  >
+                    關閉地圖
+                  </button>
+                </div>
+                <MapPositionPicker
+                  initialPosition={{ x: formData.positionX, z: formData.positionZ }}
+                  initialRotation={formData.rotation}
+                  onPositionChange={(position, rotation) => {
+                    setFormData({
+                      ...formData,
+                      positionX: position.x,
+                      positionZ: position.z,
+                      rotation: rotation,
+                    });
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
