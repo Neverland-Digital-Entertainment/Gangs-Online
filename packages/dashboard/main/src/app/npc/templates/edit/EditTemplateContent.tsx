@@ -1,26 +1,34 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import TemplateForm from '@/components/npc/TemplateForm';
 import { npcTemplateService } from '@/lib/npc/template-service';
 import type { NpcTemplate } from '@/types/npc';
 
-export default function EditTemplatePage() {
-  const params = useParams();
-  const id = params.id as string;
+export default function EditTemplateContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
 
   const [template, setTemplate] = useState<NpcTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!id) {
+      setError('缺少 NPC 模板 ID');
+      setLoading(false);
+      return;
+    }
     loadTemplate();
   }, [id]);
 
   async function loadTemplate() {
+    if (!id) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -51,7 +59,7 @@ export default function EditTemplatePage() {
     );
   }
 
-  if (error || !template) {
+  if (error || !template || !id) {
     return (
       <div className="container-fixed">
         <div className="mb-8">

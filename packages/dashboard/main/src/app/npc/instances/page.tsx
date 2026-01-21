@@ -349,7 +349,7 @@ export default function InstancesPage() {
                     >
                       {instance.isActive ? '停用' : '啟用'}
                     </button>
-                    <Link href={`/npc/instances/edit/${instance.id}`}>
+                    <Link href={`/npc/instances/edit?id=${instance.id}`}>
                       <button className="btn btn-sm btn-outline" title="編輯">
                         <Edit className="w-4 h-4" />
                       </button>

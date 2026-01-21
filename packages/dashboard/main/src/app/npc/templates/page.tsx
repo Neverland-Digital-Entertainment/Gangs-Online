@@ -317,7 +317,7 @@ export default function NpcTemplatesPage() {
                     >
                       {template.isActive ? '停用' : '啟用'}
                     </button>
-                    <Link href={`/npc/templates/edit/${template.id}`}>
+                    <Link href={`/npc/templates/edit?id=${template.id}`}>
                       <button className="btn btn-sm btn-outline" title="編輯">
                         <Edit className="w-4 h-4" />
                       </button>

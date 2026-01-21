@@ -1,26 +1,34 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import InstanceForm from '@/components/npc/InstanceForm';
 import { npcInstanceService } from '@/lib/npc/instance-service';
 import type { NpcInstance } from '@/types/npc';
 
-export default function EditInstancePage() {
-  const params = useParams();
-  const id = params.id as string;
+export default function EditInstanceContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
 
   const [instance, setInstance] = useState<NpcInstance | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!id) {
+      setError('缺少 NPC 實例 ID');
+      setLoading(false);
+      return;
+    }
     loadInstance();
   }, [id]);
 
   async function loadInstance() {
+    if (!id) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -51,7 +59,7 @@ export default function EditInstancePage() {
     );
   }
 
-  if (error || !instance) {
+  if (error || !instance || !id) {
     return (
       <div className="container-fixed">
         <div className="mb-8">
