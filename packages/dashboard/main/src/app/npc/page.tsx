@@ -1,15 +1,20 @@
+'use client';
+
 import Link from 'next/link';
 import { FileText, MapPin, Plus, ArrowRight } from 'lucide-react';
+import { useI18n } from '@/contexts/i18n-context';
 
 export default function NpcManagementPage() {
+  const { t } = useI18n();
+
   return (
     <div className="container-fixed">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">
-          NPC 管理系統
+          {t('npc.title')}
         </h1>
         <p className="text-[var(--muted-foreground)]">
-          管理遊戲中的 NPC 角色、對話和互動系統
+          {t('npc.subtitle')}
         </p>
       </div>
 
@@ -25,13 +30,13 @@ export default function NpcManagementPage() {
                 <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
               </div>
               <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">
-                NPC 模板
+                {t('npc.templates')}
               </h3>
               <p className="text-[var(--muted-foreground)] text-sm mb-4">
-                管理 NPC 定義、基礎屬性、對話樹和行為設定
+                {t('npc.templates.subtitle')}
               </p>
               <div className="flex items-center gap-2 text-sm text-primary font-medium">
-                <span>管理模板</span>
+                <span>{t('npc.templates')}</span>
                 <ArrowRight className="w-4 h-4" />
               </div>
             </div>
@@ -49,13 +54,13 @@ export default function NpcManagementPage() {
                 <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
               </div>
               <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">
-                NPC 實例
+                {t('npc.instances')}
               </h3>
               <p className="text-[var(--muted-foreground)] text-sm mb-4">
-                在地圖上放置 NPC、設定位置和移動模式
+                {t('npc.instances.subtitle')}
               </p>
               <div className="flex items-center gap-2 text-sm text-primary font-medium">
-                <span>管理實例</span>
+                <span>{t('npc.instances')}</span>
                 <ArrowRight className="w-4 h-4" />
               </div>
             </div>
@@ -66,55 +71,22 @@ export default function NpcManagementPage() {
       {/* Quick Actions */}
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">快速操作</h2>
+          <h2 className="card-title">{t('home.quickActions')}</h2>
         </div>
         <div className="card-body">
           <div className="flex flex-wrap gap-4">
             <Link href="/npc/templates/new">
               <button className="btn btn-primary">
                 <Plus className="w-4 h-4 mr-2" />
-                新增 NPC 模板
+                {t('npc.templates.create')}
               </button>
             </Link>
             <Link href="/npc/instances/new">
               <button className="btn btn-outline">
                 <Plus className="w-4 h-4 mr-2" />
-                新增 NPC 實例
+                {t('npc.instances.create')}
               </button>
             </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Features Overview */}
-      <div className="mt-8 card">
-        <div className="card-header">
-          <h2 className="card-title">系統功能</h2>
-        </div>
-        <div className="card-body">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-semibold text-[var(--foreground)] mb-2">
-                📋 NPC 模板管理
-              </h3>
-              <ul className="space-y-2 text-sm text-[var(--muted-foreground)]">
-                <li>✓ 定義 NPC 基礎屬性（HP、攻擊、防禦）</li>
-                <li>✓ 設定 NPC 類型（市民、警察、幫派、商店、任務）</li>
-                <li>✓ 視覺化對話樹編輯器</li>
-                <li>✓ 戰鬥設定（近戰/遠程、攻擊範圍）</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-[var(--foreground)] mb-2">
-                🗺️ NPC 實例管理
-              </h3>
-              <ul className="space-y-2 text-sm text-[var(--muted-foreground)]">
-                <li>✓ 互動式地圖座標選擇器</li>
-                <li>✓ 設定移動模式（靜止/徘徊/巡邏）</li>
-                <li>✓ 配置等級和動態屬性</li>
-                <li>✓ 戰鬥行為設定（仇恨範圍、追擊距離）</li>
-              </ul>
-            </div>
           </div>
         </div>
       </div>
