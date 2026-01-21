@@ -168,3 +168,134 @@ model SystemSetting {
   notifySystemErrorWeb           Boolean  @default(true)
   notifySystemErrorRoleIds       String[]
 }
+
+// NPC Module - Phase 16-2
+enum NpcType {
+  CITIZEN
+  POLICE
+  GANGS
+  SHOP
+  QUEST
+}
+
+enum MovementPattern {
+  STATIC
+  WANDERING
+  PATROLLING
+}
+
+enum CombatType {
+  MELEE
+  RANGED
+}
+
+model NpcTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  type        NpcType
+  modelId     String
+  description String?
+
+  // Base stats for level calculation
+  baseHp        Int      @default(100)
+  baseAttack    Int      @default(10)
+  baseDefense   Int      @default(5)
+  baseSpeed     Float    @default(1.0)
+
+  // Combat settings
+  combatType    CombatType?
+  attackRange   Float?
+
+  // Dialogue tree stored as JSON
+  dialogueTree  Json?
+
+  // Metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     String?
+  isTrashed     Boolean  @default(false)
+
+  // Relations
+  instances     NpcInstance[]
+
+  @@index([type])
+  @@index([isTrashed])
+}
+
+model NpcInstance {
+  id             String          @id @default(uuid())
+  templateId     String
+
+  // Position and rotation
+  positionX      Float
+  positionZ      Float
+  rotation       Float           @default(0)
+
+  // Level and dynamic stats
+  level          Int             @default(1)
+
+  // Interaction
+  interactionRadius Float        @default(2.0)
+
+  // Movement behavior
+  movementPattern   MovementPattern @default(STATIC)
+  wanderRadius      Float?
+  wanderCenter      Json?  // {x: number, z: number}
+  patrolWaypoints   Json?  // [{x: number, z: number}, ...]
+
+  // Combat behavior
+  aggroRange        Float?
+  chaseDistance     Float?
+
+  // Shop specific
+  shopId            String?
+
+  // Quest specific
+  isAttackable      Boolean        @default(true)
+
+  // Map/Territory assignment
+  mapId             String?
+  territoryId       String?
+
+  // Metadata
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  createdBy         String?
+  isTrashed         Boolean        @default(false)
+  isActive          Boolean        @default(true)
+
+  // Relations
+  template          NpcTemplate    @relation(fields: [templateId], references: [id])
+
+  @@index([templateId])
+  @@index([mapId])
+  @@index([territoryId])
+  @@index([isTrashed])
+  @@index([isActive])
+}
+
+model DialogueNode {
+  id             String   @id @default(uuid())
+  templateId     String?  // Optional link to template
+
+  // Node identification
+  nodeId         String   // Unique within the dialogue tree
+
+  // Content
+  speaker        String
+  content        String   @db.Text
+
+  // Options for player choices
+  options        Json?    // [{text: string, nextNodeId: string}, ...]
+
+  // Actions/Hooks
+  actionType     String?  // 'open_shop', 'accept_quest', 'end_dialogue'
+  actionData     Json?
+
+  // Metadata
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([templateId, nodeId])
+  @@index([templateId])
+}
