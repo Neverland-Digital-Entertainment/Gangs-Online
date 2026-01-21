@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { itemService } from '@/lib/item/service';
 import { ItemImage } from '@/components/common/ItemImage';
+import { useI18n } from '@/contexts/i18n-context';
 import type { Item, ItemFilter, ItemCategory } from '@/types/item';
 
 const CATEGORY_LABELS: Record<ItemCategory, string> = {
@@ -26,6 +27,7 @@ const CATEGORY_LABELS: Record<ItemCategory, string> = {
 };
 
 export default function ItemsPage() {
+  const { t } = useI18n();
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,15 +111,15 @@ export default function ItemsPage() {
       <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
         <div className="flex flex-col justify-center gap-2">
           <h1 className="text-3xl font-bold leading-none text-[var(--foreground)]">
-            道具管理
+            {t('item.title')}
           </h1>
           <div className="flex items-center gap-4 text-sm font-medium text-[var(--muted-foreground)]">
             <span className="flex items-center gap-1">
               <Package className="w-4 h-4" />
-              總數: {totalItems}
+              {t('common.total')}: {totalItems}
             </span>
-            <span className="text-green-600 dark:text-green-400">啟用: {activeItems}</span>
-            <span className="text-[var(--muted)]">停用: {totalItems - activeItems}</span>
+            <span className="text-green-600 dark:text-green-400">{t('common.active')}: {activeItems}</span>
+            <span className="text-[var(--muted)]">{t('common.inactive')}: {totalItems - activeItems}</span>
           </div>
         </div>
         <div className="flex items-center gap-2.5">
@@ -125,21 +127,21 @@ export default function ItemsPage() {
             <button
               onClick={() => setViewMode('grid')}
               className={`btn btn-sm ${viewMode === 'grid' ? 'btn-primary' : 'btn-light'}`}
-              title="網格檢視"
+              title={t('common.view')}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode('list')}
               className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-light'}`}
-              title="列表檢視"
+              title={t('common.view')}
             >
               <List className="w-4 h-4" />
             </button>
           </div>
           <Link href="/item/new" className="btn btn-primary">
             <Plus className="w-4 h-4" />
-            新增道具
+            {t('item.create')}
           </Link>
         </div>
       </div>
@@ -160,7 +162,7 @@ export default function ItemsPage() {
       <div className="card mb-5">
         <div className="card-header flex items-center gap-2">
           <Filter className="w-4 h-4" />
-          <h3 className="card-title">篩選條件</h3>
+          <h3 className="card-title">{t('common.filter')}</h3>
         </div>
         <div className="card-body">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -168,7 +170,7 @@ export default function ItemsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
               <input
                 type="text"
-                placeholder="搜尋名稱或 ID..."
+                placeholder={t('item.searchPlaceholder')}
                 value={filter.search || ''}
                 onChange={(e) =>
                   setFilter({ ...filter, search: e.target.value })
@@ -189,7 +191,7 @@ export default function ItemsPage() {
               }
               className="select"
             >
-              <option value="">所有分類</option>
+              <option value="">{t('item.filterByCategory')}</option>
               {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
@@ -216,9 +218,9 @@ export default function ItemsPage() {
               }
               className="select"
             >
-              <option value="">所有狀態</option>
-              <option value="active">啟用</option>
-              <option value="inactive">停用</option>
+              <option value="">{t('item.filterByStatus')}</option>
+              <option value="active">{t('common.active')}</option>
+              <option value="inactive">{t('common.inactive')}</option>
             </select>
           </div>
         </div>
@@ -232,10 +234,12 @@ export default function ItemsPage() {
         <div className="card">
           <div className="card-body text-center py-20">
             <Package className="w-16 h-16 text-[var(--muted)] mx-auto mb-4" />
-            <p className="text-[var(--muted-foreground)] mb-4">尚無道具</p>
+            <p className="text-[var(--muted-foreground)] mb-4">
+              {items.length === 0 ? t('item.noItems') : t('item.noMatchingItems')}
+            </p>
             <Link href="/item/new" className="btn btn-primary inline-flex">
               <Plus className="w-4 h-4" />
-              新增第一個道具
+              {t('item.createFirst')}
             </Link>
           </div>
         </div>
@@ -258,7 +262,7 @@ export default function ItemsPage() {
                           : 'bg-gray-500 text-white'
                       }`}
                     >
-                      {item.isActive ? '啟用' : '停用'}
+                      {item.isActive ? t('common.active') : t('common.inactive')}
                     </span>
                   </div>
 
@@ -286,12 +290,12 @@ export default function ItemsPage() {
                       className="btn btn-sm btn-light flex-1"
                     >
                       <Edit className="w-3 h-3" />
-                      編輯
+                      {t('common.edit')}
                     </Link>
                     <button
                       onClick={() => handleDuplicate(item.id)}
                       className="btn btn-sm btn-light"
-                      title="複製"
+                      title={t('common.create')}
                     >
                       <Copy className="w-3 h-3" />
                     </button>
@@ -300,14 +304,14 @@ export default function ItemsPage() {
                         <button
                           onClick={() => handleDelete(item.id)}
                           className="btn btn-sm btn-danger"
-                          title="確認刪除"
+                          title={t('common.confirm')}
                         >
                           ✓
                         </button>
                         <button
                           onClick={() => setDeleteConfirm(null)}
                           className="btn btn-sm btn-light"
-                          title="取消"
+                          title={t('common.cancel')}
                         >
                           ✕
                         </button>
@@ -316,7 +320,7 @@ export default function ItemsPage() {
                       <button
                         onClick={() => setDeleteConfirm(item.id)}
                         className="btn btn-sm btn-light hover:bg-red-50 dark:hover:bg-red-900/20"
-                        title="刪除"
+                        title={t('common.delete')}
                       >
                         <Trash2 className="w-3 h-3 text-red-500" />
                       </button>
@@ -334,22 +338,22 @@ export default function ItemsPage() {
               <thead>
                 <tr className="bg-[var(--table-header)] border-b border-[var(--border)]">
                   <th className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase w-16">
-                    圖片
+                    {t('item.imageUrl')}
                   </th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase">
-                    名稱 / 說明
+                    {t('common.name')} / {t('common.description')}
                   </th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase w-24">
-                    分類
+                    {t('common.type')}
                   </th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase w-24">
-                    價格
+                    {t('common.price')}
                   </th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase w-20">
-                    狀態
+                    {t('common.status')}
                   </th>
                   <th className="px-3 py-3 text-right text-xs font-medium text-[var(--muted)] uppercase w-32">
-                    操作
+                    {t('common.actions')}
                   </th>
                 </tr>
               </thead>
@@ -385,7 +389,7 @@ export default function ItemsPage() {
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
                         }`}
                       >
-                        {item.isActive ? '啟用' : '停用'}
+                        {item.isActive ? t('common.active') : t('common.inactive')}
                       </span>
                     </td>
                     <td className="px-3 py-2 w-32">
@@ -393,14 +397,14 @@ export default function ItemsPage() {
                         <Link
                           href={`/item/edit?id=${item.id}`}
                           className="btn btn-sm btn-light"
-                          title="編輯"
+                          title={t('common.edit')}
                         >
                           <Edit className="w-3 h-3" />
                         </Link>
                         <button
                           onClick={() => handleDuplicate(item.id)}
                           className="btn btn-sm btn-light"
-                          title="複製"
+                          title={t('common.create')}
                         >
                           <Copy className="w-3 h-3" />
                         </button>
@@ -409,14 +413,14 @@ export default function ItemsPage() {
                             <button
                               onClick={() => handleDelete(item.id)}
                               className="btn btn-sm btn-danger"
-                              title="確認刪除"
+                              title={t('common.confirm')}
                             >
                               ✓
                             </button>
                             <button
                               onClick={() => setDeleteConfirm(null)}
                               className="btn btn-sm btn-light"
-                              title="取消"
+                              title={t('common.cancel')}
                             >
                               ✕
                             </button>
@@ -425,7 +429,7 @@ export default function ItemsPage() {
                           <button
                             onClick={() => setDeleteConfirm(item.id)}
                             className="btn btn-sm btn-light hover:bg-red-50 dark:hover:bg-red-900/20"
-                            title="刪除"
+                            title={t('common.delete')}
                           >
                             <Trash2 className="w-3 h-3 text-red-500" />
                           </button>
