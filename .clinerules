@@ -1,0 +1,55 @@
+# Claude Code Project Rules for Gangs Online
+
+## Dashboard Architecture
+
+### CRITICAL: Metronic Template
+- **DO NOT MODIFY** `/packages/dashboard/metronic/` directory
+- This is a REFERENCE TEMPLATE ONLY for UI patterns and components
+- All actual development work should be done in `/packages/dashboard/main/`
+- If you accidentally modify metronic, immediately revert the changes
+- Metronic is preserved as a clean reference for future UI development
+
+### Active Dashboard
+- **Main Dashboard**: `/packages/dashboard/main/` - This is the ONLY dashboard to modify
+- All new features, pages, and components should be added to `main` dashboard
+- Follow the existing patterns in `main` for consistency
+
+## Git Workflow
+
+### Branch Naming
+- Feature branches should follow: `claude/feature-name-{sessionId}`
+- Always push to the branch specified in the task description
+- Use descriptive commit messages in Traditional Chinese
+
+### Commit Standards
+- Write commit messages in English with clear descriptions
+- Include lists of changes in the commit body
+- Always mention affected modules/components
+
+## Development Guidelines
+
+### Code Style
+- Use TypeScript for all new code
+- Follow existing naming conventions in the codebase
+- Prefer functional components over class components (React)
+- Use Tailwind CSS for styling (as seen in main dashboard)
+
+### File Organization
+- Keep feature-related files grouped together
+- Follow Next.js App Router conventions for page structure
+- Use barrel exports (index.ts) for cleaner imports
+
+### Testing
+- Always test changes in the main dashboard
+- Ensure dark mode compatibility for all UI changes
+- Check mobile responsiveness
+
+## Communication
+- Respond in Traditional Chinese (繁體中文)
+- Be concise but thorough in explanations
+- Ask for clarification when requirements are unclear
+
+## Phase 16-2 Specific Rules
+- NPC management features are in `/packages/dashboard/main/src/app/npc/`
+- Prisma schema is in `/packages/dashboard/metronic/prisma/` (for reference)
+- All NPC-related API integration should be prepared but noted as "需要後端 API 整合"
