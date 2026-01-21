@@ -1,5 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import TemplateForm from '@/components/npc/TemplateForm';
 
 export default function NewTemplatePage() {
   return (
@@ -20,16 +23,7 @@ export default function NewTemplatePage() {
         </p>
       </div>
 
-      <div className="card">
-        <div className="card-body text-center py-12">
-          <p className="text-[var(--muted-foreground)] mb-4">
-            模板建立表單將在此處顯示
-          </p>
-          <p className="text-sm text-[var(--muted)]">
-            此功能需要整合後端 API 才能完整運作
-          </p>
-        </div>
-      </div>
+      <TemplateForm />
     </div>
   );
 }

@@ -1,5 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import InstanceForm from '@/components/npc/InstanceForm';
 
 export default function NewInstancePage() {
   return (
@@ -16,20 +19,11 @@ export default function NewInstancePage() {
           新增 NPC 實例
         </h1>
         <p className="text-[var(--muted-foreground)]">
-          在地圖上放置新的 NPC
+          在地圖上放置新的 NPC 實例
         </p>
       </div>
 
-      <div className="card">
-        <div className="card-body text-center py-12">
-          <p className="text-[var(--muted-foreground)] mb-4">
-            實例建立表單將在此處顯示
-          </p>
-          <p className="text-sm text-[var(--muted)]">
-            此功能需要整合後端 API 才能完整運作
-          </p>
-        </div>
-      </div>
+      <InstanceForm />
     </div>
   );
 }
