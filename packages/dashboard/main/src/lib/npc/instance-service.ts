@@ -26,6 +26,20 @@ import type {
 
 const COLLECTION_NAME = 'npc_instances';
 
+/**
+ * Remove undefined values from an object to avoid Firebase errors
+ * Firebase doesn't accept undefined values, only null or valid values
+ */
+function removeUndefinedFields<T extends Record<string, any>>(obj: T): Partial<T> {
+  const cleaned: any = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      cleaned[key] = obj[key];
+    }
+  }
+  return cleaned;
+}
+
 export class NpcInstanceService {
   private static instance: NpcInstanceService;
 
@@ -138,12 +152,12 @@ export class NpcInstanceService {
     const instancesRef = collection(db, COLLECTION_NAME);
 
     const now = Timestamp.now();
-    const instanceData = {
+    const instanceData = removeUndefinedFields({
       ...data,
       createdAt: now,
       updatedAt: now,
       isActive: true,
-    };
+    });
 
     const docRef = await addDoc(instancesRef, instanceData);
     return docRef.id;
@@ -156,10 +170,10 @@ export class NpcInstanceService {
     const { db } = getFirebaseServices();
     const docRef = doc(db, COLLECTION_NAME, id);
 
-    const updateData = {
+    const updateData = removeUndefinedFields({
       ...data,
       updatedAt: Timestamp.now(),
-    };
+    });
 
     await updateDoc(docRef, updateData);
   }
