@@ -78,9 +78,10 @@ export class NpcInstanceService {
 
         // Populate template if requested
         if (includeTemplate && instance.templateId) {
-          instance.template = await npcTemplateService.getTemplateById(
-            instance.templateId
-          ).catch(() => undefined);
+          const template = await npcTemplateService
+            .getTemplateById(instance.templateId)
+            .catch(() => null);
+          instance.template = template || undefined;
         }
 
         return instance;
@@ -123,9 +124,10 @@ export class NpcInstanceService {
 
     // Populate template if requested
     if (includeTemplate && instance.templateId) {
-      instance.template = await npcTemplateService.getTemplateById(
-        instance.templateId
-      ).catch(() => undefined);
+      const template = await npcTemplateService
+        .getTemplateById(instance.templateId)
+        .catch(() => null);
+      instance.template = template || undefined;
     }
 
     return instance;
