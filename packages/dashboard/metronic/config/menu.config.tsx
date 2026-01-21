@@ -6,6 +6,7 @@ import {
   Bitcoin,
   Bolt,
   Book,
+  Bot,
   Briefcase,
   Building,
   CalendarCheck,
@@ -292,6 +293,20 @@ export const MENU_SIDEBAR: MenuConfig = [
       {
         title: 'Add New Item',
         path: '/item-admin/items/new',
+      },
+    ],
+  },
+  {
+    title: 'NPC Management',
+    icon: Bot,
+    children: [
+      {
+        title: 'Templates',
+        path: '/npc-management/templates',
+      },
+      {
+        title: 'Instances',
+        path: '/npc-management/instances',
       },
     ],
   },
@@ -709,6 +724,20 @@ export const MENU_SIDEBAR_COMPACT: MenuConfig = [
     ],
   },
   {
+    title: 'NPC Management',
+    icon: Bot,
+    children: [
+      {
+        title: 'Templates',
+        path: '/npc-management/templates',
+      },
+      {
+        title: 'Instances',
+        path: '/npc-management/instances',
+      },
+    ],
+  },
+  {
     title: 'User Management',
     icon: ShieldUser,
     children: [
@@ -1110,6 +1139,23 @@ export const MENU_MEGA: MenuConfig = [
         ],
       },
       {
+        title: 'NPC Management',
+        children: [
+          {
+            children: [
+              {
+                title: 'Templates',
+                path: '/npc-management/templates',
+              },
+              {
+                title: 'Instances',
+                path: '/npc-management/instances',
+              },
+            ],
+          },
+        ],
+      },
+      {
         title: 'Store - Client',
         children: [
           {
@@ -1478,6 +1524,20 @@ export const MENU_MEGA_MOBILE: MenuConfig = [
       {
         title: 'Add New Item',
         path: '/item-admin/items/new',
+      },
+    ],
+  },
+  {
+    title: 'NPC Management',
+    icon: Bot,
+    children: [
+      {
+        title: 'Templates',
+        path: '/npc-management/templates',
+      },
+      {
+        title: 'Instances',
+        path: '/npc-management/instances',
       },
     ],
   },

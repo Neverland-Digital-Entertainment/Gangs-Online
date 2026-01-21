@@ -273,29 +273,3 @@ model NpcInstance {
   @@index([isTrashed])
   @@index([isActive])
 }
-
-model DialogueNode {
-  id             String   @id @default(uuid())
-  templateId     String?  // Optional link to template
-
-  // Node identification
-  nodeId         String   // Unique within the dialogue tree
-
-  // Content
-  speaker        String
-  content        String   @db.Text
-
-  // Options for player choices
-  options        Json?    // [{text: string, nextNodeId: string}, ...]
-
-  // Actions/Hooks
-  actionType     String?  // 'open_shop', 'accept_quest', 'end_dialogue'
-  actionData     Json?
-
-  // Metadata
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@unique([templateId, nodeId])
-  @@index([templateId])
-}
