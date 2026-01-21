@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/providers/theme-provider';
+import { I18nProvider } from '@/contexts/i18n-context';
 import { Sidebar } from '@/components/layout/Sidebar';
 
 export const metadata: Metadata = {
@@ -17,12 +18,14 @@ export default function RootLayout({
     <html lang="zh-TW" suppressHydrationWarning>
       <body className="antialiased">
         <ThemeProvider>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <main className="flex-1 overflow-y-auto pt-14 lg:pt-0">
-              {children}
-            </main>
-          </div>
+          <I18nProvider>
+            <div className="flex min-h-screen">
+              <Sidebar />
+              <main className="flex-1 overflow-y-auto pt-14 lg:pt-0">
+                {children}
+              </main>
+            </div>
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>
