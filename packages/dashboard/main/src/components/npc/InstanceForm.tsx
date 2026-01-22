@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Save, X, AlertCircle, Plus, Trash2, MapPin, Map } from 'lucide-react';
+import { useI18n } from '@/contexts/i18n-context';
 import type {
   NpcInstance,
   NpcInstanceFormData,
@@ -27,6 +28,7 @@ export default function InstanceForm({
   onCancel,
 }: InstanceFormProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<NpcTemplate[]>([]);
@@ -65,7 +67,7 @@ export default function InstanceForm({
       const data = await npcTemplateService.getAllTemplates();
       setTemplates(data);
     } catch (err) {
-      console.error('載入模板失敗:', err);
+      console.error('Failed to load templates:', err);
     } finally {
       setLoadingTemplates(false);
     }
@@ -75,26 +77,26 @@ export default function InstanceForm({
     const newErrors: Record<string, string> = {};
 
     if (!formData.templateId) {
-      newErrors.templateId = '請選擇 NPC 模板';
+      newErrors.templateId = t('validation.required').replace('{field}', t('npc.instance.template'));
     }
 
     if (formData.level <= 0) {
-      newErrors.level = '等級必須大於 0';
+      newErrors.level = t('validation.mustBePositive').replace('{field}', t('npc.instance.level'));
     }
 
     if (formData.interactionRadius <= 0) {
-      newErrors.interactionRadius = '互動半徑必須大於 0';
+      newErrors.interactionRadius = t('validation.mustBePositive').replace('{field}', t('npc.instance.interactionRadius'));
     }
 
     if (formData.movementPattern === 'WANDERING') {
       if (!formData.wanderRadius || formData.wanderRadius <= 0) {
-        newErrors.wanderRadius = '徘徊模式需要設定徘徊半徑';
+        newErrors.wanderRadius = t('npc.instance.wanderRadiusRequired');
       }
     }
 
     if (formData.movementPattern === 'PATROLLING') {
       if (!formData.patrolWaypoints || formData.patrolWaypoints.length < 2) {
-        newErrors.patrolWaypoints = '巡邏模式需要至少 2 個巡邏點';
+        newErrors.patrolWaypoints = t('npc.instance.patrolWaypointsRequired');
       }
     }
 
@@ -125,8 +127,8 @@ export default function InstanceForm({
         router.push('/npc/instances');
       }
     } catch (err) {
-      console.error('儲存 NPC 實例失敗:', err);
-      setError('儲存失敗，請稍後再試');
+      console.error('Failed to save NPC instance:', err);
+      setError(t('error.saveFailed'));
     } finally {
       setLoading(false);
     }
@@ -172,7 +174,7 @@ export default function InstanceForm({
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-red-900 dark:text-red-100 mb-1">
-                  錯誤
+                  {t('common.error')}
                 </h3>
                 <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
               </div>
@@ -184,13 +186,13 @@ export default function InstanceForm({
       {/* Template Selection */}
       <div className="card">
         <div className="card-header">
-          <h3 className="text-lg font-semibold">NPC 模板</h3>
+          <h3 className="text-lg font-semibold">{t('npc.instance.templateSelection')}</h3>
         </div>
         <div className="card-body">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">
-                選擇模板 <span className="text-red-500">*</span>
+                {t('npc.instance.template')} <span className="text-red-500">*</span>
               </label>
               <select
                 className={`input ${errors.templateId ? 'border-red-500' : ''}`}
@@ -200,10 +202,10 @@ export default function InstanceForm({
                 }
                 disabled={loadingTemplates}
               >
-                <option value="">請選擇...</option>
+                <option value="">{t('npc.instance.selectTemplate')}</option>
                 {templates.map((template) => (
                   <option key={template.id} value={template.id}>
-                    {template.name}{!template.isActive ? ' (停用)' : ''}
+                    {template.name}{!template.isActive ? ` (${t('common.inactive')})` : ''}
                   </option>
                 ))}
               </select>
@@ -214,7 +216,7 @@ export default function InstanceForm({
 
             <div>
               <label className="label">
-                等級 <span className="text-red-500">*</span>
+                {t('npc.instance.level')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -236,13 +238,13 @@ export default function InstanceForm({
       {/* Position & Placement */}
       <div className="card">
         <div className="card-header">
-          <h3 className="text-lg font-semibold">位置與放置</h3>
+          <h3 className="text-lg font-semibold">{t('npc.instance.positionPlacement')}</h3>
         </div>
         <div className="card-body">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="label">
-                X 座標 <span className="text-red-500">*</span>
+                {t('npc.instance.positionX')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -257,7 +259,7 @@ export default function InstanceForm({
 
             <div>
               <label className="label">
-                Z 座標 <span className="text-red-500">*</span>
+                {t('npc.instance.positionZ')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -272,7 +274,7 @@ export default function InstanceForm({
 
             <div>
               <label className="label">
-                旋轉角度 <span className="text-red-500">*</span>
+                {t('npc.instance.rotation')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -287,7 +289,7 @@ export default function InstanceForm({
             </div>
 
             <div>
-              <label className="label">地圖 ID</label>
+              <label className="label">{t('npc.instance.mapId')}</label>
               <input
                 type="text"
                 className="input"
@@ -295,12 +297,12 @@ export default function InstanceForm({
                 onChange={(e) =>
                   setFormData({ ...formData, mapId: e.target.value || undefined })
                 }
-                placeholder="例如：city_center"
+                placeholder={t('npc.instance.mapIdPlaceholder')}
               />
             </div>
 
             <div>
-              <label className="label">區域 ID</label>
+              <label className="label">{t('npc.instance.territoryId')}</label>
               <input
                 type="text"
                 className="input"
@@ -308,13 +310,13 @@ export default function InstanceForm({
                 onChange={(e) =>
                   setFormData({ ...formData, territoryId: e.target.value || undefined })
                 }
-                placeholder="例如：downtown"
+                placeholder={t('npc.instance.territoryIdPlaceholder')}
               />
             </div>
 
             <div>
               <label className="label">
-                互動半徑 <span className="text-red-500">*</span>
+                {t('npc.instance.interactionRadius')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -344,18 +346,18 @@ export default function InstanceForm({
                 className="btn btn-outline w-full"
               >
                 <Map className="w-4 h-4 mr-2" />
-                使用視覺化地圖選擇位置
+                {t('npc.instance.useMapPicker')}
               </button>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-semibold">視覺化地圖</h4>
+                  <h4 className="font-semibold">{t('npc.instance.visualMap')}</h4>
                   <button
                     type="button"
                     onClick={() => setShowMapPicker(false)}
                     className="btn btn-sm btn-outline"
                   >
-                    關閉地圖
+                    {t('npc.instance.closeMap')}
                   </button>
                 </div>
                 <MapPositionPicker
@@ -379,12 +381,12 @@ export default function InstanceForm({
       {/* Movement Settings */}
       <div className="card">
         <div className="card-header">
-          <h3 className="text-lg font-semibold">移動設定</h3>
+          <h3 className="text-lg font-semibold">{t('npc.instance.movementSettings')}</h3>
         </div>
         <div className="card-body">
           <div className="mb-4">
             <label className="label">
-              移動模式 <span className="text-red-500">*</span>
+              {t('npc.instance.movementPattern')} <span className="text-red-500">*</span>
             </label>
             <select
               className="input"
@@ -409,7 +411,7 @@ export default function InstanceForm({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
               <div>
                 <label className="label">
-                  徘徊半徑 <span className="text-red-500">*</span>
+                  {t('npc.instance.wanderRadius')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -430,7 +432,7 @@ export default function InstanceForm({
               </div>
 
               <div>
-                <label className="label">徘徊中心 X</label>
+                <label className="label">{t('npc.instance.wanderCenterX')}</label>
                 <input
                   type="number"
                   className="input"
@@ -449,7 +451,7 @@ export default function InstanceForm({
               </div>
 
               <div>
-                <label className="label">徘徊中心 Z</label>
+                <label className="label">{t('npc.instance.wanderCenterZ')}</label>
                 <input
                   type="number"
                   className="input"
@@ -474,7 +476,7 @@ export default function InstanceForm({
             <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
               <div className="flex items-center justify-between mb-3">
                 <label className="label mb-0">
-                  巡邏路徑點 <span className="text-red-500">*</span>
+                  {t('npc.instance.patrolWaypoints')} <span className="text-red-500">*</span>
                 </label>
                 <button
                   type="button"
@@ -482,7 +484,7 @@ export default function InstanceForm({
                   className="btn btn-sm btn-outline"
                 >
                   <Plus className="w-4 h-4 mr-1" />
-                  新增路徑點
+                  {t('npc.instance.addWaypoint')}
                 </button>
               </div>
 
@@ -535,12 +537,12 @@ export default function InstanceForm({
       {/* Combat & Special Settings */}
       <div className="card">
         <div className="card-header">
-          <h3 className="text-lg font-semibold">戰鬥與特殊設定</h3>
+          <h3 className="text-lg font-semibold">{t('npc.instance.combatSettings')}</h3>
         </div>
         <div className="card-body">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="label">仇恨範圍</label>
+              <label className="label">{t('npc.instance.aggroRange')}</label>
               <input
                 type="number"
                 className="input"
@@ -553,12 +555,12 @@ export default function InstanceForm({
                 }
                 min="0"
                 step="0.1"
-                placeholder="留空使用預設值"
+                placeholder={t('npc.instance.useDefault')}
               />
             </div>
 
             <div>
-              <label className="label">追擊距離</label>
+              <label className="label">{t('npc.instance.chaseDistance')}</label>
               <input
                 type="number"
                 className="input"
@@ -571,12 +573,12 @@ export default function InstanceForm({
                 }
                 min="0"
                 step="0.1"
-                placeholder="留空使用預設值"
+                placeholder={t('npc.instance.useDefault')}
               />
             </div>
 
             <div>
-              <label className="label">商店 ID</label>
+              <label className="label">{t('npc.instance.shopId')}</label>
               <input
                 type="text"
                 className="input"
@@ -584,7 +586,7 @@ export default function InstanceForm({
                 onChange={(e) =>
                   setFormData({ ...formData, shopId: e.target.value || undefined })
                 }
-                placeholder="如果是商店老闆"
+                placeholder={t('npc.instance.shopIdPlaceholder')}
               />
             </div>
           </div>
@@ -599,7 +601,7 @@ export default function InstanceForm({
                   setFormData({ ...formData, isAttackable: e.target.checked })
                 }
               />
-              <span className="text-sm">可被攻擊</span>
+              <span className="text-sm">{t('npc.instance.isAttackable')}</span>
             </label>
           </div>
         </div>
@@ -614,7 +616,7 @@ export default function InstanceForm({
           disabled={loading}
         >
           <X className="w-4 h-4 mr-2" />
-          取消
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
@@ -622,7 +624,7 @@ export default function InstanceForm({
           disabled={loading}
         >
           <Save className="w-4 h-4 mr-2" />
-          {loading ? '儲存中...' : instance ? '更新實例' : '建立實例'}
+          {loading ? t('common.saving') : instance ? t('npc.instance.updateInstance') : t('npc.instance.createInstance')}
         </button>
       </div>
     </form>

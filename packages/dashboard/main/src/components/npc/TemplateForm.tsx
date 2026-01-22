@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Save, X, AlertCircle, MessageSquare } from 'lucide-react';
+import { useI18n } from '@/contexts/i18n-context';
 import type {
   NpcTemplate,
   NpcTemplateFormData,
@@ -29,6 +30,7 @@ export default function TemplateForm({
   onCancel,
 }: TemplateFormProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,31 +54,29 @@ export default function TemplateForm({
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = '請輸入模板名稱';
+      newErrors.name = t('validation.required').replace('{field}', t('npc.template.name'));
     }
 
-    if (!formData.modelId.trim()) {
-      newErrors.modelId = '請輸入模型 ID';
-    }
+    // modelId is now optional, will use default if not provided
 
     if (formData.baseHp <= 0) {
-      newErrors.baseHp = 'HP 必須大於 0';
+      newErrors.baseHp = t('validation.mustBePositive').replace('{field}', t('npc.template.hp'));
     }
 
     if (formData.baseAttack < 0) {
-      newErrors.baseAttack = '攻擊力不能為負數';
+      newErrors.baseAttack = t('error.mustBeNonNegative');
     }
 
     if (formData.baseDefense < 0) {
-      newErrors.baseDefense = '防禦力不能為負數';
+      newErrors.baseDefense = t('error.mustBeNonNegative');
     }
 
     if (formData.baseSpeed <= 0) {
-      newErrors.baseSpeed = '速度必須大於 0';
+      newErrors.baseSpeed = t('validation.mustBePositive').replace('{field}', t('npc.template.speed'));
     }
 
     if (formData.combatType && formData.attackRange !== undefined && formData.attackRange <= 0) {
-      newErrors.attackRange = '攻擊範圍必須大於 0';
+      newErrors.attackRange = t('validation.mustBePositive').replace('{field}', t('npc.template.attackRange'));
     }
 
     setErrors(newErrors);
@@ -106,8 +106,8 @@ export default function TemplateForm({
         router.push('/npc/templates');
       }
     } catch (err) {
-      console.error('儲存 NPC 模板失敗:', err);
-      setError('儲存失敗，請稍後再試');
+      console.error('Failed to save NPC template:', err);
+      setError(t('error.saveFailed'));
     } finally {
       setLoading(false);
     }
@@ -130,7 +130,7 @@ export default function TemplateForm({
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-red-900 dark:text-red-100 mb-1">
-                  錯誤
+                  {t('common.error')}
                 </h3>
                 <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
               </div>
@@ -142,14 +142,14 @@ export default function TemplateForm({
       {/* Basic Information */}
       <div className="card">
         <div className="card-header">
-          <h3 className="text-lg font-semibold">基本資訊</h3>
+          <h3 className="text-lg font-semibold">{t('npc.template.basicInfo')}</h3>
         </div>
         <div className="card-body">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Name */}
             <div>
               <label className="label">
-                模板名稱 <span className="text-red-500">*</span>
+                {t('npc.template.name')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -158,7 +158,7 @@ export default function TemplateForm({
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                placeholder="例如：友善市民、巡邏警察"
+                placeholder={t('npc.template.namePlaceholder')}
               />
               {errors.name && (
                 <p className="text-sm text-red-600 mt-1">{errors.name}</p>
@@ -168,7 +168,7 @@ export default function TemplateForm({
             {/* Type */}
             <div>
               <label className="label">
-                NPC 類型 <span className="text-red-500">*</span>
+                {t('npc.template.type')} <span className="text-red-500">*</span>
               </label>
               <select
                 className="input"
@@ -188,7 +188,7 @@ export default function TemplateForm({
             {/* Model ID */}
             <div>
               <label className="label">
-                模型 ID <span className="text-red-500">*</span>
+                {t('npc.template.modelId')}
               </label>
               <input
                 type="text"
@@ -197,7 +197,7 @@ export default function TemplateForm({
                 onChange={(e) =>
                   setFormData({ ...formData, modelId: e.target.value })
                 }
-                placeholder="例如：citizen_01, police_patrol"
+                placeholder={t('npc.template.modelIdPlaceholder')}
               />
               {errors.modelId && (
                 <p className="text-sm text-red-600 mt-1">{errors.modelId}</p>
@@ -206,14 +206,14 @@ export default function TemplateForm({
 
             {/* Description */}
             <div className="md:col-span-2">
-              <label className="label">描述</label>
+              <label className="label">{t('npc.template.description')}</label>
               <textarea
                 className="input min-h-[100px]"
                 value={formData.description}
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
-                placeholder="描述這個 NPC 模板的用途和特性..."
+                placeholder={t('npc.template.descriptionPlaceholder')}
               />
             </div>
           </div>
@@ -223,14 +223,14 @@ export default function TemplateForm({
       {/* Base Stats */}
       <div className="card">
         <div className="card-header">
-          <h3 className="text-lg font-semibold">基礎屬性</h3>
+          <h3 className="text-lg font-semibold">{t('npc.template.baseStats')}</h3>
         </div>
         <div className="card-body">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* HP */}
             <div>
               <label className="label">
-                生命值 (HP) <span className="text-red-500">*</span>
+                {t('npc.template.hp')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -249,7 +249,7 @@ export default function TemplateForm({
             {/* Attack */}
             <div>
               <label className="label">
-                攻擊力 <span className="text-red-500">*</span>
+                {t('npc.template.attack')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -268,7 +268,7 @@ export default function TemplateForm({
             {/* Defense */}
             <div>
               <label className="label">
-                防禦力 <span className="text-red-500">*</span>
+                {t('npc.template.defense')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -287,7 +287,7 @@ export default function TemplateForm({
             {/* Speed */}
             <div>
               <label className="label">
-                速度 <span className="text-red-500">*</span>
+                {t('npc.template.speed')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -310,13 +310,13 @@ export default function TemplateForm({
       {/* Combat Settings */}
       <div className="card">
         <div className="card-header">
-          <h3 className="text-lg font-semibold">戰鬥設定</h3>
+          <h3 className="text-lg font-semibold">{t('npc.template.combatSettings')}</h3>
         </div>
         <div className="card-body">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Combat Type */}
             <div>
-              <label className="label">戰鬥類型</label>
+              <label className="label">{t('npc.template.combatType')}</label>
               <select
                 className="input"
                 value={formData.combatType || ''}
@@ -327,7 +327,7 @@ export default function TemplateForm({
                   })
                 }
               >
-                <option value="">無戰鬥能力</option>
+                <option value="">{t('npc.template.noCombat')}</option>
                 {Object.entries(COMBAT_TYPE_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
@@ -338,7 +338,7 @@ export default function TemplateForm({
 
             {/* Attack Range */}
             <div>
-              <label className="label">攻擊範圍</label>
+              <label className="label">{t('npc.template.attackRange')}</label>
               <input
                 type="number"
                 className={`input ${errors.attackRange ? 'border-red-500' : ''}`}
@@ -351,14 +351,14 @@ export default function TemplateForm({
                 }
                 min="0.1"
                 step="0.1"
-                placeholder="留空表示使用預設值"
+                placeholder={t('npc.template.attackRangePlaceholder')}
                 disabled={!formData.combatType}
               />
               {errors.attackRange && (
                 <p className="text-sm text-red-600 mt-1">{errors.attackRange}</p>
               )}
               <p className="text-xs text-[var(--muted-foreground)] mt-1">
-                需要先選擇戰鬥類型
+                {t('npc.template.attackRangeHint')}
               </p>
             </div>
           </div>
@@ -369,10 +369,10 @@ export default function TemplateForm({
       <div className="card">
         <div className="card-header">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">對話設定</h3>
+            <h3 className="text-lg font-semibold">{t('npc.template.dialogueSettings')}</h3>
             {formData.dialogueTree && !showDialogueEditor && (
               <span className="badge badge-primary">
-                {formData.dialogueTree.nodes.length} 個節點
+                {formData.dialogueTree.nodes.length} {t('npc.template.nodes')}
               </span>
             )}
           </div>
@@ -384,7 +384,7 @@ export default function TemplateForm({
               {formData.dialogueTree ? (
                 <>
                   <p className="text-[var(--muted-foreground)] mb-4">
-                    已設定對話樹，包含 {formData.dialogueTree.nodes.length} 個節點
+                    {t('npc.template.dialogueTreeSet')} {formData.dialogueTree.nodes.length} {t('npc.template.nodes')}
                   </p>
                   <div className="flex items-center justify-center gap-2">
                     <button
@@ -392,21 +392,21 @@ export default function TemplateForm({
                       onClick={() => setShowDialogueEditor(true)}
                       className="btn btn-outline"
                     >
-                      編輯對話樹
+                      {t('npc.template.editDialogueTree')}
                     </button>
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, dialogueTree: undefined })}
                       className="btn btn-outline text-red-600"
                     >
-                      移除對話樹
+                      {t('npc.template.removeDialogueTree')}
                     </button>
                   </div>
                 </>
               ) : (
                 <>
                   <p className="text-[var(--muted-foreground)] mb-4">
-                    尚未設定對話樹
+                    {t('npc.template.noDialogueTree')}
                   </p>
                   <button
                     type="button"
@@ -414,7 +414,7 @@ export default function TemplateForm({
                     className="btn btn-primary"
                   >
                     <MessageSquare className="w-4 h-4 mr-2" />
-                    建立對話樹
+                    {t('npc.template.createDialogueTree')}
                   </button>
                 </>
               )}
@@ -441,7 +441,7 @@ export default function TemplateForm({
           disabled={loading}
         >
           <X className="w-4 h-4 mr-2" />
-          取消
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
@@ -449,7 +449,7 @@ export default function TemplateForm({
           disabled={loading}
         >
           <Save className="w-4 h-4 mr-2" />
-          {loading ? '儲存中...' : template ? '更新模板' : '建立模板'}
+          {loading ? t('common.saving') : template ? t('npc.template.updateTemplate') : t('npc.template.createTemplate')}
         </button>
       </div>
     </form>
