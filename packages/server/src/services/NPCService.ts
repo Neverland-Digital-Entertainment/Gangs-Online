@@ -1,169 +1,155 @@
 /**
- * NPC Service - Firebase NPC 資料管理 (Phase 14)
- * Phase 15: 新增 status 欄位過濾功能
+ * NPC Service - Firebase NPC 資料管理 (Phase 16-2)
  *
  * 負責：
- * 1. 從 Firebase npcs 集合載入 NPC 定義
- * 2. 提供 NPC 資料查詢
- * 3. 根據 status 欄位過濾 NPC（僅載入 active 狀態的 NPC）
+ * 1. 從 Firebase npc_templates 和 npc_instances 集合載入 NPC 定義
+ * 2. 將模板和實例數據組合成完整的 NPC 數據
+ * 3. 支持對話樹系統
  */
 import { getFirestore, isFirebaseInitialized } from "./FirebaseService";
-import { INPCData, NPCType, NPCStatus } from "@gangs-online/shared";
+import { INPCData, INPCTemplate, INPCInstance, NPCType, NPCStatus, DialogueTree } from "@gangs-online/shared";
 
 /**
- * 預設 NPC 定義（當 Firebase 不可用時使用）
- * Phase 15: 新增 status 欄位，預設為 inactive 以便專注於場景測試
+ * 完整的 NPC 數據（模板 + 實例）
  */
-const DEFAULT_NPCS: INPCData[] = [
-    // 商店 NPC
-    {
-        id: "npc_shopkeeper",
-        type: "shop",
-        name: "十三叔 (Shop)",
-        hp: 9999,
-        attack: 0,
-        dialogue: "歡迎光臨！有咩幫到你？",
-        spawnX: 0,
-        spawnZ: 0,
-        status: "inactive", // Phase 15: 預設 inactive
-    },
-    // 任務 NPC
-    {
-        id: "npc_quest",
-        type: "quest",
-        name: "浩南 (Quest)",
-        hp: 9999,
-        attack: 0,
-        dialogue: "你想搵啲任務做？",
-        relatedQuests: ["kill_enemies"],
-        spawnX: 5,
-        spawnZ: 5,
-        status: "inactive", // Phase 15: 預設 inactive
-    },
-    // 市民 NPC
-    {
-        id: "npc_citizen_1",
-        type: "citizen",
-        name: "路人甲",
-        hp: 30,
-        attack: 0,
-        dialogue: "唔好搞我！",
-        spawnX: -10,
-        spawnZ: 8,
-        status: "inactive", // Phase 15: 預設 inactive
-    },
-    {
-        id: "npc_citizen_2",
-        type: "citizen",
-        name: "阿婆",
-        hp: 30,
-        attack: 0,
-        dialogue: "年輕人，唔好學人打打殺殺！",
-        spawnX: 12,
-        spawnZ: -5,
-        status: "inactive", // Phase 15: 預設 inactive
-    },
-    {
-        id: "npc_citizen_3",
-        type: "citizen",
-        name: "學生仔",
-        hp: 30,
-        attack: 0,
-        dialogue: "我要返學喇！",
-        spawnX: -8,
-        spawnZ: -12,
-        status: "inactive", // Phase 15: 預設 inactive
-    },
-    // 警察 NPC - Phase 14: 警察很難被打敗（高 HP、高攻擊）
-    {
-        id: "npc_police_1",
-        type: "police",
-        name: "警察",
-        hp: 500, // 很高的血量，需要多人聯手或高級裝備才能打敗
-        attack: 35, // 較高的攻擊力
-        spawnX: 15,
-        spawnZ: 15,
-        status: "inactive", // Phase 15: 預設 inactive
-    },
-    {
-        id: "npc_police_2",
-        type: "police",
-        name: "警察",
-        hp: 500,
-        attack: 35,
-        spawnX: -15,
-        spawnZ: 15,
-        status: "inactive", // Phase 15: 預設 inactive
-    },
-];
+interface NPCCompleteData extends INPCData {
+    templateId: string;
+    instanceId: string;
+    level: number;
+    rotation: number;
+    interactionRadius: number;
+    modelId: string;
+}
 
 class NPCService {
-    private npcCache: Map<string, INPCData> = new Map();
+    private npcCache: Map<string, NPCCompleteData> = new Map();
+    private templateCache: Map<string, INPCTemplate> = new Map();
+    private instanceCache: Map<string, INPCInstance> = new Map();
     private initialized: boolean = false;
 
     /**
-     * 初始化 NPC 服務，從 Firebase 載入 NPC 定義
+     * 初始化 NPC 服務，從 Firebase 載入模板和實例
      */
     async initialize(): Promise<void> {
         if (this.initialized) return;
 
         const db = getFirestore();
         if (!db || !isFirebaseInitialized()) {
-            console.warn("[NPCService] Firebase not initialized, using default NPCs");
-            this.loadDefaultNPCs();
+            console.warn("[NPCService] Firebase not initialized, no NPCs will be loaded");
             this.initialized = true;
             return;
         }
 
         try {
-            const snapshot = await db.collection("npcs").get();
+            // 載入模板
+            const templatesSnapshot = await db.collection("npc_templates").get();
+            templatesSnapshot.forEach((doc) => {
+                const data = doc.data();
+                const template: INPCTemplate = {
+                    id: doc.id,
+                    name: data.name,
+                    type: data.type,
+                    modelId: data.modelId,
+                    description: data.description,
+                    baseHp: data.baseHp,
+                    baseAttack: data.baseAttack,
+                    baseDefense: data.baseDefense,
+                    baseSpeed: data.baseSpeed,
+                    combatType: data.combatType,
+                    attackRange: data.attackRange,
+                    dialogueTree: data.dialogueTree,
+                    createdAt: data.createdAt?.toDate() || new Date(),
+                    updatedAt: data.updatedAt?.toDate() || new Date(),
+                    isActive: data.isActive ?? true,
+                };
+                this.templateCache.set(doc.id, template);
+            });
 
-            if (snapshot.empty) {
-                console.log("[NPCService] No NPCs in Firebase, seeding default data...");
-                await this.seedDefaultNPCs();
-            } else {
-                snapshot.forEach((doc) => {
-                    const data = doc.data() as INPCData;
-                    data.id = doc.id;
-                    this.npcCache.set(doc.id, data);
-                });
-                console.log(`[NPCService] Loaded ${this.npcCache.size} NPCs from Firebase`);
-            }
+            // 載入實例
+            const instancesSnapshot = await db.collection("npc_instances").get();
+            instancesSnapshot.forEach((doc) => {
+                const data = doc.data();
+                const instance: INPCInstance = {
+                    id: doc.id,
+                    templateId: data.templateId,
+                    positionX: data.positionX,
+                    positionZ: data.positionZ,
+                    rotation: data.rotation || 0,
+                    level: data.level,
+                    interactionRadius: data.interactionRadius || 2,
+                    movementPattern: data.movementPattern || 'STATIC',
+                    wanderRadius: data.wanderRadius,
+                    wanderCenter: data.wanderCenter,
+                    patrolWaypoints: data.patrolWaypoints,
+                    aggroRange: data.aggroRange,
+                    chaseDistance: data.chaseDistance,
+                    shopId: data.shopId,
+                    isAttackable: data.isAttackable ?? true,
+                    mapId: data.mapId,
+                    territoryId: data.territoryId,
+                    createdAt: data.createdAt?.toDate() || new Date(),
+                    updatedAt: data.updatedAt?.toDate() || new Date(),
+                    isActive: data.isActive ?? true,
+                };
+                this.instanceCache.set(doc.id, instance);
+            });
+
+            // 組合模板和實例數據
+            this.combineTemplatesAndInstances();
+
+            console.log(`✅ [NPCService] Loaded ${this.templateCache.size} templates and ${this.instanceCache.size} instances`);
+            console.log(`✅ [NPCService] Created ${this.npcCache.size} complete NPCs`);
 
             this.initialized = true;
         } catch (error) {
             console.error("[NPCService] Failed to load NPCs from Firebase:", error);
-            this.loadDefaultNPCs();
             this.initialized = true;
         }
     }
 
     /**
-     * 載入預設 NPC
+     * 組合模板和實例數據
      */
-    private loadDefaultNPCs(): void {
-        DEFAULT_NPCS.forEach((npc) => {
-            this.npcCache.set(npc.id, npc);
+    private combineTemplatesAndInstances(): void {
+        this.npcCache.clear();
+
+        this.instanceCache.forEach((instance) => {
+            const template = this.templateCache.get(instance.templateId);
+            if (!template) {
+                console.warn(`[NPCService] Template ${instance.templateId} not found for instance ${instance.id}`);
+                return;
+            }
+
+            // 只載入啟用的模板和實例
+            if (!template.isActive || !instance.isActive) {
+                return;
+            }
+
+            // 計算實際的 HP 和攻擊力（基於等級）
+            const levelMultiplier = 1 + (instance.level - 1) * 0.1;
+            const hp = Math.floor(template.baseHp * levelMultiplier);
+            const attack = Math.floor(template.baseAttack * levelMultiplier);
+
+            const npcData: NPCCompleteData = {
+                id: instance.id,
+                templateId: instance.templateId,
+                instanceId: instance.id,
+                type: template.type,
+                name: `${template.name} Lv.${instance.level}`,
+                hp,
+                attack,
+                modelId: template.modelId,
+                dialogueTree: template.dialogueTree,
+                spawnX: instance.positionX,
+                spawnZ: instance.positionZ,
+                level: instance.level,
+                rotation: instance.rotation,
+                interactionRadius: instance.interactionRadius,
+                status: 'active',
+            };
+
+            this.npcCache.set(instance.id, npcData);
         });
-        console.log(`[NPCService] Loaded ${DEFAULT_NPCS.length} default NPCs`);
-    }
-
-    /**
-     * 將預設 NPC 寫入 Firebase
-     */
-    async seedDefaultNPCs(): Promise<void> {
-        const db = getFirestore();
-        if (!db) return;
-
-        const batch = db.batch();
-        DEFAULT_NPCS.forEach((npc) => {
-            const docRef = db.collection("npcs").doc(npc.id);
-            batch.set(docRef, npc);
-            this.npcCache.set(npc.id, npc);
-        });
-
-        await batch.commit();
-        console.log(`[NPCService] Seeded ${DEFAULT_NPCS.length} NPCs to Firebase`);
     }
 
     /**
@@ -174,8 +160,7 @@ class NPCService {
     }
 
     /**
-     * 獲取所有活躍的 NPC (Phase 15)
-     * 僅返回 status === 'active' 的 NPC
+     * 獲取所有活躍的 NPC
      */
     getActiveNPCs(): INPCData[] {
         return Array.from(this.npcCache.values()).filter(
@@ -191,7 +176,7 @@ class NPCService {
     }
 
     /**
-     * 根據類型獲取活躍的 NPC (Phase 15)
+     * 根據類型獲取活躍的 NPC
      */
     getActiveNPCsByType(type: NPCType): INPCData[] {
         return Array.from(this.npcCache.values()).filter(
@@ -207,10 +192,24 @@ class NPCService {
     }
 
     /**
+     * 獲取 NPC 模板
+     */
+    getTemplate(templateId: string): INPCTemplate | undefined {
+        return this.templateCache.get(templateId);
+    }
+
+    /**
+     * 獲取 NPC 實例
+     */
+    getInstance(instanceId: string): INPCInstance | undefined {
+        return this.instanceCache.get(instanceId);
+    }
+
+    /**
      * 動態新增 NPC（不寫入 Firebase）
      */
     addNPC(npc: INPCData): void {
-        this.npcCache.set(npc.id, npc);
+        this.npcCache.set(npc.id, npc as NPCCompleteData);
     }
 
     /**
@@ -219,6 +218,8 @@ class NPCService {
     async reload(): Promise<void> {
         this.initialized = false;
         this.npcCache.clear();
+        this.templateCache.clear();
+        this.instanceCache.clear();
         await this.initialize();
     }
 }
