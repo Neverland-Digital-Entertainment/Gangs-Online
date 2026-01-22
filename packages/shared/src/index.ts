@@ -398,7 +398,7 @@ export interface INPCInstance {
 /**
  * NPC 數據結構（Phase 14 - Firebase Collection: npcs）
  * Phase 15: 新增 status 欄位
- * Phase 16-2: 新增 dialogueTree 支持
+ * Phase 16-2: 新增 dialogueTree 支持, modelId 支持
  */
 export interface INPCData {
     id: string;
@@ -406,6 +406,7 @@ export interface INPCData {
     name: string;
     hp: number;
     attack: number;
+    modelId: string; // Phase 16-2: 自定義模型 ID，空字串時使用預設模型
     lootTable?: ILootTableEntry[];
     dialogue?: string; // 簡單對話文本（向後兼容）
     dialogueTree?: DialogueTree; // Phase 16-2: 對話樹
