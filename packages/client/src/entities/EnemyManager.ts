@@ -50,13 +50,10 @@ export class EnemyManager {
 
         // Phase 16-2: 使用自定義模型或預設模型
         const modelId = enemyData.modelId || "";
-        const useDefaultModel = !modelId || modelId.trim() === "";
+        // 檢查是否為空字符串、undefined 或字符串 "undefined"
+        const useDefaultModel = !modelId || modelId.trim() === "" || modelId === "undefined";
 
-        console.log(`📦 Model ID for ${enemyId}:`, {
-            raw: enemyData.modelId,
-            processed: modelId,
-            useDefault: useDefaultModel
-        });
+        console.log(`📦 Model ID for ${enemyId}: raw="${enemyData.modelId}", processed="${modelId}", useDefault=${useDefaultModel}`);
 
         // 載入 3D 模型
         let result;
@@ -98,13 +95,7 @@ export class EnemyManager {
         root.ellipsoid = new BABYLON.Vector3(0.5, 1.0, 0.5);
 
         // Debug: Log model info
-        console.log(`✅ ${isNPC ? 'NPC' : 'Enemy'} model loaded:`, {
-            id: enemyId,
-            position: `(${enemyData.x}, ${enemyData.z})`,
-            meshCount: result.meshes.length,
-            visibility: root.visibility,
-            isEnabled: root.isEnabled()
-        });
+        console.log(`✅ ${isNPC ? 'NPC' : 'Enemy'} model loaded: id="${enemyId}", position=(${enemyData.x}, ${enemyData.z}), meshCount=${result.meshes.length}, visibility=${root.visibility}, isEnabled=${root.isEnabled()}`);
 
         // 設置 metadata 以便點擊偵測
         root.metadata = {

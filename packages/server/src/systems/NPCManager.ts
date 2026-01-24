@@ -73,7 +73,8 @@ export class NPCManager {
         npc.hp = data.hp;
         npc.maxHp = data.hp;
         npc.attack = data.attack;
-        npc.modelId = data.modelId || ""; // Phase 16-2: 設定自定義模型 ID，空字串時客戶端使用預設模型
+        // Phase 16-2: 設定自定義模型 ID，確保 undefined 轉為空字串
+        npc.modelId = (data.modelId && data.modelId !== "undefined") ? data.modelId : "";
         npc.dialogueTreeJson = data.dialogueTree ? JSON.stringify(data.dialogueTree) : ""; // Phase 16-2: 序列化對話樹
 
         this.npcs.set(npc.id, npc);
