@@ -713,6 +713,18 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
         // --- 輸入處理：點擊攻擊、拾取戰利品或移動 (Phase 8 更新) ---
         scene.onPointerDown = (evt, pickResult) => {
+            // Phase 16-2: 對話系統顯示時，只允許點擊 NPC 重新打開對話，其他輸入忽略
+            if (dialogueSystem.isActive()) {
+                const target = findInteractiveTarget(scene.pointerX, scene.pointerY);
+                // 只處理 NPC 點擊
+                if (target.type === 'npc' && target.id) {
+                    // NPC 點擊處理會在下面執行
+                } else {
+                    // 忽略其他所有輸入
+                    return;
+                }
+            }
+
             // 先用 multiPick 找可互動物件（穿透建築物）
             const target = findInteractiveTarget(scene.pointerX, scene.pointerY);
 

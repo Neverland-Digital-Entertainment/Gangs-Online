@@ -84,7 +84,7 @@ export class NpcTemplateService {
       return templates.filter(
         (template) =>
           template.name.toLowerCase().includes(searchLower) ||
-          template.modelId.toLowerCase().includes(searchLower) ||
+          template.modelId?.toLowerCase().includes(searchLower) ||
           template.description?.toLowerCase().includes(searchLower)
       );
     }
