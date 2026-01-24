@@ -355,7 +355,7 @@ export interface INPCTemplate {
     id: string;
     name: string;
     type: NPCType;
-    modelId: string;
+    modelId?: string;
     description?: string;
     baseHp: number;
     baseAttack: number;
@@ -406,7 +406,7 @@ export interface INPCData {
     name: string;
     hp: number;
     attack: number;
-    modelId: string; // Phase 16-2: 自定義模型 ID，空字串時使用預設模型
+    modelId?: string; // Phase 16-2: 自定義模型 ID，不提供或空字串時使用預設模型
     lootTable?: ILootTableEntry[];
     dialogue?: string; // 簡單對話文本（向後兼容）
     dialogueTree?: DialogueTree; // Phase 16-2: 對話樹

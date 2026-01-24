@@ -59,7 +59,7 @@ export interface NpcTemplate {
   id: string;
   name: string;
   type: NpcType;
-  modelId: string;
+  modelId?: string;
   description?: string;
 
   // Base stats
@@ -85,7 +85,7 @@ export interface NpcTemplate {
 export interface NpcTemplateFormData {
   name: string;
   type: NpcType;
-  modelId: string;
+  modelId?: string;
   description?: string;
   baseHp: number;
   baseAttack: number;

@@ -18,7 +18,7 @@ interface NPCCompleteData extends INPCData {
     level: number;
     rotation: number;
     interactionRadius: number;
-    modelId: string;
+    modelId?: string;
 }
 
 class NPCService {
@@ -49,7 +49,7 @@ class NPCService {
                     id: doc.id,
                     name: data.name,
                     type: data.type,
-                    modelId: data.modelId,
+                    modelId: data.modelId || undefined,
                     description: data.description,
                     baseHp: data.baseHp,
                     baseAttack: data.baseAttack,
@@ -138,7 +138,7 @@ class NPCService {
                 name: `${template.name} Lv.${instance.level}`,
                 hp,
                 attack,
-                modelId: template.modelId,
+                modelId: template.modelId || undefined,
                 dialogueTree: template.dialogueTree,
                 spawnX: instance.positionX,
                 spawnZ: instance.positionZ,
