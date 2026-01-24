@@ -52,6 +52,12 @@ export class EnemyManager {
         const modelId = enemyData.modelId || "";
         const useDefaultModel = !modelId || modelId.trim() === "";
 
+        console.log(`📦 Model ID for ${enemyId}:`, {
+            raw: enemyData.modelId,
+            processed: modelId,
+            useDefault: useDefaultModel
+        });
+
         // 載入 3D 模型
         let result;
         if (useDefaultModel) {
@@ -90,6 +96,15 @@ export class EnemyManager {
         root.rotationQuaternion = null;
         root.checkCollisions = true;
         root.ellipsoid = new BABYLON.Vector3(0.5, 1.0, 0.5);
+
+        // Debug: Log model info
+        console.log(`✅ ${isNPC ? 'NPC' : 'Enemy'} model loaded:`, {
+            id: enemyId,
+            position: `(${enemyData.x}, ${enemyData.z})`,
+            meshCount: result.meshes.length,
+            visibility: root.visibility,
+            isEnabled: root.isEnabled()
+        });
 
         // 設置 metadata 以便點擊偵測
         root.metadata = {
