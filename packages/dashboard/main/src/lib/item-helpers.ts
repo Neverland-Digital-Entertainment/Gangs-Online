@@ -14,5 +14,5 @@ export function getCategoryTranslationKey(category: ItemCategory): string {
  * @returns Array of all item categories
  */
 export function getAllCategories(): ItemCategory[] {
-  return ['consumable', 'special', 'contraband', 'material'];
+  return ['consumable', 'special', 'contraband', 'material'] as ItemCategory[];
 }
