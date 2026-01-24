@@ -76,7 +76,7 @@ export class Loot extends Schema implements ILootData {
 }
 
 /**
- * Enemy Schema for PVE System (Phase 9: 也用於 NPC, Phase 14: 擴展 NPC 類型, Phase 16-2: 支援自定義模型)
+ * Enemy Schema for PVE System (Phase 9: 也用於 NPC, Phase 14: 擴展 NPC 類型, Phase 16-2: 支援自定義模型與對話樹)
  */
 export class Enemy extends Schema implements IEnemyData {
     @type("string") id: string = "";
@@ -90,6 +90,7 @@ export class Enemy extends Schema implements IEnemyData {
     @type("string") npcType: NPCType = "gangs"; // Phase 14: NPC 類型 (citizen, police, gangs, shop, quest)
     @type("number") attack: number = 5; // Phase 14: 攻擊力
     @type("string") modelId: string = ""; // Phase 16-2: 自定義模型 ID，空字串時使用預設模型
+    @type("string") dialogueTreeJson: string = ""; // Phase 16-2: 對話樹 JSON（序列化的 DialogueTree）
 }
 
 /**

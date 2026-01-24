@@ -65,7 +65,7 @@ export default function NpcTemplatesPage() {
       result = result.filter(
         (template) =>
           template.name.toLowerCase().includes(searchLower) ||
-          template.modelId.toLowerCase().includes(searchLower) ||
+          template.modelId?.toLowerCase().includes(searchLower) ||
           template.description?.toLowerCase().includes(searchLower)
       );
     }
