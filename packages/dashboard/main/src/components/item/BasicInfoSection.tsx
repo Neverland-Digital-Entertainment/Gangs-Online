@@ -1,6 +1,8 @@
 'use client';
 
 import { Upload } from 'lucide-react';
+import { useI18n } from '@/contexts/i18n-context';
+import { getCategoryTranslationKey, getAllCategories } from '@/lib/item-helpers';
 import type { ItemFormData, ItemCategory } from '@/types/item';
 
 interface BasicInfoSectionProps {
@@ -8,14 +10,9 @@ interface BasicInfoSectionProps {
   updateFormData: (updates: Partial<ItemFormData>) => void;
 }
 
-const CATEGORY_LABELS: Record<ItemCategory, string> = {
-  consumable: '消耗品 (Consumables)',
-  special: '宗教道具 (Special Items)',
-  contraband: '非法物資 (Contraband)',
-  material: '素材 (Materials)',
-};
-
 export function BasicInfoSection({ formData, updateFormData }: BasicInfoSectionProps) {
+  const { t } = useI18n();
+
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
@@ -31,35 +28,35 @@ export function BasicInfoSection({ formData, updateFormData }: BasicInfoSectionP
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="card-title">基本資訊</h3>
+        <h3 className="card-title">{t('item.basicInfo')}</h3>
       </div>
       <div className="card-body">
         <div className="flex flex-col gap-5">
           <div>
-            <label className="form-label">道具名稱 *</label>
+            <label className="form-label">{t('item.name')} *</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => updateFormData({ name: e.target.value })}
               className="input"
-              placeholder="輸入道具名稱"
+              placeholder={t('item.namePlaceholder')}
               required
             />
           </div>
 
           <div>
-            <label className="form-label">道具說明</label>
+            <label className="form-label">{t('item.description')}</label>
             <textarea
               value={formData.description}
               onChange={(e) => updateFormData({ description: e.target.value })}
               className="textarea"
               rows={4}
-              placeholder="輸入道具說明文字（支援多行）"
+              placeholder={t('item.descriptionPlaceholder')}
             />
           </div>
 
           <div>
-            <label className="form-label">道具分類 *</label>
+            <label className="form-label">{t('item.category')} *</label>
             <select
               value={formData.category}
               onChange={(e) => {
@@ -71,19 +68,19 @@ export function BasicInfoSection({ formData, updateFormData }: BasicInfoSectionP
               className="select"
               required
             >
-              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              {getAllCategories().map((category) => (
+                <option key={category} value={category}>
+                  {t(getCategoryTranslationKey(category))}
                 </option>
               ))}
             </select>
             <span className="form-hint">
-              不同分類會顯示不同的動態屬性設定
+              {t('item.categoryHint')}
             </span>
           </div>
 
           <div>
-            <label className="form-label">道具圖示</label>
+            <label className="form-label">{t('item.image')}</label>
             <div className="flex items-start gap-4">
               <div className="flex-1">
                 <input
@@ -98,10 +95,10 @@ export function BasicInfoSection({ formData, updateFormData }: BasicInfoSectionP
                   className="btn btn-light cursor-pointer w-full"
                 >
                   <Upload className="w-4 h-4" />
-                  選擇圖片
+                  {t('item.selectImage')}
                 </label>
                 <span className="form-hint">
-                  建議尺寸: 128x128 或 64x64 像素
+                  {t('item.imageHint')}
                 </span>
               </div>
               {formData.imageUrl && (
@@ -123,7 +120,7 @@ export function BasicInfoSection({ formData, updateFormData }: BasicInfoSectionP
               className="w-4 h-4 text-primary"
             />
             <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
-              啟用此道具（可在遊戲中出現）
+              {t('item.isActive')}
             </label>
           </div>
         </div>

@@ -9,6 +9,7 @@ import { ShopSystem } from "../systems/ShopSystem"; // Phase 9
 import { NPCManager } from "../systems/NPCManager"; // Phase 9
 import { QuestManager } from "../systems/QuestManager"; // Phase 10
 import { initializeFirebase } from "../services/FirebaseService"; // Phase 12
+import { npcService } from "../services/NPCService"; // Phase 16-2
 import { savePlayer, loadPlayer } from "../data/persistence"; // Phase 12
 import { guildService } from "../services/GuildService"; // Phase 13
 import { chatService } from "../services/ChatService"; // Phase 13
@@ -512,6 +513,56 @@ export class GameRoom extends Room<GameState> {
             const quest = this.questManager.getFirstAvailableQuest();
             if (quest) {
                 client.send("questInfo", quest);
+            }
+        });
+
+        // Phase 16-2: NPC 互動（對話）
+        this.onMessage("interact", (client, payload: { npcId: string }) => {
+            const player = this.state.players.get(client.sessionId);
+            if (!player) return;
+
+            const npc = this.state.enemies.get(payload.npcId);
+            if (!npc || npc.type !== "npc") {
+                console.log(`❌ [Interact] NPC ${payload.npcId} not found or not an NPC`);
+                return;
+            }
+
+            // 檢查距離
+            const dx = player.x - npc.x;
+            const dz = player.z - npc.z;
+            const distance = Math.sqrt(dx * dx + dz * dz);
+
+            // 從 NPCService 獲取 NPC 數據（包含對話樹）
+            const npcData = npcService.getNPC(payload.npcId);
+            if (!npcData) {
+                console.log(`❌ [Interact] NPC data not found for ${payload.npcId}`);
+                return;
+            }
+
+            // TODO: 使用 npcData.interactionRadius，現在先用預設值
+            const interactionRadius = 5.0;
+
+            if (distance > interactionRadius) {
+                console.log(`❌ [Interact] Player ${player.name} too far from NPC ${npc.name} (distance: ${distance.toFixed(2)})`);
+                client.send("notification", { text: "太遠了，請靠近一點！" });
+                return;
+            }
+
+            // 發送對話數據到客戶端
+            if (npcData.dialogueTree) {
+                console.log(`💬 [Interact] Player ${player.name} starts dialogue with ${npc.name}`);
+                client.send("dialogue", {
+                    npcId: payload.npcId,
+                    npcName: npc.name,
+                    dialogueTree: npcData.dialogueTree,
+                });
+            } else if (npcData.dialogue) {
+                // 向後兼容：簡單對話文本
+                console.log(`💬 [Interact] Player ${player.name} talks to ${npc.name}: ${npcData.dialogue}`);
+                client.send("notification", { text: `${npc.name}: ${npcData.dialogue}` });
+            } else {
+                console.log(`❌ [Interact] NPC ${npc.name} has no dialogue`);
+                client.send("notification", { text: `${npc.name} 沒有什麼想說的...` });
             }
         });
 

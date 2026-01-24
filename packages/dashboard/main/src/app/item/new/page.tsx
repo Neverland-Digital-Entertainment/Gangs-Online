@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Save, ArrowLeft } from 'lucide-react';
+import { useI18n } from '@/contexts/i18n-context';
 import { itemService } from '@/lib/item/service';
 import { ItemCategory, type ItemFormData } from '@/types/item';
 import { ItemImage } from '@/components/common/ItemImage';
@@ -12,6 +13,7 @@ import { AttributesSection } from '@/components/item/AttributesSection';
 
 export default function NewItemPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,44 +34,44 @@ export default function NewItemPage() {
     e.preventDefault();
 
     if (!formData.name.trim()) {
-      setError('請輸入道具名稱');
+      setError(t('validation.required').replace('{field}', t('common.name')));
       return;
     }
 
     if (formData.price < 0 || formData.sellPrice < 0) {
-      setError('價格不能為負數');
+      setError(t('error.mustBeNonNegative'));
       return;
     }
 
     try {
       setSaving(true);
       setError(null);
-      console.log('🚀 開始新增道具...', formData);
+      console.log('Creating new item...', formData);
       await itemService.createItem(formData);
-      console.log('✅ 道具新增成功！');
+      console.log('Item created successfully!');
       router.push('/item');
     } catch (err: any) {
-      console.error('❌ 新增道具失敗:', err);
+      console.error('Failed to create item:', err);
 
-      // 提供更詳細的錯誤訊息
-      let errorMessage = '新增失敗';
+      // Provide detailed error messages
+      let errorMessage = t('error.saveFailed');
 
       if (err.message?.includes('Firebase')) {
-        errorMessage = 'Firebase 連線失敗。請確認環境變數已正確設定。';
+        errorMessage = t('error.firebaseConnection');
       } else if (err.message?.includes('ERR_BLOCKED_BY_CLIENT')) {
-        errorMessage = '請求被瀏覽器阻擋。請檢查是否有廣告攔截器或防火牆擴充功能正在運作。';
+        errorMessage = t('error.blockedByClient');
       } else if (err.code === 'permission-denied') {
-        errorMessage = 'Firebase 權限不足。請檢查 Firestore 安全規則。';
+        errorMessage = t('error.permissionDenied');
       } else if (err.code === 'unavailable') {
-        errorMessage = 'Firebase 服務暫時無法使用。請稍後再試。';
+        errorMessage = t('error.serviceUnavailable');
       } else if (err.message) {
         errorMessage = err.message;
       }
 
       setError(errorMessage);
 
-      // 在控制台輸出完整錯誤供除錯
-      console.error('完整錯誤資訊:', {
+      // Log full error for debugging
+      console.error('Full error info:', {
         code: err.code,
         message: err.message,
         name: err.name,
@@ -96,10 +98,10 @@ export default function NewItemPage() {
       <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
         <div className="flex flex-col justify-center gap-2">
           <h1 className="text-3xl font-bold leading-none text-[var(--foreground)]">
-            新增道具
+            {t('item.new')}
           </h1>
           <div className="text-sm text-[var(--muted-foreground)]">
-            建立新的遊戲道具
+            {t('item.newDescription')}
           </div>
         </div>
         <div className="flex items-center gap-2.5">
@@ -109,7 +111,7 @@ export default function NewItemPage() {
             className="btn btn-light"
           >
             <ArrowLeft className="w-4 h-4" />
-            返回
+            {t('common.back')}
           </button>
         </div>
       </div>
@@ -150,7 +152,7 @@ export default function NewItemPage() {
           <div className="flex flex-col gap-5 lg:gap-7.5">
             <div className="card">
               <div className="card-header">
-                <h3 className="card-title">操作</h3>
+                <h3 className="card-title">{t('common.actions')}</h3>
               </div>
               <div className="card-body">
                 <div className="flex flex-col gap-3">
@@ -160,14 +162,14 @@ export default function NewItemPage() {
                     className="btn btn-primary"
                   >
                     <Save className="w-4 h-4" />
-                    {saving ? '建立中...' : '建立道具'}
+                    {saving ? t('item.creating') : t('item.createItem')}
                   </button>
                   <button
                     type="button"
                     onClick={() => router.push('/item')}
                     className="btn btn-light"
                   >
-                    取消
+                    {t('common.cancel')}
                   </button>
                 </div>
               </div>
@@ -175,7 +177,7 @@ export default function NewItemPage() {
 
             <div className="card">
               <div className="card-header">
-                <h3 className="card-title">預覽</h3>
+                <h3 className="card-title">{t('item.preview')}</h3>
               </div>
               <div className="card-body">
                 <div className="flex flex-col gap-3">
@@ -186,14 +188,14 @@ export default function NewItemPage() {
                   />
                   <div>
                     <h4 className="font-semibold text-[var(--foreground)]">
-                      {formData.name || '未命名道具'}
+                      {formData.name || t('item.untitled')}
                     </h4>
                     <p className="text-sm text-[var(--muted-foreground)] line-clamp-2">
-                      {formData.description || '無說明'}
+                      {formData.description || t('item.noDescription')}
                     </p>
                   </div>
                   <div className="flex items-center justify-between text-sm pt-2 border-t border-[var(--border)]">
-                    <span className="text-[var(--muted-foreground)]">價格</span>
+                    <span className="text-[var(--muted-foreground)]">{t('common.price')}</span>
                     <span className="font-semibold text-primary">
                       ${formData.price.toLocaleString()}
                     </span>

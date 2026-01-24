@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/contexts/i18n-context';
 import type { ItemFormData } from '@/types/item';
 
 interface EconomicSectionProps {
@@ -8,16 +9,18 @@ interface EconomicSectionProps {
 }
 
 export function EconomicSection({ formData, updateFormData }: EconomicSectionProps) {
+  const { t } = useI18n();
+
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="card-title">經濟屬性</h3>
+        <h3 className="card-title">{t('item.economicAttributes')}</h3>
       </div>
       <div className="card-body">
         <div className="flex flex-col gap-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="form-label">買入價格 *</label>
+              <label className="form-label">{t('item.buyPrice')} *</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
                   $
@@ -34,11 +37,11 @@ export function EconomicSection({ formData, updateFormData }: EconomicSectionPro
                   required
                 />
               </div>
-              <span className="form-hint">玩家購買此道具的價格</span>
+              <span className="form-hint">{t('item.buyPriceHint')}</span>
             </div>
 
             <div>
-              <label className="form-label">賣出價格 *</label>
+              <label className="form-label">{t('item.sellPrice')} *</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
                   $
@@ -55,7 +58,7 @@ export function EconomicSection({ formData, updateFormData }: EconomicSectionPro
                   required
                 />
               </div>
-              <span className="form-hint">玩家出售此道具的價格</span>
+              <span className="form-hint">{t('item.sellPriceHint')}</span>
             </div>
           </div>
 
@@ -71,11 +74,11 @@ export function EconomicSection({ formData, updateFormData }: EconomicSectionPro
                 className="w-4 h-4 text-primary"
               />
               <label htmlFor="isTradeable" className="text-sm font-medium text-gray-700">
-                可交易
+                {t('item.isTradeable')}
               </label>
             </div>
             <span className="form-hint ml-6">
-              允許玩家之間交易此道具
+              {t('item.isTradeableHint')}
             </span>
           </div>
 
@@ -91,11 +94,11 @@ export function EconomicSection({ formData, updateFormData }: EconomicSectionPro
                 className="w-4 h-4 text-primary"
               />
               <label htmlFor="isDroppable" className="text-sm font-medium text-gray-700">
-                可丟棄
+                {t('item.isDroppable')}
               </label>
             </div>
             <span className="form-hint ml-6">
-              允許玩家丟棄此道具
+              {t('item.isDroppableHint')}
             </span>
           </div>
         </div>

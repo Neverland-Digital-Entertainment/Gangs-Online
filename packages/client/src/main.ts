@@ -12,6 +12,7 @@ import { LoginScreen, LoginResult } from "./systems/LoginScreen"; // Phase 12.1
 import { ChatSystem } from "./systems/ChatSystem";
 import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
+import { DialogueSystem } from "./ui/DialogueSystem"; // Phase 16-2: 對話系統
 // Phase 9.1: InventorySystem UI 已移除，金錢改為在 HUD 顯示
 // Phase 10.1: ShopSystem 已整合到 HUDManager 的 Popup 系統
 import { HUDManager } from "./systems/HUDManager"; // Phase 9.1
@@ -132,6 +133,9 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
     // === Phase 11: 初始化音效和粒子系統 ===
     const soundManager = new SoundManager(scene);
     const particleSystem = new ParticleSystem(scene);
+
+    // === Phase 16-2: 初始化對話系統 ===
+    const dialogueSystem = new DialogueSystem();
 
     let mySessionId: string | null = null;
     let lootManager: LootManager | null = null; // Phase 8
@@ -709,6 +713,18 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
         // --- 輸入處理：點擊攻擊、拾取戰利品或移動 (Phase 8 更新) ---
         scene.onPointerDown = (evt, pickResult) => {
+            // Phase 16-2: 對話系統顯示時，只允許點擊 NPC 重新打開對話，其他輸入忽略
+            if (dialogueSystem.isActive()) {
+                const target = findInteractiveTarget(scene.pointerX, scene.pointerY);
+                // 只處理 NPC 點擊
+                if (target.type === 'npc' && target.id) {
+                    // NPC 點擊處理會在下面執行
+                } else {
+                    // 忽略其他所有輸入
+                    return;
+                }
+            }
+
             // 先用 multiPick 找可互動物件（穿透建築物）
             const target = findInteractiveTarget(scene.pointerX, scene.pointerY);
 
@@ -742,16 +758,50 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
             if (target.type === 'npc' && target.id && hudManager) {
                 console.log("👔 Clicked NPC:", target.id);
+
+                // Phase 16-2: 從 room.state 獲取完整 NPC 數據
+                const npcData = (room.state as any).enemies.get(target.id);
+                if (!npcData) {
+                    console.warn("⚠️ NPC data not found for:", target.id);
+                    return;
+                }
+
+                // 處理舊的硬編碼 NPC（向後兼容）
                 if (target.id === "npc_quest") {
                     hudManager.showPopup("任務", "quest");
                     return;
                 } else if (target.id === "npc_shopkeeper") {
-                    // Phase 11: 只有點擊商店 NPC 才會顯示商店
                     hudManager.showShopPopup();
                     return;
                 }
-                // Phase 14: 市民和警察 NPC 可以被攻擊（發送 enemy 類型給伺服器）
-                if (target.id.startsWith("npc_citizen_") || target.id.startsWith("npc_police_")) {
+
+                // Phase 16-2: 新的對話系統 - 檢查是否有對話樹
+                if (npcData.dialogueTreeJson && npcData.dialogueTreeJson !== "") {
+                    try {
+                        const dialogueTree = JSON.parse(npcData.dialogueTreeJson);
+                        console.log("💬 Opening dialogue with:", npcData.name);
+                        dialogueSystem.show(target.id, npcData.name, dialogueTree);
+                        return;
+                    } catch (error) {
+                        console.error("⚠️ Failed to parse dialogue tree:", error);
+                    }
+                }
+
+                // Phase 16-2: 根據 npcType 處理不同互動
+                const npcType = npcData.npcType;
+
+                if (npcType === 'shop') {
+                    // 商店 NPC
+                    console.log("🏪 Opening shop");
+                    hudManager.showShopPopup();
+                    return;
+                } else if (npcType === 'quest') {
+                    // 任務 NPC
+                    console.log("📜 Opening quest");
+                    hudManager.showPopup("任務", "quest");
+                    return;
+                } else if (npcType === 'citizen' || npcType === 'police' || npcType === 'gangs') {
+                    // 可攻擊的 NPC（市民、警察、幫派成員）
                     const myEntity = playerManager.getEntity(mySessionId!);
                     if (myEntity && target.mesh) {
                         const targetPos = target.mesh.position;
@@ -760,20 +810,20 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                         const dist = Math.sqrt(dx * dx + dz * dz);
 
                         if (dist <= GAME_CONSTANTS.ATTACK_RANGE) {
-                            const targetName = target.id.startsWith("npc_police_") ? "police" : "citizen";
-                            console.log(`🗡️ Attacking ${targetName}:`, target.id);
+                            console.log(`🗡️ Attacking ${npcType} NPC:`, target.id);
                             soundManager.playMissSound();
                             room.send("attack", { targetId: target.id, type: "enemy" as EntityType });
                         } else {
-                            const targetName = target.id.startsWith("npc_police_") ? "police" : "citizen";
-                            console.log(`🚶 Walking to ${targetName}:`, target.id);
+                            console.log(`🚶 Walking to ${npcType} NPC:`, target.id);
                             pendingAttack = { targetId: target.id, targetType: "enemy", x: targetPos.x, z: targetPos.z };
                             room.send("move", { x: targetPos.x, z: targetPos.z });
                         }
                     }
                     return;
                 }
-                // 其他 NPC（商店、任務）不能直接攻擊
+
+                // 未知 NPC 類型，顯示提示
+                console.log("ℹ️ NPC has no interaction available");
                 return;
             }
 

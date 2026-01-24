@@ -9,8 +9,10 @@ import { ItemImage } from '@/components/common/ItemImage';
 import { BasicInfoSection } from '@/components/item/BasicInfoSection';
 import { EconomicSection } from '@/components/item/EconomicSection';
 import { AttributesSection } from '@/components/item/AttributesSection';
+import { useI18n } from '@/contexts/i18n-context';
 
 export default function EditItemContent() {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const itemId = searchParams.get('id');
@@ -34,7 +36,7 @@ export default function EditItemContent() {
 
   useEffect(() => {
     if (!itemId) {
-      setError('缺少道具 ID');
+      setError(t('item.missingId'));
       setLoading(false);
       return;
     }
@@ -61,10 +63,10 @@ export default function EditItemContent() {
           attributes: item.attributes,
         });
       } else {
-        setError('找不到此道具');
+        setError(t('error.loadFailed'));
       }
     } catch (err: any) {
-      setError(err.message || '載入失敗');
+      setError(err.message || t('item.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -74,17 +76,17 @@ export default function EditItemContent() {
     e.preventDefault();
 
     if (!itemId) {
-      setError('缺少道具 ID');
+      setError(t('item.missingId'));
       return;
     }
 
     if (!formData.name.trim()) {
-      setError('請輸入道具名稱');
+      setError(t('validation.required').replace('{field}', t('common.name')));
       return;
     }
 
     if (formData.price < 0 || formData.sellPrice < 0) {
-      setError('價格不能為負數');
+      setError(t('error.mustBeNonNegative'));
       return;
     }
 
@@ -94,7 +96,7 @@ export default function EditItemContent() {
       await itemService.updateItem(itemId, formData);
       router.push('/item');
     } catch (err: any) {
-      setError(err.message || '儲存失敗');
+      setError(err.message || t('item.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -126,7 +128,7 @@ export default function EditItemContent() {
       <div className="container-fixed">
         <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
           <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-          <p className="text-sm text-red-600 dark:text-red-400">缺少道具 ID</p>
+          <p className="text-sm text-red-600 dark:text-red-400">{t('item.missingId')}</p>
         </div>
       </div>
     );
@@ -137,7 +139,7 @@ export default function EditItemContent() {
       <div className="flex flex-wrap items-center lg:items-end justify-between gap-5 pb-7.5">
         <div className="flex flex-col justify-center gap-2">
           <h1 className="text-3xl font-bold leading-none text-[var(--foreground)]">
-            編輯道具
+            {t('item.edit')}
           </h1>
           <div className="text-sm text-[var(--muted-foreground)]">
             ID: {itemId}
@@ -150,7 +152,7 @@ export default function EditItemContent() {
             className="btn btn-light"
           >
             <ArrowLeft className="w-4 h-4" />
-            返回
+            {t('common.back')}
           </button>
         </div>
       </div>
@@ -191,7 +193,7 @@ export default function EditItemContent() {
           <div className="flex flex-col gap-5 lg:gap-7.5">
             <div className="card">
               <div className="card-header">
-                <h3 className="card-title">操作</h3>
+                <h3 className="card-title">{t('common.actions')}</h3>
               </div>
               <div className="card-body">
                 <div className="flex flex-col gap-3">
@@ -201,14 +203,14 @@ export default function EditItemContent() {
                     className="btn btn-primary"
                   >
                     <Save className="w-4 h-4" />
-                    {saving ? '儲存中...' : '儲存變更'}
+                    {saving ? t('item.saving') : t('item.saveChanges')}
                   </button>
                   <button
                     type="button"
                     onClick={() => router.push('/item')}
                     className="btn btn-light"
                   >
-                    取消
+                    {t('common.cancel')}
                   </button>
                 </div>
               </div>
@@ -216,7 +218,7 @@ export default function EditItemContent() {
 
             <div className="card">
               <div className="card-header">
-                <h3 className="card-title">預覽</h3>
+                <h3 className="card-title">{t('item.preview')}</h3>
               </div>
               <div className="card-body">
                 <div className="flex flex-col gap-3">
@@ -227,14 +229,14 @@ export default function EditItemContent() {
                   />
                   <div>
                     <h4 className="font-semibold text-[var(--foreground)]">
-                      {formData.name || '未命名道具'}
+                      {formData.name || t('common.name')}
                     </h4>
                     <p className="text-sm text-[var(--muted-foreground)] line-clamp-2">
-                      {formData.description || '無說明'}
+                      {formData.description || t('common.description')}
                     </p>
                   </div>
                   <div className="flex items-center justify-between text-sm pt-2 border-t border-[var(--border)]">
-                    <span className="text-[var(--muted-foreground)]">價格</span>
+                    <span className="text-[var(--muted-foreground)]">{t('common.price')}</span>
                     <span className="font-semibold text-primary">
                       ${formData.price.toLocaleString()}
                     </span>

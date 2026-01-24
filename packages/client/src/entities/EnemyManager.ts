@@ -40,7 +40,7 @@ export class EnemyManager {
     }
 
     /**
-     * 創建敵人或 NPC (Phase 9: 支援 NPC)
+     * 創建敵人或 NPC (Phase 9: 支援 NPC, Phase 16-2: 支援自定義模型)
      * @param enemyData - Colyseus Schema 對象（具有 onChange 和 listen 方法）
      */
     async createEnemy(enemyData: any, enemyId: string): Promise<EnemyEntity> {
@@ -48,13 +48,44 @@ export class EnemyManager {
         const isNPC = entityType === "npc";
         console.log(`${isNPC ? '👔' : '🧟'} Creating ${isNPC ? 'NPC' : 'enemy'}: ${enemyId}`);
 
+        // Phase 16-2: 使用自定義模型或預設模型
+        const modelId = enemyData.modelId || "";
+        // 檢查是否為空字符串、undefined 或字符串 "undefined"
+        const useDefaultModel = !modelId || modelId.trim() === "" || modelId === "undefined";
+
+        console.log(`📦 Model ID for ${enemyId}: raw="${enemyData.modelId}", processed="${modelId}", useDefault=${useDefaultModel}`);
+
         // 載入 3D 模型
-        const result = await BABYLON.SceneLoader.ImportMeshAsync(
-            "",
-            "https://models.babylonjs.com/",
-            "HVGirl.glb",
-            this.scene
-        );
+        let result;
+        if (useDefaultModel) {
+            // 使用預設模型
+            console.log(`📦 Using default model for ${enemyId}`);
+            result = await BABYLON.SceneLoader.ImportMeshAsync(
+                "",
+                "https://models.babylonjs.com/",
+                "HVGirl.glb",
+                this.scene
+            );
+        } else {
+            // 嘗試載入自定義模型，失敗時使用預設模型
+            try {
+                console.log(`📦 Loading custom model "${modelId}" for ${enemyId}`);
+                result = await BABYLON.SceneLoader.ImportMeshAsync(
+                    "",
+                    "/models/",
+                    `${modelId}.glb`,
+                    this.scene
+                );
+            } catch (error) {
+                console.warn(`⚠️ Failed to load model "${modelId}", using default model:`, error);
+                result = await BABYLON.SceneLoader.ImportMeshAsync(
+                    "",
+                    "https://models.babylonjs.com/",
+                    "HVGirl.glb",
+                    this.scene
+                );
+            }
+        }
 
         const root = result.meshes[0];
         root.position.set(enemyData.x, 0.1, enemyData.z);
@@ -62,6 +93,9 @@ export class EnemyManager {
         root.rotationQuaternion = null;
         root.checkCollisions = true;
         root.ellipsoid = new BABYLON.Vector3(0.5, 1.0, 0.5);
+
+        // Debug: Log model info
+        console.log(`✅ ${isNPC ? 'NPC' : 'Enemy'} model loaded: id="${enemyId}", position=(${enemyData.x}, ${enemyData.z}), meshCount=${result.meshes.length}, visibility=${root.visibility}, isEnabled=${root.isEnabled()}`);
 
         // 設置 metadata 以便點擊偵測
         root.metadata = {

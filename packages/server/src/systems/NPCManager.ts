@@ -59,7 +59,7 @@ export class NPCManager {
     }
 
     /**
-     * 從 NPC 定義資料生成 NPC
+     * 從 NPC 定義資料生成 NPC (Phase 16-2: 支援自定義模型與對話樹)
      */
     private spawnNPCFromData(data: INPCData): void {
         const npc = new Enemy();
@@ -73,9 +73,14 @@ export class NPCManager {
         npc.hp = data.hp;
         npc.maxHp = data.hp;
         npc.attack = data.attack;
+        // Phase 16-2: 設定自定義模型 ID，確保 undefined 轉為空字串
+        npc.modelId = (data.modelId && data.modelId !== "undefined") ? data.modelId : "";
+        npc.dialogueTreeJson = data.dialogueTree ? JSON.stringify(data.dialogueTree) : ""; // Phase 16-2: 序列化對話樹
 
         this.npcs.set(npc.id, npc);
-        console.log(`✅ [NPCManager] Spawned ${data.type} NPC "${data.name}" at (${npc.x}, ${npc.z})`);
+        const modelInfo = data.modelId ? ` with model: ${data.modelId}` : ' with default model';
+        const dialogueInfo = data.dialogueTree ? ' [has dialogue]' : '';
+        console.log(`✅ [NPCManager] Spawned ${data.type} NPC "${data.name}" at (${npc.x}, ${npc.z})${modelInfo}${dialogueInfo}`);
     }
 
     /**

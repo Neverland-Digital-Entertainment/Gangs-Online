@@ -321,8 +321,84 @@ export interface ILootTableEntry {
 export type NPCStatus = 'active' | 'inactive';
 
 /**
+ * 對話選項 (Phase 16-2)
+ */
+export interface DialogueOption {
+    text: string;
+    nextNodeId: string;
+}
+
+/**
+ * 對話節點 (Phase 16-2)
+ */
+export interface DialogueNode {
+    nodeId: string;
+    speaker: string;
+    content: string;
+    options?: DialogueOption[];
+    actionType?: 'open_shop' | 'accept_quest' | 'end_dialogue';
+    actionData?: any;
+}
+
+/**
+ * 對話樹 (Phase 16-2)
+ */
+export interface DialogueTree {
+    nodes: DialogueNode[];
+    startNodeId: string;
+}
+
+/**
+ * NPC 模板數據 (Phase 16-2 - Firebase Collection: npc_templates)
+ */
+export interface INPCTemplate {
+    id: string;
+    name: string;
+    type: NPCType;
+    modelId?: string;
+    description?: string;
+    baseHp: number;
+    baseAttack: number;
+    baseDefense: number;
+    baseSpeed: number;
+    combatType?: 'MELEE' | 'RANGED';
+    attackRange?: number;
+    dialogueTree?: DialogueTree;
+    createdAt: Date;
+    updatedAt: Date;
+    isActive: boolean;
+}
+
+/**
+ * NPC 實例數據 (Phase 16-2 - Firebase Collection: npc_instances)
+ */
+export interface INPCInstance {
+    id: string;
+    templateId: string;
+    positionX: number;
+    positionZ: number;
+    rotation: number;
+    level: number;
+    interactionRadius: number;
+    movementPattern: 'STATIC' | 'WANDERING' | 'PATROLLING';
+    wanderRadius?: number;
+    wanderCenter?: { x: number; z: number };
+    patrolWaypoints?: { x: number; z: number }[];
+    aggroRange?: number;
+    chaseDistance?: number;
+    shopId?: string;
+    isAttackable: boolean;
+    mapId?: string;
+    territoryId?: string;
+    createdAt: Date;
+    updatedAt: Date;
+    isActive: boolean;
+}
+
+/**
  * NPC 數據結構（Phase 14 - Firebase Collection: npcs）
  * Phase 15: 新增 status 欄位
+ * Phase 16-2: 新增 dialogueTree 支持, modelId 支持
  */
 export interface INPCData {
     id: string;
@@ -330,8 +406,10 @@ export interface INPCData {
     name: string;
     hp: number;
     attack: number;
+    modelId?: string; // Phase 16-2: 自定義模型 ID，不提供或空字串時使用預設模型
     lootTable?: ILootTableEntry[];
-    dialogue?: string; // 僅 citizen, shop
+    dialogue?: string; // 簡單對話文本（向後兼容）
+    dialogueTree?: DialogueTree; // Phase 16-2: 對話樹
     relatedQuests?: string[]; // 關聯任務 ID
     spawnX?: number;
     spawnZ?: number;
@@ -363,6 +441,6 @@ export const PRISON_CONSTANTS = {
 };
 
 /**
- * 遊戲版本（0.15.0 - Real Scene Integration）
+ * 遊戲版本（0.16.2 - NPC Dialogue System & Multi-language Support）
  */
-export const GAME_VERSION = "0.15.0";
+export const GAME_VERSION = "0.16.2";

@@ -11,35 +11,48 @@ import {
   Home,
   Menu,
   X,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
+import LanguageSwitcher from '@/components/common/LanguageSwitcher';
+import { useI18n } from '@/contexts/i18n-context';
 
 const menuItems = [
   {
-    title: '主頁',
+    titleKey: 'nav.dashboard',
     icon: Home,
     href: '/',
     exact: true,
   },
   {
-    title: '道具管理',
+    titleKey: 'nav.item',
     icon: Package,
     href: '/item',
   },
   {
-    title: 'NPC 管理',
+    titleKey: 'nav.npc',
     icon: Users,
     href: '/npc',
-    disabled: true,
+    subItems: [
+      {
+        titleKey: 'nav.npcTemplates',
+        href: '/npc/templates',
+      },
+      {
+        titleKey: 'nav.npcInstances',
+        href: '/npc/instances',
+      },
+    ],
   },
   {
-    title: '任務管理',
+    titleKey: 'nav.comingSoon',
     icon: ScrollText,
     href: '/quest',
     disabled: true,
   },
   {
-    title: '設定',
+    titleKey: 'nav.comingSoon',
     icon: Settings,
     href: '/settings',
     disabled: true,
@@ -48,12 +61,27 @@ const menuItems = [
 
 function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
+  const { t } = useI18n();
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+
+  // Auto-expand NPC menu if on NPC pages
+  useEffect(() => {
+    if (pathname.startsWith('/npc')) {
+      setExpandedItems((prev) => prev.includes('/npc') ? prev : [...prev, '/npc']);
+    }
+  }, [pathname]);
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) {
       return pathname === href;
     }
     return pathname.startsWith(href);
+  };
+
+  const toggleExpand = (href: string) => {
+    setExpandedItems((prev) =>
+      prev.includes(href) ? prev.filter((h) => h !== href) : [...prev, href]
+    );
   };
 
   return (
@@ -75,6 +103,8 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
         {menuItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href, item.exact);
+          const isExpanded = expandedItems.includes(item.href);
+          const hasSubItems = item.subItems && item.subItems.length > 0;
 
           if (item.disabled) {
             return (
@@ -83,10 +113,46 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                 className="sidebar-item opacity-50 cursor-not-allowed"
               >
                 <Icon className="w-5 h-5" />
-                <span>{item.title}</span>
+                <span>{t(item.titleKey)}</span>
                 <span className="ml-auto text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
-                  即將推出
+                  {t('nav.comingSoon')}
                 </span>
+              </div>
+            );
+          }
+
+          if (hasSubItems) {
+            return (
+              <div key={item.href}>
+                <button
+                  onClick={() => toggleExpand(item.href)}
+                  className={`sidebar-item w-full ${active ? 'active' : ''}`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span>{t(item.titleKey)}</span>
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4 ml-auto" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 ml-auto" />
+                  )}
+                </button>
+                {isExpanded && (
+                  <div className="ml-6 border-l border-[var(--border)]">
+                    {item.subItems.map((subItem) => {
+                      const subActive = isActive(subItem.href);
+                      return (
+                        <Link
+                          key={subItem.href}
+                          href={subItem.href}
+                          onClick={onItemClick}
+                          className={`sidebar-item pl-6 ${subActive ? 'active' : ''}`}
+                        >
+                          <span className="text-sm">{t(subItem.titleKey)}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           }
@@ -99,16 +165,19 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
               className={`sidebar-item ${active ? 'active' : ''}`}
             >
               <Icon className="w-5 h-5" />
-              <span>{item.title}</span>
+              <span>{t(item.titleKey)}</span>
             </Link>
           );
         })}
       </nav>
 
       <div className="p-4 border-t border-[var(--border)] bg-[var(--sidebar-bg)]">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-[var(--muted)]">v0.16.1</span>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <LanguageSwitcher />
           <ThemeToggle />
+        </div>
+        <div className="text-xs text-[var(--muted)] text-center">
+          v0.16.1
         </div>
       </div>
     </>
@@ -141,7 +210,10 @@ export function Sidebar() {
             className="h-8 w-auto"
           />
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
+          <ThemeToggle />
+        </div>
       </div>
 
       {/* Mobile Sidebar Overlay */}
