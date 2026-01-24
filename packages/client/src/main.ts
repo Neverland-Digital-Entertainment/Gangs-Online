@@ -748,7 +748,7 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 console.log("👔 Clicked NPC:", target.id);
 
                 // Phase 16-2: 從 room.state 獲取完整 NPC 數據
-                const npcData = room.state.enemies.get(target.id);
+                const npcData = (room.state as any).enemies.get(target.id);
                 if (!npcData) {
                     console.warn("⚠️ NPC data not found for:", target.id);
                     return;
