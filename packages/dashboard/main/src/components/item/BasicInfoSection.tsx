@@ -2,6 +2,7 @@
 
 import { Upload } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
+import { getCategoryTranslationKey, getAllCategories } from '@/lib/item-helpers';
 import type { ItemFormData, ItemCategory } from '@/types/item';
 
 interface BasicInfoSectionProps {
@@ -11,13 +12,6 @@ interface BasicInfoSectionProps {
 
 export function BasicInfoSection({ formData, updateFormData }: BasicInfoSectionProps) {
   const { t } = useI18n();
-
-  const CATEGORY_LABELS: Record<ItemCategory, string> = {
-    consumable: t('item.category.consumable'),
-    special: t('item.category.special'),
-    contraband: t('item.category.contraband'),
-    material: t('item.category.material'),
-  };
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -74,9 +68,9 @@ export function BasicInfoSection({ formData, updateFormData }: BasicInfoSectionP
               className="select"
               required
             >
-              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              {getAllCategories().map((category) => (
+                <option key={category} value={category}>
+                  {t(getCategoryTranslationKey(category))}
                 </option>
               ))}
             </select>

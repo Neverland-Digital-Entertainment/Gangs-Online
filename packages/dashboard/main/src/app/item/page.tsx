@@ -17,17 +17,16 @@ import {
 import { itemService } from '@/lib/item/service';
 import { ItemImage } from '@/components/common/ItemImage';
 import { useI18n } from '@/contexts/i18n-context';
+import { getCategoryTranslationKey, getAllCategories } from '@/lib/item-helpers';
 import type { Item, ItemFilter, ItemCategory } from '@/types/item';
-
-const CATEGORY_LABELS: Record<ItemCategory, string> = {
-  consumable: '消耗品',
-  special: '宗教道具',
-  contraband: '非法物資',
-  material: '素材',
-};
 
 export default function ItemsPage() {
   const { t } = useI18n();
+
+  // Category labels with i18n support
+  const getCategoryLabel = (category: ItemCategory): string => {
+    return t(getCategoryTranslationKey(category));
+  };
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,9 +191,9 @@ export default function ItemsPage() {
               className="select"
             >
               <option value="">{t('item.filterByCategory')}</option>
-              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              {getAllCategories().map((category) => (
+                <option key={category} value={category}>
+                  {getCategoryLabel(category)}
                 </option>
               ))}
             </select>
@@ -277,7 +276,7 @@ export default function ItemsPage() {
 
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-[var(--muted-foreground)] text-xs">
-                      {CATEGORY_LABELS[item.category]}
+                      {getCategoryLabel(item.category)}
                     </span>
                     <span className="font-semibold text-[var(--primary)]">
                       ${item.price.toLocaleString()}
@@ -376,7 +375,7 @@ export default function ItemsPage() {
                       </div>
                     </td>
                     <td className="px-3 py-2 text-sm text-[var(--muted-foreground)] w-24">
-                      {CATEGORY_LABELS[item.category]}
+                      {getCategoryLabel(item.category)}
                     </td>
                     <td className="px-3 py-2 text-sm font-medium text-[var(--primary)] w-24">
                       ${item.price.toLocaleString()}

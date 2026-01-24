@@ -441,6 +441,6 @@ export const PRISON_CONSTANTS = {
 };
 
 /**
- * 遊戲版本（0.15.0 - Real Scene Integration）
+ * 遊戲版本（0.16.2 - NPC Dialogue System & Multi-language Support）
  */
-export const GAME_VERSION = "0.15.0";
+export const GAME_VERSION = "0.16.2";
