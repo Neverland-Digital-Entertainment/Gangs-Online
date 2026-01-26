@@ -8,6 +8,14 @@ import { shopService } from '@/lib/shop/shop-service';
 import { ShopForm } from '@/components/shop/ShopForm';
 import type { Shop } from '@/types/shop';
 
+// Required for static export with dynamic routes
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  // Return empty array to allow all dynamic routes
+  return [];
+}
+
 export default function EditShopPage() {
   const { t } = useI18n();
   const params = useParams();
