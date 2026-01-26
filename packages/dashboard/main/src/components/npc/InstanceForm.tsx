@@ -14,6 +14,8 @@ import type {
 import { MOVEMENT_PATTERN_LABELS } from '@/types/npc';
 import { npcInstanceService } from '@/lib/npc/instance-service';
 import { npcTemplateService } from '@/lib/npc/template-service';
+import { shopService } from '@/lib/shop/shop-service';
+import type { Shop } from '@/types/shop';
 import MapPositionPicker from './MapPositionPicker';
 
 interface InstanceFormProps {
@@ -33,6 +35,8 @@ export default function InstanceForm({
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<NpcTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [loadingShops, setLoadingShops] = useState(true);
 
   const [formData, setFormData] = useState<NpcInstanceFormData>({
     templateId: instance?.templateId || '',
@@ -48,6 +52,8 @@ export default function InstanceForm({
     aggroRange: instance?.aggroRange,
     chaseDistance: instance?.chaseDistance,
     shopId: instance?.shopId,
+    linkedShopId: instance?.linkedShopId,
+    isGuildOnly: instance?.isGuildOnly ?? false,
     isAttackable: instance?.isAttackable ?? true,
     mapId: instance?.mapId,
     territoryId: instance?.territoryId,
@@ -58,6 +64,7 @@ export default function InstanceForm({
 
   useEffect(() => {
     loadTemplates();
+    loadShops();
   }, []);
 
   async function loadTemplates() {
@@ -70,6 +77,19 @@ export default function InstanceForm({
       console.error('Failed to load templates:', err);
     } finally {
       setLoadingTemplates(false);
+    }
+  }
+
+  async function loadShops() {
+    try {
+      setLoadingShops(true);
+      // Load all active shops for selection
+      const data = await shopService.getAllShops({ isActive: true });
+      setShops(data);
+    } catch (err) {
+      console.error('Failed to load shops:', err);
+    } finally {
+      setLoadingShops(false);
     }
   }
 
@@ -588,6 +608,53 @@ export default function InstanceForm({
                 }
                 placeholder={t('npc.instance.shopIdPlaceholder')}
               />
+            </div>
+          </div>
+
+          {/* Phase 16.3: Shop Linking */}
+          <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <h4 className="font-semibold text-sm text-blue-900 dark:text-blue-100 mb-3">
+              {t('npc.instance.linkedShopId')} (Phase 16.3)
+            </h4>
+            <div className="space-y-3">
+              <div>
+                <label className="label">{t('npc.instance.linkedShopId')}</label>
+                <select
+                  className="input"
+                  value={formData.linkedShopId || ''}
+                  onChange={(e) =>
+                    setFormData({ ...formData, linkedShopId: e.target.value || undefined })
+                  }
+                  disabled={loadingShops}
+                >
+                  <option value="">{t('npc.instance.selectPlaceholder')}</option>
+                  {shops.map((shop) => (
+                    <option key={shop.id} value={shop.id}>
+                      {shop.name} {shop.operatingHours ? `(${shop.operatingHours.start}:00-${shop.operatingHours.end}:00)` : '(24h)'}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  {t('npc.instance.linkedShopIdPlaceholder')}
+                </p>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="checkbox"
+                    checked={formData.isGuildOnly || false}
+                    onChange={(e) =>
+                      setFormData({ ...formData, isGuildOnly: e.target.checked })
+                    }
+                  />
+                  <span className="text-sm">{t('npc.instance.isGuildOnly')}</span>
+                </label>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 ml-6">
+                  {t('npc.instance.isGuildOnlyHint')}
+                </p>
+              </div>
             </div>
           </div>
 
