@@ -6,6 +6,7 @@ import { getCategoryTranslationKey } from '@/lib/item-helpers';
 import { collection, doc, getDoc } from 'firebase/firestore';
 import { getFirebaseServices } from '@/lib/firebase/config';
 import type { ShopItemConfig } from '@/types/shop';
+import type { ItemCategory } from '@/types/item';
 
 interface ShopItemListProps {
   items: ShopItemConfig[];
@@ -18,7 +19,7 @@ interface ItemDetails {
   name: string;
   description: string;
   price: number;
-  category: string;
+  category: ItemCategory;
   imageUrl: string;
 }
 

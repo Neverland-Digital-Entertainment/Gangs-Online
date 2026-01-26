@@ -3,6 +3,8 @@
  * Phase 16.3 - Shop & Economy System
  */
 
+import type { ItemCategory } from './item';
+
 /**
  * Shop item configuration
  * Each shop has a list of items with their stock and limit settings
@@ -64,7 +66,7 @@ export interface ItemForShop {
   name: string;
   description: string;
   price: number;
-  category: string;
+  category: ItemCategory;
   imageUrl: string;
   isActive: boolean;
 }
