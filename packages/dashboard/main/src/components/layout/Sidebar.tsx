@@ -13,6 +13,7 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  Store,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
@@ -29,6 +30,11 @@ const menuItems = [
     titleKey: 'nav.item',
     icon: Package,
     href: '/item',
+  },
+  {
+    titleKey: 'nav.shop',
+    icon: Store,
+    href: '/shop',
   },
   {
     titleKey: 'nav.npc',
@@ -177,7 +183,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
           <ThemeToggle />
         </div>
         <div className="text-xs text-[var(--muted)] text-center">
-          v0.16.1
+          v0.16.3
         </div>
       </div>
     </>

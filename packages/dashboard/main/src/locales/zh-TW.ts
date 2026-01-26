@@ -44,6 +44,7 @@ export default {
   // Navigation
   'nav.dashboard': '儀表板',
   'nav.item': '道具管理',
+  'nav.shop': '商店管理',
   'nav.npc': 'NPC 管理',
   'nav.npcTemplates': '模板管理',
   'nav.npcInstances': '實例管理',

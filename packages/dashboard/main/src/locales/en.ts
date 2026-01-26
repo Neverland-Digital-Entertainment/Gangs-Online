@@ -44,6 +44,7 @@ export default {
   // Navigation
   'nav.dashboard': 'Dashboard',
   'nav.item': 'Item Management',
+  'nav.shop': 'Shop Management',
   'nav.npc': 'NPC Management',
   'nav.npcTemplates': 'Template Management',
   'nav.npcInstances': 'Instance Management',
