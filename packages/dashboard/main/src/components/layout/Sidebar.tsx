@@ -20,7 +20,20 @@ import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 import { useI18n } from '@/contexts/i18n-context';
 
-const menuItems = [
+type MenuItem = {
+  titleKey: string;
+  icon: React.ComponentType<{ className?: string }>;
+  href: string;
+  exact?: boolean;
+  disabled?: boolean;
+  subItems?: {
+    titleKey: string;
+    href: string;
+    icon?: React.ComponentType<{ className?: string }>;
+  }[];
+};
+
+const menuItems: MenuItem[] = [
   {
     titleKey: 'nav.dashboard',
     icon: Home,
