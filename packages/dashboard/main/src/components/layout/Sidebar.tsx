@@ -168,7 +168,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                     <ChevronRight className="w-4 h-4 ml-auto" />
                   )}
                 </button>
-                {isExpanded && (
+                {isExpanded && item.subItems && (
                   <div className="ml-6 border-l border-[var(--border)]">
                     {item.subItems.map((subItem) => {
                       const subActive = isActive(subItem.href);
