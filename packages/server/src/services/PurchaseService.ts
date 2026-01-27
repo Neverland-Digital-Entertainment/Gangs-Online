@@ -194,11 +194,11 @@ class PurchaseService {
         // 檢查個人購買限制
         if (itemConfig.personalLimit > 0) {
             // 確保已載入玩家購買記錄
-            if (!this.purchaseRecords.has(player.uid)) {
-                await this.loadPlayerRecords(player.uid);
+            if (!this.purchaseRecords.has(player.firebaseUid)) {
+                await this.loadPlayerRecords(player.firebaseUid);
             }
 
-            const purchaseRecord = this.getPurchaseRecord(player.uid, shopId, itemId);
+            const purchaseRecord = this.getPurchaseRecord(player.firebaseUid, shopId, itemId);
             const purchasedCount = purchaseRecord?.purchaseCount || 0;
             const remainingLimit = itemConfig.personalLimit - purchasedCount;
 
@@ -250,12 +250,12 @@ class PurchaseService {
 
             // 更新購買記錄
             if (itemConfig.personalLimit > 0) {
-                await this.updatePurchaseRecord(player.uid, shopId, itemId, quantity);
+                await this.updatePurchaseRecord(player.firebaseUid, shopId, itemId, quantity);
             }
 
             const remainingStock =
                 currentStock === -1 ? undefined : currentStock - quantity;
-            const purchaseRecord = this.getPurchaseRecord(player.uid, shopId, itemId);
+            const purchaseRecord = this.getPurchaseRecord(player.firebaseUid, shopId, itemId);
             const remainingPersonalLimit =
                 itemConfig.personalLimit > 0
                     ? itemConfig.personalLimit - (purchaseRecord?.purchaseCount || 0)
