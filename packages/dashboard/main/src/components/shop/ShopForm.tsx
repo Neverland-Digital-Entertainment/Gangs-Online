@@ -160,7 +160,11 @@ export function ShopForm({ shop, mode }: ShopFormProps) {
         : state.isFocused
         ? 'var(--hover-bg, #f3f4f6)'
         : 'transparent',
-      color: state.isSelected ? 'white' : 'var(--text, black)',
+      color: state.isSelected
+        ? 'white'
+        : state.isFocused
+        ? 'var(--text, black)'
+        : 'white',
     }),
     multiValue: (provided: any) => ({
       ...provided,
