@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useI18n } from '@/contexts/i18n-context';
 import { shopService } from '@/lib/shop/shop-service';
 import { ShopForm } from '@/components/shop/ShopForm';
@@ -10,24 +10,30 @@ import type { Shop } from '@/types/shop';
 
 export default function EditShopContent() {
   const { t } = useI18n();
-  const params = useParams();
-  const shopId = params.id as string;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
 
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (shopId) {
+    if (id) {
       loadShop();
+    } else {
+      setError(t('shop.missingId'));
+      setLoading(false);
     }
-  }, [shopId]);
+  }, [id]);
 
   const loadShop = async () => {
+    if (!id) return;
+
     try {
       setLoading(true);
       setError(null);
-      const data = await shopService.getShopById(shopId);
+      const data = await shopService.getShopById(id);
 
       if (!data) {
         setError(t('shop.notFound'));

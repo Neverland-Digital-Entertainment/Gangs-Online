@@ -163,7 +163,7 @@ export default function ShopListPage() {
                 {/* Actions */}
                 <div className="flex gap-2">
                   <Link
-                    href={`/shop/${shop.id}`}
+                    href={`/shop/edit?id=${shop.id}`}
                     className="btn btn-sm btn-primary flex-1"
                   >
                     {t('common.edit')}

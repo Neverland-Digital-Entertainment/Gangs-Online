@@ -52,10 +52,10 @@ export function ShopForm({ shop, mode }: ShopFormProps) {
 
       if (mode === 'create') {
         const shopId = await shopService.createShop(formData);
-        router.push(`/shop/${shopId}`);
+        router.push(`/shop/edit?id=${shopId}`);
       } else if (shop) {
         await shopService.updateShop(shop.id, formData);
-        router.push(`/shop/${shop.id}`);
+        router.push(`/shop/edit?id=${shop.id}`);
       }
     } catch (err: any) {
       console.error('Failed to save shop:', err);
