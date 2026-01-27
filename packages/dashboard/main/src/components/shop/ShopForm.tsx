@@ -65,8 +65,8 @@ export function ShopForm({ shop, mode }: ShopFormProps) {
     }
   };
 
-  const handleAddItem = (itemConfig: ShopItemConfig) => {
-    setItemList([...itemList, itemConfig]);
+  const handleAddItems = (itemConfigs: ShopItemConfig[]) => {
+    setItemList([...itemList, ...itemConfigs]);
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -187,7 +187,7 @@ export function ShopForm({ shop, mode }: ShopFormProps) {
       {showItemSelector && (
         <ItemSelector
           existingItemIds={existingItemIds}
-          onAddItem={handleAddItem}
+          onAddItems={handleAddItems}
           onClose={() => setShowItemSelector(false)}
         />
       )}

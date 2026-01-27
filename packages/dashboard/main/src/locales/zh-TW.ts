@@ -30,6 +30,7 @@ export default {
   'common.none': '無',
   'common.total': '共',
   'common.items': '項',
+  'common.selected': '已選擇',
   'common.required': '必填',
   'common.optional': '選填',
   'common.description': '描述',
@@ -185,6 +186,12 @@ export default {
   'shop.saveFailed': '儲存失敗',
   'shop.saving': '儲存中...',
   'shop.creating': '建立中...',
+  'shop.defaultConfiguration': '預設配置',
+  'shop.configurationHint': '這些設定將套用至所有選擇的商品',
+  'shop.selectedItems': '已選擇商品',
+  'shop.unlimited': '無限',
+  'shop.stock': '庫存',
+  'shop.limit': '限購',
 
   // NPC Management
   'npc.title': 'NPC 管理',

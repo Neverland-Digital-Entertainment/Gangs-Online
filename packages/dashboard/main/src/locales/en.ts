@@ -30,6 +30,7 @@ export default {
   'common.none': 'None',
   'common.total': 'Total',
   'common.items': 'items',
+  'common.selected': 'Selected',
   'common.required': 'Required',
   'common.optional': 'Optional',
   'common.description': 'Description',
@@ -185,6 +186,12 @@ export default {
   'shop.saveFailed': 'Failed to save',
   'shop.saving': 'Saving...',
   'shop.creating': 'Creating...',
+  'shop.defaultConfiguration': 'Default Configuration',
+  'shop.configurationHint': 'These settings will apply to all selected items',
+  'shop.selectedItems': 'Selected Items',
+  'shop.unlimited': 'Unlimited',
+  'shop.stock': 'Stock',
+  'shop.limit': 'Limit',
 
   // NPC Management
   'npc.title': 'NPC Management',

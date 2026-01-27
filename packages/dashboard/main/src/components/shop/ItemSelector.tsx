@@ -4,22 +4,28 @@ import { useState, useEffect } from 'react';
 import { useI18n } from '@/contexts/i18n-context';
 import { shopService } from '@/lib/shop/shop-service';
 import { getCategoryTranslationKey } from '@/lib/item-helpers';
+import Select from 'react-select';
 import type { ItemForShop, ShopItemConfig } from '@/types/shop';
 
 interface ItemSelectorProps {
   existingItemIds: string[];
-  onAddItem: (itemConfig: ShopItemConfig) => void;
+  onAddItems: (itemConfigs: ShopItemConfig[]) => void;
   onClose: () => void;
 }
 
-export function ItemSelector({ existingItemIds, onAddItem, onClose }: ItemSelectorProps) {
+interface SelectOption {
+  value: string;
+  label: string;
+  item: ItemForShop;
+}
+
+export function ItemSelector({ existingItemIds, onAddItems, onClose }: ItemSelectorProps) {
   const { t } = useI18n();
   const [items, setItems] = useState<ItemForShop[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedItem, setSelectedItem] = useState<ItemForShop | null>(null);
-  const [search, setSearch] = useState('');
+  const [selectedItems, setSelectedItems] = useState<SelectOption[]>([]);
 
-  // Item configuration
+  // Default configuration for all selected items
   const [globalStock, setGlobalStock] = useState(-1);
   const [personalLimit, setPersonalLimit] = useState(0);
   const [priceMultiplier, setPriceMultiplier] = useState(1.0);
@@ -45,23 +51,69 @@ export function ItemSelector({ existingItemIds, onAddItem, onClose }: ItemSelect
   };
 
   const handleAdd = () => {
-    if (!selectedItem) return;
+    if (selectedItems.length === 0) return;
 
-    const itemConfig: ShopItemConfig = {
-      itemId: selectedItem.id,
+    const itemConfigs: ShopItemConfig[] = selectedItems.map((option) => ({
+      itemId: option.item.id,
       globalStock,
       personalLimit,
       priceMultiplier: priceMultiplier !== 1.0 ? priceMultiplier : undefined,
-    };
+    }));
 
-    onAddItem(itemConfig);
+    onAddItems(itemConfigs);
     onClose();
   };
 
-  const filteredItems = items.filter((item) =>
-    item.name.toLowerCase().includes(search.toLowerCase()) ||
-    item.description.toLowerCase().includes(search.toLowerCase())
-  );
+  // Convert items to react-select options
+  const options: SelectOption[] = items.map((item) => ({
+    value: item.id,
+    label: `${item.name} ($${item.price}) - ${t(getCategoryTranslationKey(item.category))}`,
+    item,
+  }));
+
+  // Custom styles for react-select to match dashboard theme
+  const customStyles = {
+    control: (provided: any) => ({
+      ...provided,
+      minHeight: '42px',
+      borderRadius: '0.375rem',
+      borderColor: 'var(--border, #d1d5db)',
+      backgroundColor: 'var(--input-bg, white)',
+    }),
+    menu: (provided: any) => ({
+      ...provided,
+      backgroundColor: 'var(--card, white)',
+      borderRadius: '0.375rem',
+      border: '1px solid var(--border, #d1d5db)',
+    }),
+    option: (provided: any, state: any) => ({
+      ...provided,
+      backgroundColor: state.isSelected
+        ? 'var(--primary, #3b82f6)'
+        : state.isFocused
+        ? 'var(--hover-bg, #f3f4f6)'
+        : 'transparent',
+      color: state.isSelected ? 'white' : 'var(--text, black)',
+    }),
+    multiValue: (provided: any) => ({
+      ...provided,
+      backgroundColor: 'var(--primary-light, #dbeafe)',
+      borderRadius: '0.25rem',
+    }),
+    multiValueLabel: (provided: any) => ({
+      ...provided,
+      color: 'var(--primary, #3b82f6)',
+      fontWeight: '500',
+    }),
+    multiValueRemove: (provided: any) => ({
+      ...provided,
+      color: 'var(--primary, #3b82f6)',
+      ':hover': {
+        backgroundColor: 'var(--primary, #3b82f6)',
+        color: 'white',
+      },
+    }),
+  };
 
   if (loading) {
     return (
@@ -75,7 +127,7 @@ export function ItemSelector({ existingItemIds, onAddItem, onClose }: ItemSelect
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content max-w-4xl" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content max-w-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">{t('shop.addItem')}</h2>
           <button onClick={onClose} className="btn-close">
@@ -83,137 +135,126 @@ export function ItemSelector({ existingItemIds, onAddItem, onClose }: ItemSelect
           </button>
         </div>
 
-        <div className="modal-body">
-          {/* Search */}
-          <div className="mb-4">
-            <input
-              type="text"
+        <div className="modal-body space-y-6">
+          {/* Item Selection with Search */}
+          <div>
+            <label className="form-label mb-2 block">
+              {t('shop.selectItem')} *
+            </label>
+            <Select
+              isMulti
+              options={options}
+              value={selectedItems}
+              onChange={(selected) => setSelectedItems(selected as SelectOption[])}
               placeholder={t('item.searchPlaceholder')}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input w-full"
+              noOptionsMessage={() => t('item.noItems')}
+              styles={customStyles}
+              isSearchable
+              className="react-select-container"
+              classNamePrefix="react-select"
             />
+            <p className="text-sm text-gray-600 mt-2">
+              {t('common.total')}: {items.length} {t('common.items')}
+              {selectedItems.length > 0 && ` | ${t('common.selected')}: ${selectedItems.length}`}
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Item List */}
-            <div className="border rounded-lg p-4 max-h-96 overflow-y-auto">
-              <h3 className="font-semibold mb-2">{t('shop.selectItem')}</h3>
-              {filteredItems.length === 0 ? (
-                <p className="text-gray-500">{t('item.noItems')}</p>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {filteredItems.map((item) => (
+          {/* Default Configuration for All Selected Items */}
+          {selectedItems.length > 0 && (
+            <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
+              <h3 className="font-semibold mb-4">
+                {t('shop.defaultConfiguration')}
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                {t('shop.configurationHint')}
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Global Stock */}
+                <div>
+                  <label className="form-label">{t('shop.globalStock')}</label>
+                  <input
+                    type="number"
+                    value={globalStock}
+                    onChange={(e) => setGlobalStock(Number(e.target.value))}
+                    className="input w-full"
+                    min={-1}
+                  />
+                  <span className="form-hint text-xs">{t('shop.globalStockHint')}</span>
+                </div>
+
+                {/* Personal Limit */}
+                <div>
+                  <label className="form-label">{t('shop.personalLimit')}</label>
+                  <input
+                    type="number"
+                    value={personalLimit}
+                    onChange={(e) => setPersonalLimit(Number(e.target.value))}
+                    className="input w-full"
+                    min={0}
+                  />
+                  <span className="form-hint text-xs">{t('shop.personalLimitHint')}</span>
+                </div>
+
+                {/* Price Multiplier */}
+                <div>
+                  <label className="form-label">{t('shop.priceMultiplier')}</label>
+                  <input
+                    type="number"
+                    value={priceMultiplier}
+                    onChange={(e) => setPriceMultiplier(Number(e.target.value))}
+                    className="input w-full"
+                    min={0.1}
+                    step={0.1}
+                  />
+                  <span className="form-hint text-xs">{t('shop.priceMultiplierHint')}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Selected Items Preview */}
+          {selectedItems.length > 0 && (
+            <div className="border rounded-lg p-4">
+              <h3 className="font-semibold mb-3">
+                {t('shop.selectedItems')} ({selectedItems.length})
+              </h3>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {selectedItems.map((option) => {
+                  const finalPrice = Math.floor(option.item.price * priceMultiplier);
+                  return (
                     <div
-                      key={item.id}
-                      onClick={() => setSelectedItem(item)}
-                      className={`
-                        p-3 border rounded cursor-pointer transition-colors
-                        ${selectedItem?.id === item.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-300 hover:border-blue-300'
-                        }
-                      `}
+                      key={option.item.id}
+                      className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800/50 rounded"
                     >
-                      <div className="flex items-start gap-3">
-                        {item.imageUrl && (
+                      <div className="flex items-center gap-3 flex-1">
+                        {option.item.imageUrl && (
                           <img
-                            src={item.imageUrl}
-                            alt={item.name}
-                            className="w-12 h-12 object-cover rounded"
+                            src={option.item.imageUrl}
+                            alt={option.item.name}
+                            className="w-10 h-10 object-cover rounded"
                           />
                         )}
-                        <div className="flex-1">
-                          <h4 className="font-medium">{item.name}</h4>
-                          <p className="text-sm text-gray-600 line-clamp-1">
-                            {item.description}
+                        <div>
+                          <h4 className="font-medium text-sm">{option.item.name}</h4>
+                          <p className="text-xs text-gray-600">
+                            {t(getCategoryTranslationKey(option.item.category))}
                           </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-sm text-gray-500">
-                              {t(getCategoryTranslationKey(item.category))}
-                            </span>
-                            <span className="text-sm font-semibold">
-                              ${item.price}
-                            </span>
-                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold">${finalPrice}</div>
+                        <div className="text-xs text-gray-600">
+                          {globalStock === -1 ? t('shop.unlimited') : `${t('shop.stock')}: ${globalStock}`}
+                          {personalLimit > 0 && ` | ${t('shop.limit')}: ${personalLimit}`}
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </div>
-
-            {/* Configuration */}
-            <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-4">
-                {selectedItem ? selectedItem.name : t('shop.selectItem')}
-              </h3>
-
-              {selectedItem ? (
-                <div className="flex flex-col gap-4">
-                  {/* Global Stock */}
-                  <div>
-                    <label className="form-label">{t('shop.globalStock')}</label>
-                    <input
-                      type="number"
-                      value={globalStock}
-                      onChange={(e) => setGlobalStock(Number(e.target.value))}
-                      className="input w-full"
-                      min={-1}
-                    />
-                    <span className="form-hint">{t('shop.globalStockHint')}</span>
-                  </div>
-
-                  {/* Personal Limit */}
-                  <div>
-                    <label className="form-label">{t('shop.personalLimit')}</label>
-                    <input
-                      type="number"
-                      value={personalLimit}
-                      onChange={(e) => setPersonalLimit(Number(e.target.value))}
-                      className="input w-full"
-                      min={0}
-                    />
-                    <span className="form-hint">{t('shop.personalLimitHint')}</span>
-                  </div>
-
-                  {/* Price Multiplier */}
-                  <div>
-                    <label className="form-label">{t('shop.priceMultiplier')}</label>
-                    <input
-                      type="number"
-                      value={priceMultiplier}
-                      onChange={(e) => setPriceMultiplier(Number(e.target.value))}
-                      className="input w-full"
-                      min={0.1}
-                      step={0.1}
-                    />
-                    <span className="form-hint">{t('shop.priceMultiplierHint')}</span>
-                  </div>
-
-                  {/* Preview Price */}
-                  <div className="bg-gray-100 p-3 rounded">
-                    <div className="text-sm text-gray-600">{t('common.price')}</div>
-                    <div className="flex items-baseline gap-2">
-                      {priceMultiplier !== 1.0 && (
-                        <span className="text-sm line-through text-gray-500">
-                          ${selectedItem.price}
-                        </span>
-                      )}
-                      <span className="text-lg font-bold">
-                        ${Math.floor(selectedItem.price * priceMultiplier)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-8">
-                  {t('shop.selectItem')}
-                </p>
-              )}
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="modal-footer">
@@ -222,10 +263,10 @@ export function ItemSelector({ existingItemIds, onAddItem, onClose }: ItemSelect
           </button>
           <button
             onClick={handleAdd}
-            disabled={!selectedItem}
+            disabled={selectedItems.length === 0}
             className="btn btn-primary"
           >
-            {t('common.add')}
+            {t('common.add')} ({selectedItems.length})
           </button>
         </div>
       </div>
