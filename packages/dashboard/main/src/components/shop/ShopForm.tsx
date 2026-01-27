@@ -133,7 +133,7 @@ export function ShopForm({ shop, mode }: ShopFormProps) {
   // Convert to react-select options
   const options: SelectOption[] = filteredItems.map((item) => ({
     value: item.id,
-    label: `${item.name} ($${item.price}) - ${t(getCategoryTranslationKey(item.category))}`,
+    label: `${item.name} ($${item.price}) - ${t(getCategoryTranslationKey(item.category))}${!item.isActive ? ' [停用]' : ''}`,
     item,
   }));
 

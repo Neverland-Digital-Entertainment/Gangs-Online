@@ -277,13 +277,15 @@ export class ShopService {
 
   /**
    * Get all available items for shop item selector
+   * Note: Returns all items regardless of active status
+   * Active/inactive filtering should be done on server/client side
    */
   async getAvailableItems(): Promise<ItemForShop[]> {
     const { db } = getFirebaseServices();
     const itemsRef = collection(db, ITEMS_COLLECTION);
 
-    // Only get active items
-    const q = query(itemsRef, where('isActive', '==', true), orderBy('name', 'asc'));
+    // Get all items, sorted by name
+    const q = query(itemsRef, orderBy('name', 'asc'));
     const snapshot = await getDocs(q);
 
     return snapshot.docs.map((doc) => {
