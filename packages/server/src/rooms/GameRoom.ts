@@ -1,6 +1,6 @@
 import { Room, Client } from "colyseus";
 import { GameState, Player, Item } from "./schema/GameState";
-import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle, IQuestDef, ChatMessageType, IChatMessage, EVIL_VALUE_CONSTANTS } from "@gangs-online/shared";
+import { IPlayerInput, GAME_CONSTANTS, EntityType, getRankTitle, IQuestDef, ChatMessageType, IChatMessage, EVIL_VALUE_CONSTANTS, IPurchaseRequest, IPurchaseResponse } from "@gangs-online/shared";
 import { EnemyManager } from "../systems/EnemyManager";
 import { ProgressionSystem } from "../systems/ProgressionSystem";
 import { LootSystem } from "../systems/LootSystem"; // Phase 8
@@ -10,6 +10,8 @@ import { NPCManager } from "../systems/NPCManager"; // Phase 9
 import { QuestManager } from "../systems/QuestManager"; // Phase 10
 import { initializeFirebase } from "../services/FirebaseService"; // Phase 12
 import { npcService } from "../services/NPCService"; // Phase 16-2
+import { shopService } from "../services/ShopService"; // Phase 16-3
+import { purchaseService } from "../services/PurchaseService"; // Phase 16-3
 import { savePlayer, loadPlayer } from "../data/persistence"; // Phase 12
 import { guildService } from "../services/GuildService"; // Phase 13
 import { chatService } from "../services/ChatService"; // Phase 13
@@ -57,6 +59,16 @@ export class GameRoom extends Room<GameState> {
         // NPC 初始化是非同步的，需要等待完成
         this.npcManager.initialize().catch((err) => {
             console.error("[GameRoom] Failed to initialize NPCs:", err);
+        });
+
+        // Phase 16-3: 初始化商店服務
+        shopService.initialize().catch((err) => {
+            console.error("[GameRoom] Failed to initialize ShopService:", err);
+        });
+
+        // Phase 16-3: 初始化購買服務
+        purchaseService.initialize().catch((err) => {
+            console.error("[GameRoom] Failed to initialize PurchaseService:", err);
         });
 
         // 初始化任務管理系統 (Phase 10)
@@ -445,11 +457,80 @@ export class GameRoom extends Room<GameState> {
             }
         });
 
-        // --- PHASE 9: BUY ITEM HANDLER ---
+        // --- PHASE 9: BUY ITEM HANDLER (Legacy) ---
         this.onMessage("buy", (client, itemId: string) => {
             const player = this.state.players.get(client.sessionId);
             if (player && player.hp > 0) {
                 this.shopSystem.handlePurchase(client, player, itemId);
+            }
+        });
+
+        // --- PHASE 16-3: NEW SHOP PURCHASE HANDLER ---
+        this.onMessage("purchase", async (client, request: IPurchaseRequest) => {
+            const player = this.state.players.get(client.sessionId);
+            if (!player || player.hp <= 0) {
+                client.send("purchaseResult", {
+                    success: false,
+                    message: "無法購買",
+                } as IPurchaseResponse);
+                return;
+            }
+
+            // 檢查玩家是否在監獄中
+            if (player.inPrison) {
+                client.send("purchaseResult", {
+                    success: false,
+                    message: "你在監獄裡不能購物！",
+                } as IPurchaseResponse);
+                return;
+            }
+
+            try {
+                const result = await purchaseService.handlePurchase(client, player, request);
+                client.send("purchaseResult", result);
+            } catch (error) {
+                console.error("[GameRoom] Purchase error:", error);
+                client.send("purchaseResult", {
+                    success: false,
+                    message: "購買失敗，請稍後再試",
+                } as IPurchaseResponse);
+            }
+        });
+
+        // --- PHASE 16-3: OPEN SHOP HANDLER ---
+        this.onMessage("openShop", (client, payload: { npcId: string; shopId: string }) => {
+            const player = this.state.players.get(client.sessionId);
+            if (!player || player.hp <= 0) {
+                return;
+            }
+
+            try {
+                // 獲取商店資料
+                const shop = shopService.getShop(payload.shopId);
+                if (!shop) {
+                    client.send("notification", "找不到這家商店");
+                    return;
+                }
+
+                // 獲取商店中的所有商品
+                const items: any[] = [];
+                shop.itemList.forEach((itemConfig) => {
+                    const item = shopService.getItem(itemConfig.itemId);
+                    if (item) {
+                        items.push(item);
+                    }
+                });
+
+                // 發送商店數據給客戶端
+                client.send("shopData", {
+                    shop,
+                    items,
+                });
+
+                console.log(`🏪 [GameRoom] Sent shop data for ${shop.name} to player ${player.name}`);
+            } catch (error) {
+                console.error("[GameRoom] Failed to send shop data:", error);
+                client.send("notification", "無法載入商店資料");
             }
         });
 

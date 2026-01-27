@@ -243,6 +243,69 @@ scene.onPointerDown = (evt, pickResult) => {
    └─> BasicInfoSection.tsx: t(getCategoryTranslationKey(category))
 ```
 
+### 商店系統購買流程（Phase 16-3）
+
+```
+1. Dashboard 商店管理
+   └─> Dashboard: 創建/編輯商店（ShopForm）
+       └─> 設定基本資訊（名稱、描述、營業時間）
+       └─> 選擇商品（Multi-select）
+       └─> 配置商品（庫存、限購、價格倍率）
+       └─> 保存到 Firebase (shops collection)
+   └─> Dashboard: NPC 關聯商店（InstanceForm）
+       └─> 選擇 linkedShopId
+       └─> 設定 isGuildOnly（公會專屬）
+       └─> 更新 npc_instances
+
+2. Server 啟動
+   └─> ShopService.initialize()
+       └─> 從 Firebase 載入 items collection
+       └─> 從 Firebase 載入 shops collection
+       └─> 組合成 ShopWithItems（含商品資料）
+       └─> 緩存在內存中
+   └─> PurchaseService.initialize()
+       └─> 準備處理購買請求
+
+3. Client 點擊商店 NPC
+   └─> main.ts: 偵測到 NPC 有 linkedShopId
+       └─> hudManager.showShopPopupV2(npcId, shopId, shopName)
+       └─> shopSystemV2.openShop(npcId, shopId)
+       └─> 發送 "openShop" 消息到 Server
+
+4. Server 處理 openShop
+   └─> GameRoom.onMessage("openShop")
+       └─> shopService.getShop(shopId)
+       └─> 獲取商店的所有商品資料
+       └─> 發送 "shopData" 給 Client
+
+5. Client 顯示商店 UI
+   └─> shopSystemV2 接收 "shopData"
+       └─> 更新 currentShop 和 shopItems
+       └─> 刷新 UI（顯示商品、庫存、價格）
+       └─> 檢查營業時間、顯示狀態
+
+6. Client 購買商品
+   └─> 玩家點擊"購買"按鈕
+       └─> shopSystemV2.purchaseItem(itemId, quantity)
+       └─> 發送 "purchase" 消息（IPurchaseRequest）
+
+7. Server 處理購買
+   └─> GameRoom.onMessage("purchase")
+       └─> purchaseService.handlePurchase()
+           └─> 驗證商店狀態（營業時間）
+           └─> 驗證庫存（全局庫存）
+           └─> 檢查個人限購（載入購買記錄）
+           └─> 計算價格（含倍率）
+           └─> 驗證玩家金錢
+           └─> 執行購買（扣錢、更新庫存、記錄）
+           └─> 發送 "purchaseResult" (IPurchaseResponse)
+
+8. Client 處理結果
+   └─> shopSystemV2 接收 "purchaseResult"
+       └─> 成功：顯示通知、刷新 UI
+       └─> 失敗：顯示錯誤訊息
+```
+
 ---
 
 ## 🐛 已知問題和修復歷史
@@ -270,7 +333,18 @@ scene.onPointerDown = (evt, pickResult) => {
 
 ### ✅ 已完成功能
 
-**Phase 16-2 (當前):**
+**Phase 16-3 (當前):**
+- ✅ 動態商店系統（Firebase）
+- ✅ 商店 CRUD（Dashboard 管理界面）
+- ✅ 商店配置（營業時間、庫存、價格倍率）
+- ✅ 購買限制（全局庫存、個人限購）
+- ✅ NPC-商店關聯（linkedShopId）
+- ✅ 公會專屬商店（isGuildOnly）
+- ✅ Server 端購買邏輯（庫存管理、限制驗證）
+- ✅ Client 端商店 UI（ShopSystemV2）
+- ✅ Multi-select 商品選擇器（react-select）
+
+**Phase 16-2:**
 - ✅ NPC 模板和實例管理（Firebase）
 - ✅ NPC 對話系統（DialogueTree）
 - ✅ 多語言支持（i18n）
@@ -292,7 +366,8 @@ scene.onPointerDown = (evt, pickResult) => {
 **高優先級：**
 - [ ] 對話系統動作執行（open_shop, accept_quest）
 - [ ] NPC 商店整合到對話系統
-- [ ] NPC 任務整合到對話系統
+- [ ] 背包系統整合（購買後添加到背包）
+- [ ] 商店庫存重置機制（每日重置）
 
 **中優先級：**
 - [ ] 自定義模型上傳功能
@@ -333,6 +408,25 @@ scene.onPointerDown = (evt, pickResult) => {
   3. 方便快速原型開發
 - **影響：** 需要在多處檢查 undefined 和 "undefined" 字符串
 
+### 為什麼商店系統使用 Firebase 而非硬編碼？（Phase 16.3）
+- **決策：** 動態商店系統（Firebase）取代 `SHOP_ITEMS` 常量
+- **原因：**
+  1. 運營靈活性：不需要部署即可調整商品、價格、庫存
+  2. 多商店支持：不同 NPC 可以銷售不同商品
+  3. 營業時間控制：特定時段限定商品
+  4. 數據持久化：購買記錄、庫存狀態
+- **影響：**
+  - Server 需要在啟動時載入商店數據
+  - Client 需要通過消息獲取商店數據（不能直接訪問）
+
+### 為什麼庫存使用 currentStock 和 globalStock 雙字段？
+- **決策：** `currentStock?: number` 和 `globalStock: number`
+- **原因：**
+  1. `globalStock` 是配置（初始庫存），不變
+  2. `currentStock` 是當前剩餘量，動態變化
+  3. 重置時只需 `currentStock = globalStock`
+- **影響：** 讀取庫存需要：`currentStock ?? globalStock`
+
 ---
 
 ## 🛠️ 常見操作指南
@@ -353,6 +447,30 @@ scene.onPointerDown = (evt, pickResult) => {
 1. `locales/en.ts` 和 `locales/zh-TW.ts` 添加 key
 2. 組件中使用 `t('your.key')`
 3. 對於道具分類等模組化翻譯，使用 `item-helpers.ts` 輔助函數
+
+### 如何創建新商店？（Phase 16.3）
+1. Dashboard: 先創建商品（Items 頁面）
+   - 設定名稱、描述、基礎價格、分類
+2. Dashboard: 創建商店（Shop 頁面）
+   - 設定商店名稱、描述
+   - 設定營業時間（可選，不設定則 24 小時營業）
+   - 使用 Multi-select 選擇要銷售的商品
+   - 為每個商品配置：
+     - 全局庫存（-1 = 無限，0+ = 限量）
+     - 個人限購（0 = 無限制，1+ = 每人限購）
+     - 價格倍率（可選，不設定則使用原價）
+3. Dashboard: 將商店關聯到 NPC
+   - 編輯 NPC Instance
+   - 選擇 linkedShopId
+   - 設定 isGuildOnly（可選）
+4. Server: 重啟後自動載入新商店
+5. Client: 玩家點擊 NPC 即可看到商店
+
+### 如何修改商店配置？
+1. Dashboard: 編輯商店（Shop 頁面 → Edit）
+2. 修改營業時間、新增/移除商品、調整配置
+3. Server: 重啟後生效（庫存數據會重置）
+4. Client: 玩家重新打開商店即可看到更新
 
 ### 如何調試 NPC 模型問題？
 查看瀏覽器控制台日誌：
