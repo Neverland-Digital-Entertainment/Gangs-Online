@@ -83,8 +83,9 @@ export default function InstanceForm({
   async function loadShops() {
     try {
       setLoadingShops(true);
-      // Load all active shops for selection
-      const data = await shopService.getAllShops({ isActive: true });
+      // Load all shops (including inactive ones) for selection
+      // Similar to item selector logic - allow pre-configuration
+      const data = await shopService.getAllShops();
       setShops(data);
     } catch (err) {
       console.error('Failed to load shops:', err);
@@ -634,7 +635,7 @@ export default function InstanceForm({
                 <option value="">{t('npc.instance.selectPlaceholder')}</option>
                 {shops.map((shop) => (
                   <option key={shop.id} value={shop.id}>
-                    {shop.name} {shop.operatingHours ? `(${shop.operatingHours.start}:00-${shop.operatingHours.end}:00)` : '(24h)'}
+                    {shop.name} {shop.operatingHours ? `(${shop.operatingHours.start}:00-${shop.operatingHours.end}:00)` : '(24h)'}{!shop.isActive ? ' [停用]' : ''}
                   </option>
                 ))}
               </select>
