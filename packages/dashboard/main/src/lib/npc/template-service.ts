@@ -26,16 +26,43 @@ import type {
 const COLLECTION_NAME = 'npc_templates';
 
 /**
- * Remove undefined values from an object to avoid Firebase errors
+ * Recursively remove undefined values from an object to avoid Firebase errors
  * Firebase doesn't accept undefined values, only null or valid values
+ * Handles nested objects and arrays (e.g., dialogueTree structure)
  */
 function removeUndefinedFields<T extends Record<string, any>>(obj: T): Partial<T> {
   const cleaned: any = {};
+
   for (const key in obj) {
-    if (obj[key] !== undefined) {
-      cleaned[key] = obj[key];
+    const value = obj[key];
+
+    if (value === undefined) {
+      continue;
+    } else if (Array.isArray(value)) {
+      // Recursively clean arrays
+      cleaned[key] = value.map((item: any) => {
+        if (typeof item === 'object' && item !== null) {
+          return removeUndefinedFields(item);
+        }
+        return item;
+      });
+    } else if (typeof value === 'object' && value !== null) {
+      // Check if it's a Date or Timestamp
+      const isDate = (value as any) instanceof Date;
+      const isTimestamp = (value as any).constructor?.name === 'Timestamp';
+
+      if (!isDate && !isTimestamp) {
+        // Recursively clean nested objects
+        cleaned[key] = removeUndefinedFields(value);
+      } else {
+        // Keep Date and Timestamp as-is
+        cleaned[key] = value;
+      }
+    } else {
+      cleaned[key] = value;
     }
   }
+
   return cleaned;
 }
 

@@ -294,7 +294,7 @@ export default function NpcTemplatesPage() {
 
                     <div className="flex flex-wrap gap-4 text-sm text-[var(--muted-foreground)]">
                       <div>
-                        {t('npc.template.modelId')}: <span className="font-mono">{template.modelId}</span>
+                        {t('npc.template.modelId')}: <span className="font-mono">{template.modelId || t('common.default')}</span>
                       </div>
                       <div>
                         {t('npc.template.hp')}: <span className="font-semibold">{template.baseHp}</span>

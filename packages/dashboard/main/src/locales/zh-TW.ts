@@ -26,6 +26,7 @@ export default {
   'common.reset': '重置',
   'common.submit': '提交',
   'common.clear': '清除',
+  'common.default': '預設',
   'common.all': '全部',
   'common.none': '無',
   'common.total': '共',

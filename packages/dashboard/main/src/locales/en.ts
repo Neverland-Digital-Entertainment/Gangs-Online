@@ -26,6 +26,7 @@ export default {
   'common.reset': 'Reset',
   'common.submit': 'Submit',
   'common.clear': 'Clear',
+  'common.default': 'Default',
   'common.all': 'All',
   'common.none': 'None',
   'common.total': 'Total',
