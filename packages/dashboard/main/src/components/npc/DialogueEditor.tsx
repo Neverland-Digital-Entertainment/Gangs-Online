@@ -357,9 +357,9 @@ export default function DialogueEditor({
                         {node.nodeId === tree.startNodeId && (
                           <span className="badge badge-primary text-xs">起始</span>
                         )}
-                        {node.actionType && (
+                        {node.actionType && ACTION_TYPE_LABELS[node.actionType as keyof typeof ACTION_TYPE_LABELS] && (
                           <span className="badge badge-gray text-xs">
-                            {ACTION_TYPE_LABELS[node.actionType]}
+                            {ACTION_TYPE_LABELS[node.actionType as keyof typeof ACTION_TYPE_LABELS]}
                           </span>
                         )}
                       </div>
