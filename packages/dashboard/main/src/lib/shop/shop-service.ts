@@ -104,8 +104,8 @@ export class ShopService {
       return {
         id: doc.id,
         ...data,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date(),
+        createdAt: this.convertToDate(data.createdAt),
+        updatedAt: this.convertToDate(data.updatedAt),
       } as Shop;
     });
 
@@ -137,9 +137,32 @@ export class ShopService {
     return {
       id: shopDoc.id,
       ...data,
-      createdAt: data.createdAt?.toDate() || new Date(),
-      updatedAt: data.updatedAt?.toDate() || new Date(),
+      createdAt: this.convertToDate(data.createdAt),
+      updatedAt: this.convertToDate(data.updatedAt),
     } as Shop;
+  }
+
+  /**
+   * Safely convert Firestore Timestamp or Date to JavaScript Date
+   */
+  private convertToDate(value: any): Date {
+    // Already a Date object
+    if (value instanceof Date) {
+      return value;
+    }
+
+    // Firestore Timestamp with toDate() method
+    if (value && typeof value.toDate === 'function') {
+      return value.toDate();
+    }
+
+    // Firestore Timestamp as plain object with seconds
+    if (value && typeof value.seconds === 'number') {
+      return new Date(value.seconds * 1000);
+    }
+
+    // Fallback to current date
+    return new Date();
   }
 
   /**
