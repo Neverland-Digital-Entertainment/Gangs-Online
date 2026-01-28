@@ -254,11 +254,14 @@ export default {
   'npc.template.noDialogue': 'No dialogue tree configured',
   'npc.template.noDialogueTree': 'No dialogue tree configured',
   'npc.template.hasDialogue': 'Dialogue tree configured with',
+  'npc.template.dialogueTreeSet': 'Dialogue tree configured with',
   'npc.template.nodes': 'nodes',
   'npc.template.createDialogue': 'Create Dialogue Tree',
   'npc.template.createDialogueTree': 'Create Dialogue Tree',
   'npc.template.editDialogue': 'Edit Dialogue Tree',
+  'npc.template.editDialogueTree': 'Edit Dialogue Tree',
   'npc.template.removeDialogue': 'Remove Dialogue Tree',
+  'npc.template.removeDialogueTree': 'Remove Dialogue Tree',
   'npc.template.updateTemplate': 'Update Template',
   'npc.template.createTemplate': 'Create Template',
   'npc.template.backToList': 'Back to Template List',
@@ -268,6 +271,7 @@ export default {
 
   // NPC Instance Form
   'npc.instance.templateSelection': 'NPC Template',
+  'npc.instance.template': 'NPC Template',
   'npc.instance.selectTemplate': 'Select Template',
   'npc.instance.selectPlaceholder': 'Please select...',
   'npc.instance.level': 'Level',

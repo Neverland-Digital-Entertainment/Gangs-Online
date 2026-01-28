@@ -254,11 +254,14 @@ export default {
   'npc.template.noDialogue': '尚未設定對話樹',
   'npc.template.noDialogueTree': '尚未設定對話樹',
   'npc.template.hasDialogue': '已設定對話樹，包含',
+  'npc.template.dialogueTreeSet': '已設定對話樹，包含',
   'npc.template.nodes': '個節點',
   'npc.template.createDialogue': '建立對話樹',
   'npc.template.createDialogueTree': '建立對話樹',
   'npc.template.editDialogue': '編輯對話樹',
+  'npc.template.editDialogueTree': '編輯對話樹',
   'npc.template.removeDialogue': '移除對話樹',
+  'npc.template.removeDialogueTree': '移除對話樹',
   'npc.template.updateTemplate': '更新模板',
   'npc.template.createTemplate': '建立模板',
   'npc.template.backToList': '返回模板列表',
@@ -268,6 +271,7 @@ export default {
 
   // NPC Instance Form
   'npc.instance.templateSelection': 'NPC 模板',
+  'npc.instance.template': 'NPC 模板',
   'npc.instance.selectTemplate': '選擇模板',
   'npc.instance.selectPlaceholder': '請選擇...',
   'npc.instance.level': '等級',
