@@ -20,7 +20,6 @@ import type {
   NpcTemplate,
   MovementPattern,
 } from '@/types/npc';
-import { MOVEMENT_PATTERN_LABELS } from '@/types/npc';
 
 export default function InstancesPage() {
   const { t } = useI18n();
@@ -238,9 +237,9 @@ export default function InstancesPage() {
                 }
               >
                 <option value="">{t('common.all')}</option>
-                {Object.entries(MOVEMENT_PATTERN_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
+                {(['STATIC', 'WANDERING', 'PATROLLING'] as const).map((pattern) => (
+                  <option key={pattern} value={pattern}>
+                    {t(`npc.movementPattern.${pattern}`)}
                   </option>
                 ))}
               </select>
@@ -312,7 +311,7 @@ export default function InstancesPage() {
                         Lv.{instance.level}
                       </span>
                       <span className="badge badge-gray flex-shrink-0">
-                        {MOVEMENT_PATTERN_LABELS[instance.movementPattern]}
+                        {t(`npc.movementPattern.${instance.movementPattern}`)}
                       </span>
                       <span
                         className={`px-2 py-1 text-xs font-medium rounded shadow flex-shrink-0 ${

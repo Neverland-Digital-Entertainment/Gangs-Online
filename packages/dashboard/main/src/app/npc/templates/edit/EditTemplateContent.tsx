@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import TemplateForm from '@/components/npc/TemplateForm';
 import { npcTemplateService } from '@/lib/npc/template-service';
 import type { NpcTemplate } from '@/types/npc';
 
 export default function EditTemplateContent() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
@@ -19,7 +21,7 @@ export default function EditTemplateContent() {
 
   useEffect(() => {
     if (!id) {
-      setError('缺少 NPC 模板 ID');
+      setError(t('npc.template.missingId'));
       setLoading(false);
       return;
     }
@@ -34,13 +36,13 @@ export default function EditTemplateContent() {
       setError(null);
       const data = await npcTemplateService.getTemplateById(id);
       if (!data) {
-        setError('找不到指定的 NPC 模板');
+        setError(t('npc.template.notFound'));
       } else {
         setTemplate(data);
       }
     } catch (err) {
-      console.error('載入 NPC 模板失敗:', err);
-      setError('載入失敗，請稍後再試');
+      console.error(t('npc.template.loadError'), err);
+      setError(t('npc.template.loadErrorTryAgain'));
     } finally {
       setLoading(false);
     }
@@ -52,7 +54,7 @@ export default function EditTemplateContent() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-[var(--muted-foreground)]">載入中...</p>
+            <p className="text-[var(--muted-foreground)]">{t('npc.template.loading')}</p>
           </div>
         </div>
       </div>
@@ -68,7 +70,7 @@ export default function EditTemplateContent() {
             className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
-            返回模板列表
+            {t('npc.template.backToList')}
           </Link>
         </div>
 
@@ -78,14 +80,14 @@ export default function EditTemplateContent() {
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-red-900 dark:text-red-100 mb-1">
-                  載入失敗
+                  {t('npc.template.loadFailed')}
                 </h3>
                 <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
                 <button
                   onClick={loadTemplate}
                   className="btn btn-sm btn-outline mt-3"
                 >
-                  重新載入
+                  {t('npc.template.reload')}
                 </button>
               </div>
             </div>
@@ -103,13 +105,13 @@ export default function EditTemplateContent() {
           className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          返回模板列表
+          {t('npc.template.backToList')}
         </Link>
         <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">
-          編輯 NPC 模板
+          {t('npc.template.editTitle')}
         </h1>
         <p className="text-[var(--muted-foreground)]">
-          修改 NPC 模板設定：{template.name}
+          {t('npc.template.editSubtitle')}: {template.name}
         </p>
       </div>
 

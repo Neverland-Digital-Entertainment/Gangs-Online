@@ -232,6 +232,51 @@ export default {
   'npc.instances.searchPlaceholder': '搜尋模板名稱、地圖 ID...',
 
   // NPC Template Form
+  // NPC Type Labels
+  'npc.type.CITIZEN': '市民',
+  'npc.type.POLICE': '警察',
+  'npc.type.GANGS': '幫派成員',
+  'npc.type.SHOP': '商店老闆',
+  'npc.type.QUEST': '任務 NPC',
+
+  // NPC Combat Type Labels
+  'npc.combatType.MELEE': '近戰',
+  'npc.combatType.RANGED': '遠程',
+
+  // NPC Movement Pattern Labels
+  'npc.movementPattern.STATIC': '靜止',
+  'npc.movementPattern.WANDERING': '徘徊',
+  'npc.movementPattern.PATROLLING': '巡邏',
+
+  // NPC Action Type Labels
+  'npc.actionType.open_shop': '開啟商店',
+  'npc.actionType.accept_quest': '接受任務',
+  'npc.actionType.end_dialogue': '結束對話',
+
+  // NPC Dialogue Editor
+  'npc.dialogueEditor.title': '對話樹編輯器',
+  'npc.dialogueEditor.addNode': '新增節點',
+  'npc.dialogueEditor.startNode': '起始節點',
+  'npc.dialogueEditor.speaker': '發言者',
+  'npc.dialogueEditor.content': '對話內容',
+  'npc.dialogueEditor.actionType': '動作類型',
+  'npc.dialogueEditor.actionData': '動作資料',
+  'npc.dialogueEditor.actionDataPlaceholder': '{"shopId": "shop_001"}',
+  'npc.dialogueEditor.playerOptions': '玩家選項',
+  'npc.dialogueEditor.addOption': '新增選項',
+  'npc.dialogueEditor.saveTree': '儲存對話樹',
+  'npc.dialogueEditor.cancel': '取消',
+  'npc.dialogueEditor.editNode': '編輯節點',
+  'npc.dialogueEditor.save': '儲存',
+  'npc.dialogueEditor.start': '起始',
+  'npc.dialogueEditor.noAction': '無動作',
+  'npc.dialogueEditor.optionText': '選項文字',
+  'npc.dialogueEditor.cannotDeleteStart': '無法刪除起始節點',
+  'npc.dialogueEditor.newDialogueContent': '新對話內容',
+  'npc.dialogueEditor.newOption': '新選項',
+  'npc.dialogueEditor.defaultGreeting': '你好！',
+
+  // NPC Template Form
   'npc.template.basicInfo': '基本資訊',
   'npc.template.name': '模板名稱',
   'npc.template.namePlaceholder': '例如：友善市民、巡邏警察',
@@ -269,6 +314,12 @@ export default {
   'npc.template.loadFailed': '載入失敗',
   'npc.template.notFound': '找不到指定的 NPC 模板',
   'npc.template.missingId': '缺少 NPC 模板 ID',
+  'npc.template.editTitle': '編輯 NPC 模板',
+  'npc.template.editSubtitle': '修改 NPC 模板設定',
+  'npc.template.loading': '載入中...',
+  'npc.template.loadError': '載入 NPC 模板失敗',
+  'npc.template.loadErrorTryAgain': '載入失敗，請稍後再試',
+  'npc.template.reload': '重新載入',
 
   // NPC Instance Form
   'npc.instance.templateSelection': 'NPC 模板',

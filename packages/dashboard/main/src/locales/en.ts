@@ -231,6 +231,50 @@ export default {
   'npc.instances.createFirst': 'Create your first instance',
   'npc.instances.searchPlaceholder': 'Search template name, map ID...',
 
+  // NPC Type Labels
+  'npc.type.CITIZEN': 'Citizen',
+  'npc.type.POLICE': 'Police',
+  'npc.type.GANGS': 'Gang Member',
+  'npc.type.SHOP': 'Shop Owner',
+  'npc.type.QUEST': 'Quest NPC',
+
+  // NPC Combat Type Labels
+  'npc.combatType.MELEE': 'Melee',
+  'npc.combatType.RANGED': 'Ranged',
+
+  // NPC Movement Pattern Labels
+  'npc.movementPattern.STATIC': 'Static',
+  'npc.movementPattern.WANDERING': 'Wandering',
+  'npc.movementPattern.PATROLLING': 'Patrolling',
+
+  // NPC Action Type Labels
+  'npc.actionType.open_shop': 'Open Shop',
+  'npc.actionType.accept_quest': 'Accept Quest',
+  'npc.actionType.end_dialogue': 'End Dialogue',
+
+  // NPC Dialogue Editor
+  'npc.dialogueEditor.title': 'Dialogue Tree Editor',
+  'npc.dialogueEditor.addNode': 'Add Node',
+  'npc.dialogueEditor.startNode': 'Start Node',
+  'npc.dialogueEditor.speaker': 'Speaker',
+  'npc.dialogueEditor.content': 'Content',
+  'npc.dialogueEditor.actionType': 'Action Type',
+  'npc.dialogueEditor.actionData': 'Action Data',
+  'npc.dialogueEditor.actionDataPlaceholder': '{"shopId": "shop_001"}',
+  'npc.dialogueEditor.playerOptions': 'Player Options',
+  'npc.dialogueEditor.addOption': 'Add Option',
+  'npc.dialogueEditor.saveTree': 'Save Dialogue Tree',
+  'npc.dialogueEditor.cancel': 'Cancel',
+  'npc.dialogueEditor.editNode': 'Edit Node',
+  'npc.dialogueEditor.save': 'Save',
+  'npc.dialogueEditor.start': 'Start',
+  'npc.dialogueEditor.noAction': 'No Action',
+  'npc.dialogueEditor.optionText': 'Option Text',
+  'npc.dialogueEditor.cannotDeleteStart': 'Cannot delete start node',
+  'npc.dialogueEditor.newDialogueContent': 'New dialogue content',
+  'npc.dialogueEditor.newOption': 'New option',
+  'npc.dialogueEditor.defaultGreeting': 'Hello!',
+
   // NPC Template Form
   'npc.template.basicInfo': 'Basic Information',
   'npc.template.name': 'Template Name',
@@ -269,6 +313,12 @@ export default {
   'npc.template.loadFailed': 'Failed to load',
   'npc.template.notFound': 'NPC template not found',
   'npc.template.missingId': 'Missing NPC template ID',
+  'npc.template.editTitle': 'Edit NPC Template',
+  'npc.template.editSubtitle': 'Modify NPC template settings',
+  'npc.template.loading': 'Loading...',
+  'npc.template.loadError': 'Failed to load NPC template',
+  'npc.template.loadErrorTryAgain': 'Failed to load, please try again later',
+  'npc.template.reload': 'Reload',
 
   // NPC Instance Form
   'npc.instance.templateSelection': 'NPC Template',

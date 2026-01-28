@@ -18,7 +18,6 @@ import type {
   NpcTemplateFilter,
   NpcType,
 } from '@/types/npc';
-import { NPC_TYPE_LABELS } from '@/types/npc';
 
 export default function NpcTemplatesPage() {
   const { t } = useI18n();
@@ -202,9 +201,9 @@ export default function NpcTemplatesPage() {
                 }
               >
                 <option value="">{t('common.all')}</option>
-                {Object.entries(NPC_TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
+                {(['CITIZEN', 'POLICE', 'GANGS', 'SHOP', 'QUEST'] as const).map((type) => (
+                  <option key={type} value={type}>
+                    {t(`npc.type.${type}`)}
                   </option>
                 ))}
               </select>
@@ -273,7 +272,7 @@ export default function NpcTemplatesPage() {
                         {template.name}
                       </h3>
                       <span className="badge badge-primary flex-shrink-0">
-                        {NPC_TYPE_LABELS[template.type]}
+                        {t(`npc.type.${template.type}`)}
                       </span>
                       <span
                         className={`px-2 py-1 text-xs font-medium rounded shadow flex-shrink-0 ${

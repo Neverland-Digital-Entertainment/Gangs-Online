@@ -11,7 +11,6 @@ import type {
   MovementPattern,
   Position,
 } from '@/types/npc';
-import { MOVEMENT_PATTERN_LABELS } from '@/types/npc';
 import { npcInstanceService } from '@/lib/npc/instance-service';
 import { npcTemplateService } from '@/lib/npc/template-service';
 import { shopService } from '@/lib/shop/shop-service';
@@ -419,9 +418,9 @@ export default function InstanceForm({
                 })
               }
             >
-              {Object.entries(MOVEMENT_PATTERN_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              {(['STATIC', 'WANDERING', 'PATROLLING'] as const).map((pattern) => (
+                <option key={pattern} value={pattern}>
+                  {t(`npc.movementPattern.${pattern}`)}
                 </option>
               ))}
             </select>
