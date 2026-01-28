@@ -648,6 +648,229 @@ scene.onPointerDown = (evt, pickResult) => {
 3. 停用商品應該顯示 `[停用]` 標記
 4. 檢查瀏覽器控制台是否有載入錯誤
 
+### NPC 對話樹無法保存（Phase 16.3 後續修復）
+1. 檢查 `removeUndefinedFields()` 函數是否為**遞迴版本**
+2. 確認遞迴函數正確處理：
+   - 巢狀物件（dialogueTree.nodes）
+   - 巢狀陣列（node.options）
+   - Date 和 Timestamp 物件（不要遞迴處理）
+3. 參考 `shop-service.ts` 中的實現模式
+4. 檢查 Firebase 錯誤訊息中指出的具體字段路徑
+
+### NPC 對話樹在 Firebase 存在但 UI 不顯示（Phase 16.3 後續修復）
+1. 檢查 `formData` 初始化是否包含 `dialogueTree` 字段
+2. 確認有 `useEffect` 監聽 `template` prop 並更新 `formData`
+3. 檢查 `TemplateForm.tsx` 中的 useEffect 依賴陣列
+4. 驗證 Firebase Console 中的 dialogueTree 結構是否完整
+5. 檢查瀏覽器控制台是否有解析錯誤
+
+### NPC 相關翻譯顯示為 key（Phase 16.3 後續修復）
+問題：UI 顯示 `npc.type.CITIZEN` 而不是「市民」
+1. 確認 `locales/zh-TW.ts` 和 `locales/en.ts` 有對應翻譯 key
+2. 檢查組件是否使用 `t(\`npc.type.${type}\`)` 而不是硬編碼常數
+3. 確認移除了硬編碼的 `NPC_TYPE_LABELS`、`MOVEMENT_PATTERN_LABELS` 等常數
+4. 檢查 `useI18n()` hook 是否正確導入和使用
+
+### Dashboard Build 失敗：Module not found 'react-i18next'（Phase 16.3 後續修復）
+錯誤：`Can't resolve 'react-i18next'`
+1. 專案使用 `@/contexts/i18n-context` 而不是 `react-i18next`
+2. 將 `import { useTranslation } from 'react-i18next'` 改為：
+   ```typescript
+   import { useI18n } from '@/contexts/i18n-context';
+   const { t } = useI18n();
+   ```
+3. 檢查所有新增或修改的組件是否使用正確的 import
+
+---
+
+## 🔄 Phase 16.3 後續改進總結
+
+### 修復的問題（2026-01-28）
+
+#### 1. NPC 對話樹數據完整性問題
+**問題：** 對話樹無法保存到 Firebase，錯誤：`Unsupported field value: undefined`
+**原因：** `removeUndefinedFields()` 只清理頂層字段，未處理巢狀結構
+**解決方案：**
+- 重構 `removeUndefinedFields()` 為遞迴函數
+- 正確處理陣列和巢狀物件
+- 保護 Date 和 Timestamp 物件不被遞迴處理
+- 檔案：`packages/dashboard/main/src/lib/npc/template-service.ts`
+- Commit: `2593558`
+
+#### 2. NPC 對話樹 UI 同步問題
+**問題：** Firebase 中有 dialogueTree 數據，但編輯模板時 UI 顯示「尚未設定對話樹」
+**原因：**
+- `formData` 初始化缺少 `dialogueTree` 字段
+- 沒有 useEffect 監聽 template prop 變更
+**解決方案：**
+- 在 `formData` 初始化時添加 `dialogueTree` 字段
+- 添加 useEffect 監聽 `template` 並更新 `formData`
+- 檔案：`packages/dashboard/main/src/components/npc/TemplateForm.tsx`
+- Commit: `3b222b4`
+
+#### 3. Timestamp 轉換錯誤
+**問題：** `TypeError: a.toDate is not a function` 在載入 NPC 模板時
+**原因：** Firebase Timestamp 可能是多種格式（Date、Timestamp、Plain Object）
+**解決方案：**
+- 創建 `convertToDate()` 輔助函數處理三種格式
+- 應用於 `getAllTemplates()` 和 `getTemplateById()`
+- 檔案：`packages/dashboard/main/src/lib/npc/template-service.ts`
+- Commit: `ca83e93`
+
+#### 4. NPC 模組完整國際化
+**問題：** NPC 相關頁面和組件有大量硬編碼中文，英文版無法正確顯示
+**範圍：**
+- NPC Type dropdown（CITIZEN, POLICE, GANGS, SHOP, QUEST）
+- Movement Pattern dropdown（STATIC, WANDERING, PATROLLING）
+- Combat Type dropdown（MELEE, RANGED）
+- Dialogue Editor（所有 UI 文字）
+- Edit Template 頁面（標題、按鈕、訊息）
+- Edit Instance 頁面（標題、按鈕、訊息）
+
+**解決方案：**
+- 新增 40+ 個翻譯 key 到 `locales/zh-TW.ts` 和 `locales/en.ts`
+- 移除硬編碼常數：`NPC_TYPE_LABELS`, `MOVEMENT_PATTERN_LABELS`, `COMBAT_TYPE_LABELS`, `ACTION_TYPE_LABELS`
+- 所有組件改用 `t(\`npc.type.${type}\`)` 等動態翻譯
+- 修正錯誤的 `react-i18next` import 為專案的 `@/contexts/i18n-context`
+- 檔案：
+  - `locales/zh-TW.ts`, `locales/en.ts`
+  - `DialogueEditor.tsx`
+  - `EditTemplateContent.tsx`, `EditInstanceContent.tsx`
+  - `TemplateForm.tsx`, `InstanceForm.tsx`
+  - `templates/page.tsx`, `instances/page.tsx`
+- Commits: `82931c9`, `3ac21ce`, `f1cc852`
+
+### 新增的翻譯 Keys
+
+#### NPC Type
+```typescript
+'npc.type.CITIZEN': '市民' / 'Citizen'
+'npc.type.POLICE': '警察' / 'Police'
+'npc.type.GANGS': '幫派成員' / 'Gang Member'
+'npc.type.SHOP': '商店老闆' / 'Shop Owner'
+'npc.type.QUEST': '任務 NPC' / 'Quest NPC'
+```
+
+#### Movement Pattern
+```typescript
+'npc.movementPattern.STATIC': '靜止' / 'Static'
+'npc.movementPattern.WANDERING': '徘徊' / 'Wandering'
+'npc.movementPattern.PATROLLING': '巡邏' / 'Patrolling'
+```
+
+#### Combat Type
+```typescript
+'npc.combatType.MELEE': '近戰' / 'Melee'
+'npc.combatType.RANGED': '遠程' / 'Ranged'
+```
+
+#### Action Type
+```typescript
+'npc.actionType.open_shop': '開啟商店' / 'Open Shop'
+'npc.actionType.accept_quest': '接受任務' / 'Accept Quest'
+'npc.actionType.end_dialogue': '結束對話' / 'End Dialogue'
+```
+
+#### Dialogue Editor
+```typescript
+'npc.dialogueEditor.title': '對話樹編輯器' / 'Dialogue Tree Editor'
+'npc.dialogueEditor.addNode': '新增節點' / 'Add Node'
+'npc.dialogueEditor.speaker': '發言者' / 'Speaker'
+'npc.dialogueEditor.content': '對話內容' / 'Content'
+'npc.dialogueEditor.actionType': '動作類型' / 'Action Type'
+'npc.dialogueEditor.playerOptions': '玩家選項' / 'Player Options'
+'npc.dialogueEditor.saveTree': '儲存對話樹' / 'Save Dialogue Tree'
+// ... 等 20+ 個 keys
+```
+
+#### Edit Pages
+```typescript
+'npc.template.editTitle': '編輯 NPC 模板' / 'Edit NPC Template'
+'npc.template.editSubtitle': '修改 NPC 模板設定' / 'Modify NPC template settings'
+'npc.instance.editTitle': '編輯 NPC 實例' / 'Edit NPC Instance'
+'npc.instance.editSubtitle': '修改 NPC 實例設定' / 'Modify NPC instance settings'
+'npc.instance.unknownTemplate': '未知模板' / 'Unknown Template'
+```
+
+### 重構的程式碼模式
+
+#### 遞迴清理 undefined 字段
+```typescript
+// Before: 只清理頂層
+function removeUndefinedFields<T>(obj: T): Partial<T> {
+  const cleaned: any = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      cleaned[key] = obj[key];
+    }
+  }
+  return cleaned;
+}
+
+// After: 遞迴處理巢狀結構
+function removeUndefinedFields<T>(obj: T): Partial<T> {
+  const cleaned: any = {};
+  for (const key in obj) {
+    const value = obj[key];
+    if (value === undefined) continue;
+
+    if (Array.isArray(value)) {
+      cleaned[key] = value.map(item =>
+        typeof item === 'object' ? removeUndefinedFields(item) : item
+      );
+    } else if (typeof value === 'object' && !isDateOrTimestamp(value)) {
+      cleaned[key] = removeUndefinedFields(value);
+    } else {
+      cleaned[key] = value;
+    }
+  }
+  return cleaned;
+}
+```
+
+#### 安全的 Timestamp 轉換
+```typescript
+// Before: 直接調用 toDate()
+createdAt: data.createdAt.toDate()  // ❌ 可能出錯
+
+// After: 使用輔助函數
+private convertToDate(value: any): Date {
+  if (value instanceof Date) return value;
+  if (value && typeof value.toDate === 'function') return value.toDate();
+  if (value && typeof value.seconds === 'number') {
+    return new Date(value.seconds * 1000);
+  }
+  return new Date();
+}
+
+createdAt: this.convertToDate(data.createdAt)  // ✅ 安全
+```
+
+#### 正確的 i18n 使用
+```typescript
+// Before: 硬編碼常數
+const NPC_TYPE_LABELS = {
+  CITIZEN: '市民',
+  POLICE: '警察',
+  // ...
+};
+<option>{NPC_TYPE_LABELS[type]}</option>  // ❌ 無法切換語言
+
+// After: 動態翻譯
+import { useI18n } from '@/contexts/i18n-context';
+const { t } = useI18n();
+<option>{t(`npc.type.${type}`)}</option>  // ✅ 支援多語言
+```
+
+### 最佳實踐經驗
+
+1. **Firebase 數據清理**：所有 Firebase 寫入操作前必須遞迴清理 undefined
+2. **Timestamp 處理**：統一使用 `convertToDate()` 輔助函數，不直接調用 `.toDate()`
+3. **React 表單同步**：複雜表單需要 useEffect 監聽 props 並更新 state
+4. **i18n 一致性**：專案統一使用 `@/contexts/i18n-context`，不使用 `react-i18next`
+5. **翻譯 key 命名**：遵循 `{module}.{subModule}.{element}` 結構（例如 `npc.type.CITIZEN`）
+6. **停用項目顯示**：選擇器應顯示停用項目並加上 `[停用]` 標記，讓管理員能預先配置
+
 ---
 
 ## 📚 延伸閱讀
