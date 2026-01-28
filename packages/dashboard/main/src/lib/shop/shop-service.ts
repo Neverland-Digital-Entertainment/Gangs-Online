@@ -44,7 +44,7 @@ function removeUndefinedFields<T extends Record<string, any>>(obj: T): Partial<T
       continue;
     } else if (Array.isArray(value)) {
       // Recursively clean array elements
-      cleaned[key] = value.map(item => {
+      cleaned[key] = value.map((item: any) => {
         if (typeof item === 'object' && item !== null) {
           return removeUndefinedFields(item);
         }
