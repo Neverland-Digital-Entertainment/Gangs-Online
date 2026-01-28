@@ -80,6 +80,30 @@ export class NpcTemplateService {
     return NpcTemplateService.instance;
   }
 
+  /**
+   * Safely convert Firestore Timestamp or Date to JavaScript Date
+   * Handles multiple Timestamp formats from Firestore
+   */
+  private convertToDate(value: any): Date {
+    // Already a Date object
+    if (value instanceof Date) {
+      return value;
+    }
+
+    // Firestore Timestamp with toDate() method
+    if (value && typeof value.toDate === 'function') {
+      return value.toDate();
+    }
+
+    // Firestore Timestamp as plain object with seconds
+    if (value && typeof value.seconds === 'number') {
+      return new Date(value.seconds * 1000);
+    }
+
+    // Fallback to current date
+    return new Date();
+  }
+
   async getAllTemplates(filter?: NpcTemplateFilter): Promise<NpcTemplate[]> {
     const { db } = getFirebaseServices();
     const templatesRef = collection(db, COLLECTION_NAME);
@@ -100,8 +124,8 @@ export class NpcTemplateService {
       return {
         id: doc.id,
         ...data,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date(),
+        createdAt: this.convertToDate(data.createdAt),
+        updatedAt: this.convertToDate(data.updatedAt),
       } as NpcTemplate;
     });
 
@@ -132,8 +156,8 @@ export class NpcTemplateService {
     return {
       id: docSnap.id,
       ...data,
-      createdAt: data.createdAt?.toDate() || new Date(),
-      updatedAt: data.updatedAt?.toDate() || new Date(),
+      createdAt: this.convertToDate(data.createdAt),
+      updatedAt: this.convertToDate(data.updatedAt),
     } as NpcTemplate;
   }
 
