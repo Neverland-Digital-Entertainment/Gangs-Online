@@ -11,7 +11,6 @@ import type {
   MovementPattern,
   Position,
 } from '@/types/npc';
-import { MOVEMENT_PATTERN_LABELS } from '@/types/npc';
 import { npcInstanceService } from '@/lib/npc/instance-service';
 import { npcTemplateService } from '@/lib/npc/template-service';
 import { shopService } from '@/lib/shop/shop-service';
@@ -83,8 +82,9 @@ export default function InstanceForm({
   async function loadShops() {
     try {
       setLoadingShops(true);
-      // Load all active shops for selection
-      const data = await shopService.getAllShops({ isActive: true });
+      // Load all shops (including inactive ones) for selection
+      // Similar to item selector logic - allow pre-configuration
+      const data = await shopService.getAllShops();
       setShops(data);
     } catch (err) {
       console.error('Failed to load shops:', err);
@@ -418,9 +418,9 @@ export default function InstanceForm({
                 })
               }
             >
-              {Object.entries(MOVEMENT_PATTERN_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              {(['STATIC', 'WANDERING', 'PATROLLING'] as const).map((pattern) => (
+                <option key={pattern} value={pattern}>
+                  {t(`npc.movementPattern.${pattern}`)}
                 </option>
               ))}
             </select>
@@ -554,13 +554,13 @@ export default function InstanceForm({
         </div>
       </div>
 
-      {/* Combat & Special Settings */}
+      {/* Combat Settings */}
       <div className="card">
         <div className="card-header">
           <h3 className="text-lg font-semibold">{t('npc.instance.combatSettings')}</h3>
         </div>
         <div className="card-body">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">{t('npc.instance.aggroRange')}</label>
               <input
@@ -596,66 +596,6 @@ export default function InstanceForm({
                 placeholder={t('npc.instance.useDefault')}
               />
             </div>
-
-            <div>
-              <label className="label">{t('npc.instance.shopId')}</label>
-              <input
-                type="text"
-                className="input"
-                value={formData.shopId || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, shopId: e.target.value || undefined })
-                }
-                placeholder={t('npc.instance.shopIdPlaceholder')}
-              />
-            </div>
-          </div>
-
-          {/* Phase 16.3: Shop Linking */}
-          <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <h4 className="font-semibold text-sm text-blue-900 dark:text-blue-100 mb-3">
-              {t('npc.instance.linkedShopId')} (Phase 16.3)
-            </h4>
-            <div className="space-y-3">
-              <div>
-                <label className="label">{t('npc.instance.linkedShopId')}</label>
-                <select
-                  className="input"
-                  value={formData.linkedShopId || ''}
-                  onChange={(e) =>
-                    setFormData({ ...formData, linkedShopId: e.target.value || undefined })
-                  }
-                  disabled={loadingShops}
-                >
-                  <option value="">{t('npc.instance.selectPlaceholder')}</option>
-                  {shops.map((shop) => (
-                    <option key={shop.id} value={shop.id}>
-                      {shop.name} {shop.operatingHours ? `(${shop.operatingHours.start}:00-${shop.operatingHours.end}:00)` : '(24h)'}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                  {t('npc.instance.linkedShopIdPlaceholder')}
-                </p>
-              </div>
-
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="checkbox"
-                    checked={formData.isGuildOnly || false}
-                    onChange={(e) =>
-                      setFormData({ ...formData, isGuildOnly: e.target.checked })
-                    }
-                  />
-                  <span className="text-sm">{t('npc.instance.isGuildOnly')}</span>
-                </label>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 ml-6">
-                  {t('npc.instance.isGuildOnlyHint')}
-                </p>
-              </div>
-            </div>
           </div>
 
           <div className="mt-4">
@@ -670,6 +610,55 @@ export default function InstanceForm({
               />
               <span className="text-sm">{t('npc.instance.isAttackable')}</span>
             </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Shop Linking (Phase 16.3) */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="text-lg font-semibold">{t('npc.instance.linkedShopId')} (Phase 16.3)</h3>
+        </div>
+        <div className="card-body">
+          <div className="space-y-4">
+            <div>
+              <label className="label">{t('npc.instance.linkedShopId')}</label>
+              <select
+                className="input"
+                value={formData.linkedShopId || ''}
+                onChange={(e) =>
+                  setFormData({ ...formData, linkedShopId: e.target.value || undefined })
+                }
+                disabled={loadingShops}
+              >
+                <option value="">{t('npc.instance.selectPlaceholder')}</option>
+                {shops.map((shop) => (
+                  <option key={shop.id} value={shop.id}>
+                    {shop.name} {shop.operatingHours ? `(${shop.operatingHours.start}:00-${shop.operatingHours.end}:00)` : '(24h)'}{!shop.isActive ? ' [停用]' : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                {t('npc.instance.linkedShopIdPlaceholder')}
+              </p>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="checkbox"
+                  checked={formData.isGuildOnly || false}
+                  onChange={(e) =>
+                    setFormData({ ...formData, isGuildOnly: e.target.checked })
+                  }
+                />
+                <span className="text-sm">{t('npc.instance.isGuildOnly')}</span>
+              </label>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 ml-6">
+                {t('npc.instance.isGuildOnlyHint')}
+              </p>
+            </div>
           </div>
         </div>
       </div>

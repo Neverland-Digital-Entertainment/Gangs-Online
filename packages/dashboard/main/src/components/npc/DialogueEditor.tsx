@@ -10,6 +10,7 @@ import {
   Save,
   X,
 } from 'lucide-react';
+import { useI18n } from '@/contexts/i18n-context';
 import type { DialogueTree, DialogueNode, DialogueOption } from '@/types/npc';
 
 interface DialogueEditorProps {
@@ -18,24 +19,20 @@ interface DialogueEditorProps {
   onCancel?: () => void;
 }
 
-const ACTION_TYPE_LABELS = {
-  open_shop: '開啟商店',
-  accept_quest: '接受任務',
-  end_dialogue: '結束對話',
-};
-
 export default function DialogueEditor({
   initialTree,
   onSave,
   onCancel,
 }: DialogueEditorProps) {
+  const { t } = useI18n();
+
   const [tree, setTree] = useState<DialogueTree>(
     initialTree || {
       nodes: [
         {
           nodeId: 'start',
           speaker: 'NPC',
-          content: '你好！',
+          content: t('npc.dialogueEditor.defaultGreeting'),
           options: [],
         },
       ],
@@ -46,6 +43,11 @@ export default function DialogueEditor({
   const [editingNode, setEditingNode] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<DialogueNode | null>(null);
 
+  // Action type labels mapping
+  const getActionTypeLabel = (actionType: string) => {
+    return t(`npc.actionType.${actionType}`);
+  };
+
   function generateNodeId(): string {
     return `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
@@ -55,7 +57,7 @@ export default function DialogueEditor({
     const newNode: DialogueNode = {
       nodeId: newNodeId,
       speaker: 'NPC',
-      content: '新對話內容',
+      content: t('npc.dialogueEditor.newDialogueContent'),
       options: [],
     };
 
@@ -67,7 +69,7 @@ export default function DialogueEditor({
 
   function deleteNode(nodeId: string) {
     if (nodeId === tree.startNodeId) {
-      alert('無法刪除起始節點');
+      alert(t('npc.dialogueEditor.cannotDeleteStart'));
       return;
     }
 
@@ -105,7 +107,7 @@ export default function DialogueEditor({
     if (!editForm) return;
 
     const newOption: DialogueOption = {
-      text: '新選項',
+      text: t('npc.dialogueEditor.newOption'),
       nextNodeId: tree.startNodeId,
     };
 
@@ -146,7 +148,7 @@ export default function DialogueEditor({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-5 h-5" />
-          <h3 className="text-lg font-semibold">對話樹編輯器</h3>
+          <h3 className="text-lg font-semibold">{t('npc.dialogueEditor.title')}</h3>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -155,7 +157,7 @@ export default function DialogueEditor({
             className="btn btn-sm btn-outline"
           >
             <Plus className="w-4 h-4 mr-1" />
-            新增節點
+            {t('npc.dialogueEditor.addNode')}
           </button>
         </div>
       </div>
@@ -163,7 +165,7 @@ export default function DialogueEditor({
       {/* Start Node Selector */}
       <div className="card">
         <div className="card-body">
-          <label className="label">起始節點</label>
+          <label className="label">{t('npc.dialogueEditor.startNode')}</label>
           <select
             className="input"
             value={tree.startNodeId}
@@ -195,7 +197,7 @@ export default function DialogueEditor({
                 // Edit Mode
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold">編輯節點: {node.nodeId}</h4>
+                    <h4 className="font-semibold">{t('npc.dialogueEditor.editNode')}: {node.nodeId}</h4>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -203,7 +205,7 @@ export default function DialogueEditor({
                         className="btn btn-sm btn-primary"
                       >
                         <Save className="w-4 h-4 mr-1" />
-                        儲存
+                        {t('npc.dialogueEditor.save')}
                       </button>
                       <button
                         type="button"
@@ -211,14 +213,14 @@ export default function DialogueEditor({
                         className="btn btn-sm btn-outline"
                       >
                         <X className="w-4 h-4 mr-1" />
-                        取消
+                        {t('npc.dialogueEditor.cancel')}
                       </button>
                     </div>
                   </div>
 
                   {/* Speaker */}
                   <div>
-                    <label className="label">發言者</label>
+                    <label className="label">{t('npc.dialogueEditor.speaker')}</label>
                     <input
                       type="text"
                       className="input"
@@ -231,7 +233,7 @@ export default function DialogueEditor({
 
                   {/* Content */}
                   <div>
-                    <label className="label">對話內容</label>
+                    <label className="label">{t('npc.dialogueEditor.content')}</label>
                     <textarea
                       className="input min-h-[100px]"
                       value={editForm.content}
@@ -244,7 +246,7 @@ export default function DialogueEditor({
                   {/* Action Type */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="label">動作類型</label>
+                      <label className="label">{t('npc.dialogueEditor.actionType')}</label>
                       <select
                         className="input"
                         value={editForm.actionType || ''}
@@ -257,17 +259,17 @@ export default function DialogueEditor({
                           })
                         }
                       >
-                        <option value="">無動作</option>
-                        {Object.entries(ACTION_TYPE_LABELS).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
+                        <option value="">{t('npc.dialogueEditor.noAction')}</option>
+                        {(['open_shop', 'accept_quest', 'end_dialogue'] as const).map((actionType) => (
+                          <option key={actionType} value={actionType}>
+                            {t(`npc.actionType.${actionType}`)}
                           </option>
                         ))}
                       </select>
                     </div>
 
                     <div>
-                      <label className="label">動作資料 (JSON)</label>
+                      <label className="label">{t('npc.dialogueEditor.actionData')} (JSON)</label>
                       <input
                         type="text"
                         className="input"
@@ -286,7 +288,7 @@ export default function DialogueEditor({
                             // Invalid JSON, ignore
                           }
                         }}
-                        placeholder='{"shopId": "shop_001"}'
+                        placeholder={t('npc.dialogueEditor.actionDataPlaceholder')}
                       />
                     </div>
                   </div>
@@ -294,14 +296,14 @@ export default function DialogueEditor({
                   {/* Options */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="label mb-0">玩家選項</label>
+                      <label className="label mb-0">{t('npc.dialogueEditor.playerOptions')}</label>
                       <button
                         type="button"
                         onClick={addOption}
                         className="btn btn-sm btn-outline"
                       >
                         <Plus className="w-4 h-4 mr-1" />
-                        新增選項
+                        {t('npc.dialogueEditor.addOption')}
                       </button>
                     </div>
 
@@ -315,7 +317,7 @@ export default function DialogueEditor({
                             <input
                               type="text"
                               className="input input-sm"
-                              placeholder="選項文字"
+                              placeholder={t('npc.dialogueEditor.optionText')}
                               value={option.text}
                               onChange={(e) =>
                                 updateOption(index, 'text', e.target.value)
@@ -355,11 +357,11 @@ export default function DialogueEditor({
                       <div className="flex items-center gap-2 mb-2">
                         <h4 className="font-semibold">{node.nodeId}</h4>
                         {node.nodeId === tree.startNodeId && (
-                          <span className="badge badge-primary text-xs">起始</span>
+                          <span className="badge badge-primary text-xs">{t('npc.dialogueEditor.start')}</span>
                         )}
                         {node.actionType && (
                           <span className="badge badge-gray text-xs">
-                            {ACTION_TYPE_LABELS[node.actionType]}
+                            {getActionTypeLabel(node.actionType)}
                           </span>
                         )}
                       </div>
@@ -390,7 +392,7 @@ export default function DialogueEditor({
                   {node.options && node.options.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-xs text-[var(--muted-foreground)] mb-1">
-                        玩家選項:
+                        {t('npc.dialogueEditor.playerOptions')}:
                       </p>
                       {node.options.map((option, index) => (
                         <div
@@ -419,7 +421,7 @@ export default function DialogueEditor({
             onClick={onCancel}
             className="btn btn-outline"
           >
-            取消
+            {t('npc.dialogueEditor.cancel')}
           </button>
         )}
         <button
@@ -428,7 +430,7 @@ export default function DialogueEditor({
           className="btn btn-primary"
         >
           <Save className="w-4 h-4 mr-2" />
-          儲存對話樹
+          {t('npc.dialogueEditor.saveTree')}
         </button>
       </div>
     </div>

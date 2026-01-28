@@ -11,10 +11,6 @@ import type {
   CombatType,
   DialogueTree,
 } from '@/types/npc';
-import {
-  NPC_TYPE_LABELS,
-  COMBAT_TYPE_LABELS,
-} from '@/types/npc';
 import { npcTemplateService } from '@/lib/npc/template-service';
 import DialogueEditor from './DialogueEditor';
 
@@ -45,10 +41,30 @@ export default function TemplateForm({
     baseSpeed: template?.baseSpeed || 5,
     combatType: template?.combatType || undefined,
     attackRange: template?.attackRange || undefined,
+    dialogueTree: template?.dialogueTree || undefined,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDialogueEditor, setShowDialogueEditor] = useState(false);
+
+  // Update formData when template prop changes (for edit mode)
+  useEffect(() => {
+    if (template) {
+      setFormData({
+        name: template.name || '',
+        type: template.type || 'CITIZEN',
+        modelId: template.modelId || '',
+        description: template.description || '',
+        baseHp: template.baseHp || 100,
+        baseAttack: template.baseAttack || 10,
+        baseDefense: template.baseDefense || 5,
+        baseSpeed: template.baseSpeed || 5,
+        combatType: template.combatType || undefined,
+        attackRange: template.attackRange || undefined,
+        dialogueTree: template.dialogueTree || undefined,
+      });
+    }
+  }, [template]);
 
   function validateForm(): boolean {
     const newErrors: Record<string, string> = {};
@@ -177,9 +193,9 @@ export default function TemplateForm({
                   setFormData({ ...formData, type: e.target.value as NpcType })
                 }
               >
-                {Object.entries(NPC_TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
+                {(['CITIZEN', 'POLICE', 'GANGS', 'SHOP', 'QUEST'] as const).map((type) => (
+                  <option key={type} value={type}>
+                    {t(`npc.type.${type}`)}
                   </option>
                 ))}
               </select>
@@ -328,9 +344,9 @@ export default function TemplateForm({
                 }
               >
                 <option value="">{t('npc.template.noCombat')}</option>
-                {Object.entries(COMBAT_TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
+                {(['MELEE', 'RANGED'] as const).map((combatType) => (
+                  <option key={combatType} value={combatType}>
+                    {t(`npc.combatType.${combatType}`)}
                   </option>
                 ))}
               </select>

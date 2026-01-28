@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { useI18n } from '@/contexts/i18n-context';
 import InstanceForm from '@/components/npc/InstanceForm';
 import { npcInstanceService } from '@/lib/npc/instance-service';
 import type { NpcInstance } from '@/types/npc';
 
 export default function EditInstanceContent() {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
@@ -19,7 +21,7 @@ export default function EditInstanceContent() {
 
   useEffect(() => {
     if (!id) {
-      setError('缺少 NPC 實例 ID');
+      setError(t('npc.instance.missingId'));
       setLoading(false);
       return;
     }
@@ -34,13 +36,13 @@ export default function EditInstanceContent() {
       setError(null);
       const data = await npcInstanceService.getInstanceById(id, true);
       if (!data) {
-        setError('找不到指定的 NPC 實例');
+        setError(t('npc.instance.notFound'));
       } else {
         setInstance(data);
       }
     } catch (err) {
-      console.error('載入 NPC 實例失敗:', err);
-      setError('載入失敗，請稍後再試');
+      console.error(t('npc.instance.loadError'), err);
+      setError(t('npc.instance.loadErrorTryAgain'));
     } finally {
       setLoading(false);
     }
@@ -52,7 +54,7 @@ export default function EditInstanceContent() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-[var(--muted-foreground)]">載入中...</p>
+            <p className="text-[var(--muted-foreground)]">{t('npc.instance.loading')}</p>
           </div>
         </div>
       </div>
@@ -68,7 +70,7 @@ export default function EditInstanceContent() {
             className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
-            返回實例列表
+            {t('npc.instance.backToList')}
           </Link>
         </div>
 
@@ -78,14 +80,14 @@ export default function EditInstanceContent() {
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-red-900 dark:text-red-100 mb-1">
-                  載入失敗
+                  {t('npc.instance.loadFailed')}
                 </h3>
                 <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
                 <button
                   onClick={loadInstance}
                   className="btn btn-sm btn-outline mt-3"
                 >
-                  重新載入
+                  {t('npc.instance.reload')}
                 </button>
               </div>
             </div>
@@ -103,13 +105,13 @@ export default function EditInstanceContent() {
           className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          返回實例列表
+          {t('npc.instance.backToList')}
         </Link>
         <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">
-          編輯 NPC 實例
+          {t('npc.instance.editTitle')}
         </h1>
         <p className="text-[var(--muted-foreground)]">
-          修改 NPC 實例設定：{instance.template?.name || '未知模板'}
+          {t('npc.instance.editSubtitle')}: {instance.template?.name || t('npc.instance.unknownTemplate')}
         </p>
       </div>
 
