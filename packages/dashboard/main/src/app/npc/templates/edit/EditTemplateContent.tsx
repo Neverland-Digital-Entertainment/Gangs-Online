@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useI18n } from '@/contexts/i18n-context';
 import TemplateForm from '@/components/npc/TemplateForm';
 import { npcTemplateService } from '@/lib/npc/template-service';
 import type { NpcTemplate } from '@/types/npc';
 
 export default function EditTemplateContent() {
-  const { t } = useTranslation();
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get('id');

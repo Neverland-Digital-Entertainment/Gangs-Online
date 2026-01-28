@@ -10,7 +10,7 @@ import {
   Save,
   X,
 } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useI18n } from '@/contexts/i18n-context';
 import type { DialogueTree, DialogueNode, DialogueOption } from '@/types/npc';
 
 interface DialogueEditorProps {
@@ -24,7 +24,7 @@ export default function DialogueEditor({
   onSave,
   onCancel,
 }: DialogueEditorProps) {
-  const { t } = useTranslation();
+  const { t } = useI18n();
 
   const [tree, setTree] = useState<DialogueTree>(
     initialTree || {
