@@ -45,10 +45,30 @@ export default function TemplateForm({
     baseSpeed: template?.baseSpeed || 5,
     combatType: template?.combatType || undefined,
     attackRange: template?.attackRange || undefined,
+    dialogueTree: template?.dialogueTree || undefined,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDialogueEditor, setShowDialogueEditor] = useState(false);
+
+  // Update formData when template prop changes (for edit mode)
+  useEffect(() => {
+    if (template) {
+      setFormData({
+        name: template.name || '',
+        type: template.type || 'CITIZEN',
+        modelId: template.modelId || '',
+        description: template.description || '',
+        baseHp: template.baseHp || 100,
+        baseAttack: template.baseAttack || 10,
+        baseDefense: template.baseDefense || 5,
+        baseSpeed: template.baseSpeed || 5,
+        combatType: template.combatType || undefined,
+        attackRange: template.attackRange || undefined,
+        dialogueTree: template.dialogueTree || undefined,
+      });
+    }
+  }, [template]);
 
   function validateForm(): boolean {
     const newErrors: Record<string, string> = {};
