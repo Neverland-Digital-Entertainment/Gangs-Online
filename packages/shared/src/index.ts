@@ -371,6 +371,7 @@ export interface INPCTemplate {
 
 /**
  * NPC 實例數據 (Phase 16-2 - Firebase Collection: npc_instances)
+ * Phase 16-3: 新增 linkedShopId 和 isGuildOnly
  */
 export interface INPCInstance {
     id: string;
@@ -387,6 +388,8 @@ export interface INPCInstance {
     aggroRange?: number;
     chaseDistance?: number;
     shopId?: string;
+    linkedShopId?: string; // Phase 16-3: 連結商店 ID
+    isGuildOnly?: boolean; // Phase 16-3: 是否僅限社團成員
     isAttackable: boolean;
     mapId?: string;
     territoryId?: string;
@@ -440,7 +443,74 @@ export const PRISON_CONSTANTS = {
     RELEASE_Z: -450,
 };
 
+// ==================== Phase 16.3: Shop & Economy System ====================
+
 /**
- * 遊戲版本（0.16.2 - NPC Dialogue System & Multi-language Support）
+ * 道具分類（Phase 16.3）
+ * 重要：Contraband (非法物品) 已改為 Equipment (裝備)
  */
-export const GAME_VERSION = "0.16.2";
+export type ItemCategory = 'consumable' | 'equipment' | 'special' | 'material';
+
+/**
+ * 商店道具配置（Phase 16.3）
+ * 用於商店的道具列表，包含庫存和限購設定
+ */
+export interface IShopItemConfig {
+    itemId: string;                // 連結至 items 集合的道具 ID
+    globalStock: number;           // 商店總庫存（-1 = 無限，預設 -1）
+    currentStock?: number;         // 當前剩餘庫存（僅當 globalStock > 0 時使用）
+    personalLimit: number;         // 每位玩家限購件數（0 = 不限，預設 0）
+    priceMultiplier?: number;      // 價格倍數（預設 1.0，例如 1.2 = 漲價 20%）
+}
+
+/**
+ * 商店數據結構（Phase 16.3 - Firebase Collection: shops）
+ */
+export interface IShop {
+    id: string;                    // 商店唯一識別碼
+    name: string;                  // 商店名稱（例如："廟街便利店"）
+    description?: string;          // 商店描述（可選）
+    operatingHours?: {             // 營業時間（24 小時制）
+        start: number;             // 0-23，開始時間（未設定則 24 小時營業）
+        end: number;               // 0-23，結束時間（支援跨夜，如 22-04）
+    };
+    itemList: IShopItemConfig[];   // 商店販售的道具列表
+    isActive: boolean;             // 是否啟用（預設 true）
+    createdAt: any;                // Firestore Timestamp - 創建時間
+    updatedAt: any;                // Firestore Timestamp - 更新時間
+}
+
+/**
+ * 購買紀錄（Phase 16.3 - Firebase Subcollection: users/{userId}/purchaseHistory/{shopId}_{itemId}）
+ */
+export interface IPurchaseRecord {
+    shopId: string;                // 商店 ID
+    itemId: string;                // 道具 ID
+    purchaseCount: number;         // 已購買數量
+    lastPurchaseAt: any;           // Firestore Timestamp - 最後購買時間
+    resetAt?: any;                 // Firestore Timestamp - 重置時間（若實作每日重置）
+}
+
+/**
+ * 商店購買請求（Phase 16.3 - Colyseus 消息）
+ */
+export interface IPurchaseRequest {
+    shopId: string;
+    itemId: string;
+    quantity: number;
+}
+
+/**
+ * 商店購買響應（Phase 16.3 - Colyseus 消息）
+ */
+export interface IPurchaseResponse {
+    success: boolean;
+    message: string;
+    remainingStock?: number;
+    remainingPersonalLimit?: number;
+}
+
+/**
+ * 遊戲版本（0.16.3 - Shop & Economy System）
+ */
+export const GAME_VERSION = "0.16.3";

@@ -1,12 +1,12 @@
 /**
  * Item Management Types for Gangs Online
- * Version 0.16.1
+ * Version 0.16.3
  */
 
 export enum ItemCategory {
   CONSUMABLE = 'consumable',
   SPECIAL = 'special',
-  CONTRABAND = 'contraband',
+  EQUIPMENT = 'equipment',
   MATERIAL = 'material',
 }
 
@@ -37,7 +37,7 @@ export interface SpecialAttributes {
   deityId?: string;
 }
 
-export interface ContrabandAttributes {
+export interface EquipmentAttributes {
   crimeValue: number;
   policeDetectionMultiplier: number;
 }
@@ -49,7 +49,7 @@ export interface MaterialAttributes {
 export type ItemAttributes =
   | ConsumableAttributes
   | SpecialAttributes
-  | ContrabandAttributes
+  | EquipmentAttributes
   | MaterialAttributes;
 
 export interface Item extends ItemBase {

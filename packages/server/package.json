@@ -1,6 +1,6 @@
 {
     "name": "@gangs-online/server",
-    "version": "0.16.2",
+    "version": "0.16.3",
     "scripts": {
         "dev": "tsx watch src/index.ts",
         "build": "tsc",

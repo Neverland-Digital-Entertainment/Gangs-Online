@@ -122,6 +122,8 @@ export interface NpcInstance {
 
   // Special
   shopId?: string;
+  linkedShopId?: string; // Phase 16.3: Link to shop system
+  isGuildOnly?: boolean; // Phase 16.3: Guild-only access
   isAttackable: boolean;
 
   // Map assignment
@@ -152,6 +154,8 @@ export interface NpcInstanceFormData {
   aggroRange?: number;
   chaseDistance?: number;
   shopId?: string;
+  linkedShopId?: string; // Phase 16.3: Link to shop system
+  isGuildOnly?: boolean; // Phase 16.3: Guild-only access
   isAttackable: boolean;
   mapId?: string;
   territoryId?: string;

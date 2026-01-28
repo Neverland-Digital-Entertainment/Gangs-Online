@@ -793,7 +793,16 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 if (npcType === 'shop') {
                     // 商店 NPC
                     console.log("🏪 Opening shop");
-                    hudManager.showShopPopup();
+
+                    // Phase 16.3: 檢查是否有 linkedShopId（新的動態商店系統）
+                    if (npcData.linkedShopId && npcData.linkedShopId !== "") {
+                        console.log("🏪 [Phase 16.3] Opening dynamic shop:", npcData.linkedShopId);
+                        hudManager.showShopPopupV2(target.id, npcData.linkedShopId, npcData.name || "商店");
+                    } else {
+                        // 向後兼容：使用舊的商店系統
+                        console.log("🏪 [Legacy] Opening static shop");
+                        hudManager.showShopPopup();
+                    }
                     return;
                 } else if (npcType === 'quest') {
                     // 任務 NPC

@@ -34,8 +34,8 @@ export function AttributesSection({
             updateAttributes={updateAttributes}
           />
         )}
-        {category === 'contraband' && (
-          <ContrabandAttributes
+        {category === 'equipment' && (
+          <EquipmentAttributes
             attributes={attributes}
             updateAttributes={updateAttributes}
           />
@@ -139,7 +139,7 @@ function SpecialAttributes({ attributes, updateAttributes }: any) {
   );
 }
 
-function ContrabandAttributes({ attributes, updateAttributes }: any) {
+function EquipmentAttributes({ attributes, updateAttributes }: any) {
   const { t } = useI18n();
 
   return (

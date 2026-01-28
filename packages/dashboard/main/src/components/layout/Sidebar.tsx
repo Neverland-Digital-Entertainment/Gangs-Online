@@ -13,12 +13,29 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  Store,
+  ShoppingBag,
+  FileText,
+  UserCheck,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 import { useI18n } from '@/contexts/i18n-context';
 
-const menuItems = [
+type MenuItem = {
+  titleKey: string;
+  icon: React.ComponentType<{ className?: string }>;
+  href: string;
+  exact?: boolean;
+  disabled?: boolean;
+  subItems?: {
+    titleKey: string;
+    href: string;
+    icon?: React.ComponentType<{ className?: string }>;
+  }[];
+};
+
+const menuItems: MenuItem[] = [
   {
     titleKey: 'nav.dashboard',
     icon: Home,
@@ -26,9 +43,21 @@ const menuItems = [
     exact: true,
   },
   {
-    titleKey: 'nav.item',
-    icon: Package,
-    href: '/item',
+    titleKey: 'nav.shopAndItem',
+    icon: ShoppingBag,
+    href: '/shop-item',
+    subItems: [
+      {
+        titleKey: 'nav.item',
+        href: '/item',
+        icon: Package,
+      },
+      {
+        titleKey: 'nav.shop',
+        href: '/shop',
+        icon: Store,
+      },
+    ],
   },
   {
     titleKey: 'nav.npc',
@@ -38,10 +67,12 @@ const menuItems = [
       {
         titleKey: 'nav.npcTemplates',
         href: '/npc/templates',
+        icon: FileText,
       },
       {
         titleKey: 'nav.npcInstances',
         href: '/npc/instances',
+        icon: UserCheck,
       },
     ],
   },
@@ -64,8 +95,13 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const { t } = useI18n();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
-  // Auto-expand NPC menu if on NPC pages
+  // Auto-expand menus based on current path
   useEffect(() => {
+    // Expand Shop & Item menu if on item or shop pages
+    if (pathname.startsWith('/item') || pathname.startsWith('/shop')) {
+      setExpandedItems((prev) => prev.includes('/shop-item') ? prev : [...prev, '/shop-item']);
+    }
+    // Expand NPC menu if on NPC pages
     if (pathname.startsWith('/npc')) {
       setExpandedItems((prev) => prev.includes('/npc') ? prev : [...prev, '/npc']);
     }
@@ -136,10 +172,11 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                     <ChevronRight className="w-4 h-4 ml-auto" />
                   )}
                 </button>
-                {isExpanded && (
+                {isExpanded && item.subItems && (
                   <div className="ml-6 border-l border-[var(--border)]">
                     {item.subItems.map((subItem) => {
                       const subActive = isActive(subItem.href);
+                      const SubIcon = subItem.icon;
                       return (
                         <Link
                           key={subItem.href}
@@ -147,6 +184,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                           onClick={onItemClick}
                           className={`sidebar-item pl-6 ${subActive ? 'active' : ''}`}
                         >
+                          {SubIcon && <SubIcon className="w-4 h-4" />}
                           <span className="text-sm">{t(subItem.titleKey)}</span>
                         </Link>
                       );
@@ -177,7 +215,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
           <ThemeToggle />
         </div>
         <div className="text-xs text-[var(--muted)] text-center">
-          v0.16.1
+          v0.16.3
         </div>
       </div>
     </>

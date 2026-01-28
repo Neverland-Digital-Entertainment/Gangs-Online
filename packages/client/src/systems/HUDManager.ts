@@ -2,6 +2,7 @@ import * as GUI from "@babylonjs/gui";
 import { Room } from "colyseus.js";
 import { QuestSystem } from "./QuestSystem";
 import { ShopPopupSystem } from "./ShopPopupSystem";
+import { ShopSystemV2 } from "./ShopSystemV2"; // Phase 16.3
 import { GuildSystem } from "./GuildSystem";
 import { IQuestState, IItem, ChatMessageType } from "@gangs-online/shared";
 
@@ -59,6 +60,9 @@ export class HUDManager {
     // Shop Popup System (Phase 10.1)
     private shopPopupSystem: ShopPopupSystem | null = null;
 
+    // Shop System V2 (Phase 16.3)
+    private shopSystemV2: ShopSystemV2 | null = null;
+
     // Guild System (Phase 13)
     private guildSystem: GuildSystem | null = null;
 
@@ -99,6 +103,9 @@ export class HUDManager {
 
         // Initialize Shop Popup System (Phase 10.1)
         this.shopPopupSystem = new ShopPopupSystem(room);
+
+        // Initialize Shop System V2 (Phase 16.3)
+        this.shopSystemV2 = new ShopSystemV2(room);
 
         // Initialize Guild System (Phase 13)
         this.guildSystem = new GuildSystem(room, this.uiTexture);
@@ -952,6 +959,13 @@ export class HUDManager {
                     this.popupContent!.addControl(control);
                 });
             }
+            // Phase 16.3: Handle new shop system popup
+            else if (type === "shopV2" && this.shopSystemV2) {
+                const shopControls = this.shopSystemV2.createShopPopupContent();
+                shopControls.forEach((control) => {
+                    this.popupContent!.addControl(control);
+                });
+            }
             // Phase 13: Handle guild popup (社交按鈕改為幫會)
             else if (type === "social" && this.guildSystem) {
                 const guildControls = this.guildSystem.createGuildPopupContent();
@@ -1057,11 +1071,15 @@ export class HUDManager {
     }
 
     /**
-     * 更新商店系統的金錢 (Phase 10.1)
+     * 更新商店系統的金錢 (Phase 10.1, Phase 16.3)
      */
     updateShopMoney(money: number): void {
         if (this.shopPopupSystem) {
             this.shopPopupSystem.updateMoney(money);
+        }
+        // Phase 16.3: Also update ShopSystemV2
+        if (this.shopSystemV2) {
+            this.shopSystemV2.updateMoney(money);
         }
     }
 
@@ -1088,6 +1106,16 @@ export class HUDManager {
      */
     showInventoryPopup(): void {
         this.showPopup("道具", "inventory");
+    }
+
+    /**
+     * 顯示新商店 popup (Phase 16.3) - Firebase 動態商店系統
+     */
+    showShopPopupV2(npcId: string, shopId: string, shopName: string): void {
+        if (this.shopSystemV2) {
+            this.shopSystemV2.openShop(npcId, shopId);
+            this.showPopup(shopName, "shopV2");
+        }
     }
 
     /**
