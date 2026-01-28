@@ -365,6 +365,13 @@ export default {
   'npc.instance.notFound': 'NPC instance not found',
   'npc.instance.missingId': 'Missing NPC instance ID',
   'npc.instance.placeNew': 'Place a new NPC instance on the map',
+  'npc.instance.editTitle': 'Edit NPC Instance',
+  'npc.instance.editSubtitle': 'Modify NPC instance settings',
+  'npc.instance.unknownTemplate': 'Unknown Template',
+  'npc.instance.loading': 'Loading...',
+  'npc.instance.loadError': 'Failed to load NPC instance',
+  'npc.instance.loadErrorTryAgain': 'Failed to load, please try again later',
+  'npc.instance.reload': 'Reload',
 
   // Dialogue Editor
   'dialogue.title': 'Dialogue Tree Editor',

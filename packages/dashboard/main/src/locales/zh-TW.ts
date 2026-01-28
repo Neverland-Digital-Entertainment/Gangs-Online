@@ -366,6 +366,13 @@ export default {
   'npc.instance.notFound': '找不到指定的 NPC 實例',
   'npc.instance.missingId': '缺少 NPC 實例 ID',
   'npc.instance.placeNew': '在地圖上放置新的 NPC 實例',
+  'npc.instance.editTitle': '編輯 NPC 實例',
+  'npc.instance.editSubtitle': '修改 NPC 實例設定',
+  'npc.instance.unknownTemplate': '未知模板',
+  'npc.instance.loading': '載入中...',
+  'npc.instance.loadError': '載入 NPC 實例失敗',
+  'npc.instance.loadErrorTryAgain': '載入失敗，請稍後再試',
+  'npc.instance.reload': '重新載入',
 
   // Dialogue Editor
   'dialogue.title': '對話樹編輯器',
