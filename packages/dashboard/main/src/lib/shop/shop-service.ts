@@ -30,16 +30,35 @@ const COLLECTION_NAME = 'shops';
 const ITEMS_COLLECTION = 'items';
 
 /**
- * Remove undefined values from an object to avoid Firebase errors
+ * Remove undefined values from an object recursively to avoid Firebase errors
  * Firebase doesn't accept undefined values, only null or valid values
  */
 function removeUndefinedFields<T extends Record<string, any>>(obj: T): Partial<T> {
   const cleaned: any = {};
+
   for (const key in obj) {
-    if (obj[key] !== undefined) {
-      cleaned[key] = obj[key];
+    const value = obj[key];
+
+    if (value === undefined) {
+      // Skip undefined values
+      continue;
+    } else if (Array.isArray(value)) {
+      // Recursively clean array elements
+      cleaned[key] = value.map(item => {
+        if (typeof item === 'object' && item !== null) {
+          return removeUndefinedFields(item);
+        }
+        return item;
+      });
+    } else if (typeof value === 'object' && value !== null && !(value instanceof Date) && !(value.constructor?.name === 'Timestamp')) {
+      // Recursively clean nested objects (but skip Date and Timestamp)
+      cleaned[key] = removeUndefinedFields(value);
+    } else {
+      // Keep valid values
+      cleaned[key] = value;
     }
   }
+
   return cleaned;
 }
 
