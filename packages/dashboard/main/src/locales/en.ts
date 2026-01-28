@@ -41,6 +41,7 @@ export default {
   'common.success': 'Success',
   'common.warning': 'Warning',
   'common.info': 'Info',
+  'common.manage': 'Manage',
 
   // Navigation
   'nav.dashboard': 'Dashboard',
@@ -60,8 +61,11 @@ export default {
   'home.statistics': 'Statistics',
   'home.itemManagement': 'Item Management',
   'home.itemManagement.desc': 'Manage game items, equipment and consumables',
+  'home.shopManagement.desc': 'Configure shops, items, and pricing in the game',
   'home.npcManagement': 'NPC Management',
   'home.npcManagement.desc': 'Manage NPC templates and instances',
+  'home.npcTemplates.desc': 'Create and manage reusable NPC templates',
+  'home.npcInstances.desc': 'Deploy NPC instances in the game world',
 
   // Item Management
   'item.title': 'Item Management',

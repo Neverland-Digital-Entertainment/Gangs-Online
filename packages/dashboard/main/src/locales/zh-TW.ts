@@ -41,6 +41,7 @@ export default {
   'common.success': '成功',
   'common.warning': '警告',
   'common.info': '資訊',
+  'common.manage': '管理',
 
   // Navigation
   'nav.dashboard': '儀表板',
@@ -60,8 +61,11 @@ export default {
   'home.statistics': '統計資訊',
   'home.itemManagement': '道具管理',
   'home.itemManagement.desc': '管理遊戲道具、裝備和消耗品',
+  'home.shopManagement.desc': '管理遊戲中的商店配置、商品和價格',
   'home.npcManagement': 'NPC 管理',
   'home.npcManagement.desc': '管理 NPC 模板和實例',
+  'home.npcTemplates.desc': '建立和管理可重複使用的 NPC 模板',
+  'home.npcInstances.desc': '在遊戲世界中部署 NPC 實例',
 
   // Item Management
   'item.title': '道具管理',

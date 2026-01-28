@@ -15,6 +15,8 @@ import {
   ChevronRight,
   Store,
   ShoppingBag,
+  FileText,
+  UserCheck,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
@@ -65,10 +67,12 @@ const menuItems: MenuItem[] = [
       {
         titleKey: 'nav.npcTemplates',
         href: '/npc/templates',
+        icon: FileText,
       },
       {
         titleKey: 'nav.npcInstances',
         href: '/npc/instances',
+        icon: UserCheck,
       },
     ],
   },

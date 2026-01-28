@@ -84,11 +84,11 @@ export function ShopForm({ shop, mode }: ShopFormProps) {
       };
 
       if (mode === 'create') {
-        const shopId = await shopService.createShop(formData);
-        router.push(`/shop/edit?id=${shopId}`);
+        await shopService.createShop(formData);
+        router.push('/shop');
       } else if (shop) {
         await shopService.updateShop(shop.id, formData);
-        router.push(`/shop/edit?id=${shop.id}`);
+        router.push('/shop');
       }
     } catch (err: any) {
       console.error('Failed to save shop:', err);
