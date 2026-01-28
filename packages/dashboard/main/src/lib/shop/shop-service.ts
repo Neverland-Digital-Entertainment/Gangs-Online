@@ -50,9 +50,18 @@ function removeUndefinedFields<T extends Record<string, any>>(obj: T): Partial<T
         }
         return item;
       });
-    } else if (typeof value === 'object' && value !== null && !(value instanceof Date) && !(value.constructor?.name === 'Timestamp')) {
-      // Recursively clean nested objects (but skip Date and Timestamp)
-      cleaned[key] = removeUndefinedFields(value);
+    } else if (typeof value === 'object' && value !== null) {
+      // Skip Date and Timestamp objects
+      const isDate = value instanceof Date;
+      const isTimestamp = value.constructor?.name === 'Timestamp';
+
+      if (!isDate && !isTimestamp) {
+        // Recursively clean nested objects
+        cleaned[key] = removeUndefinedFields(value);
+      } else {
+        // Keep Date and Timestamp as-is
+        cleaned[key] = value;
+      }
     } else {
       // Keep valid values
       cleaned[key] = value;
