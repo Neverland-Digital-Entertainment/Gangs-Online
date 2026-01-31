@@ -593,17 +593,35 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     return;
                 }
 
-                // 為已存在的敵人創建實體
+                // 為已存在的敵人創建實體（使用 Promise.allSettled 確保個別失敗不影響其他）
                 const enemyCreationPromises: Promise<any>[] = [];
                 enemiesMap.forEach((enemy: any, enemyId: string) => {
                     enemyCreationPromises.push(enemyManager.createEnemy(enemy, enemyId));
                 });
-                await Promise.all(enemyCreationPromises);
+                const results = await Promise.allSettled(enemyCreationPromises);
+
+                // 統計創建結果
+                const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                const failed = results.filter(r => r.status === 'rejected').length;
+                if (failed > 0) {
+                    console.warn(`⚠️ Enemy/NPC creation: ${succeeded} succeeded, ${failed} failed`);
+                    results.forEach((result, index) => {
+                        if (result.status === 'rejected') {
+                            console.error(`❌ Failed to create enemy/NPC:`, result.reason);
+                        }
+                    });
+                } else {
+                    console.log(`✅ All ${succeeded} enemies/NPCs created successfully`);
+                }
 
                 // 設置新敵人加入的監聽器
                 enemiesMap.onAdd(async (enemy: any, enemyId: string) => {
                     if (enemyManager.getEntity(enemyId)) return;
-                    await enemyManager.createEnemy(enemy, enemyId);
+                    try {
+                        await enemyManager.createEnemy(enemy, enemyId);
+                    } catch (error) {
+                        console.error(`❌ Failed to create enemy/NPC ${enemyId}:`, error);
+                    }
                 });
 
                 // 設置敵人移除的監聽器

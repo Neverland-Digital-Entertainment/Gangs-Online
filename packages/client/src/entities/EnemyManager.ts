@@ -55,17 +55,41 @@ export class EnemyManager {
 
         console.log(`📦 Model ID for ${enemyId}: raw="${enemyData.modelId}", processed="${modelId}", useDefault=${useDefaultModel}`);
 
-        // 載入 3D 模型
+        // 載入 3D 模型（優先順序：自定義模型 → 本地預設模型 → CDN 預設模型）
         let result;
+
+        // 輔助函數：載入預設模型（先嘗試本地，再嘗試 CDN）
+        const loadDefaultModel = async (): Promise<BABYLON.ISceneLoaderAsyncResult> => {
+            // 優先嘗試本地預設模型
+            try {
+                console.log(`📦 Trying local default model for ${enemyId}`);
+                return await BABYLON.SceneLoader.ImportMeshAsync(
+                    "",
+                    "/models/",
+                    "HVGirl.glb",
+                    this.scene
+                );
+            } catch (localError) {
+                console.warn(`⚠️ Local default model not found, trying CDN for ${enemyId}`);
+                // 備用：使用 CDN 預設模型
+                try {
+                    return await BABYLON.SceneLoader.ImportMeshAsync(
+                        "",
+                        "https://models.babylonjs.com/",
+                        "HVGirl.glb",
+                        this.scene
+                    );
+                } catch (cdnError) {
+                    console.error(`❌ Failed to load default model from CDN for ${enemyId}:`, cdnError);
+                    throw new Error(`Failed to load any default model for ${enemyId}`);
+                }
+            }
+        };
+
         if (useDefaultModel) {
             // 使用預設模型
             console.log(`📦 Using default model for ${enemyId}`);
-            result = await BABYLON.SceneLoader.ImportMeshAsync(
-                "",
-                "https://models.babylonjs.com/",
-                "HVGirl.glb",
-                this.scene
-            );
+            result = await loadDefaultModel();
         } else {
             // 嘗試載入自定義模型，失敗時使用預設模型
             try {
@@ -77,13 +101,8 @@ export class EnemyManager {
                     this.scene
                 );
             } catch (error) {
-                console.warn(`⚠️ Failed to load model "${modelId}", using default model:`, error);
-                result = await BABYLON.SceneLoader.ImportMeshAsync(
-                    "",
-                    "https://models.babylonjs.com/",
-                    "HVGirl.glb",
-                    this.scene
-                );
+                console.warn(`⚠️ Failed to load custom model "${modelId}", falling back to default:`, error);
+                result = await loadDefaultModel();
             }
         }
 
