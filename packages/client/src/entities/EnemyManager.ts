@@ -2,6 +2,7 @@ import * as BABYLON from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import { IEnemyData, EntityType } from "@gangs-online/shared";
 import { UISystem } from "../systems/UISystem";
+import { modelConfig } from "../config";
 
 /**
  * 敵人實體介面 (Phase 9: 也包含 NPC)
@@ -55,41 +56,18 @@ export class EnemyManager {
 
         console.log(`📦 Model ID for ${enemyId}: raw="${enemyData.modelId}", processed="${modelId}", useDefault=${useDefaultModel}`);
 
-        // 載入 3D 模型（優先順序：自定義模型 → 本地預設模型 → CDN 預設模型）
+        // 載入 3D 模型（使用跟 PlayerManager 相同的方式）
         let result;
 
-        // 輔助函數：載入預設模型（先嘗試本地，再嘗試 CDN）
-        const loadDefaultModel = async (): Promise<BABYLON.ISceneLoaderAsyncResult> => {
-            // 優先嘗試本地預設模型
-            try {
-                console.log(`📦 Trying local default model for ${enemyId}`);
-                return await BABYLON.SceneLoader.ImportMeshAsync(
-                    "",
-                    "/models/",
-                    "HVGirl.glb",
-                    this.scene
-                );
-            } catch (localError) {
-                console.warn(`⚠️ Local default model not found, trying CDN for ${enemyId}`);
-                // 備用：使用 CDN 預設模型
-                try {
-                    return await BABYLON.SceneLoader.ImportMeshAsync(
-                        "",
-                        "https://models.babylonjs.com/",
-                        "HVGirl.glb",
-                        this.scene
-                    );
-                } catch (cdnError) {
-                    console.error(`❌ Failed to load default model from CDN for ${enemyId}:`, cdnError);
-                    throw new Error(`Failed to load any default model for ${enemyId}`);
-                }
-            }
-        };
-
         if (useDefaultModel) {
-            // 使用預設模型
-            console.log(`📦 Using default model for ${enemyId}`);
-            result = await loadDefaultModel();
+            // 使用預設模型（跟 PlayerManager 完全一樣的方式）
+            console.log(`📦 Loading default model from ${modelConfig.baseUrl}${modelConfig.characterModel} for ${enemyId}`);
+            result = await BABYLON.SceneLoader.ImportMeshAsync(
+                "",
+                modelConfig.baseUrl,
+                modelConfig.characterModel,
+                this.scene
+            );
         } else {
             // 嘗試載入自定義模型，失敗時使用預設模型
             try {
@@ -102,13 +80,18 @@ export class EnemyManager {
                 );
             } catch (error) {
                 console.warn(`⚠️ Failed to load custom model "${modelId}", falling back to default:`, error);
-                result = await loadDefaultModel();
+                result = await BABYLON.SceneLoader.ImportMeshAsync(
+                    "",
+                    modelConfig.baseUrl,
+                    modelConfig.characterModel,
+                    this.scene
+                );
             }
         }
 
         const root = result.meshes[0];
         root.position.set(enemyData.x, 0.1, enemyData.z);
-        root.scaling.set(0.15, 0.15, 0.15);
+        root.scaling.set(modelConfig.characterScale, modelConfig.characterScale, modelConfig.characterScale);
         root.rotationQuaternion = null;
         root.checkCollisions = true;
         root.ellipsoid = new BABYLON.Vector3(0.5, 1.0, 0.5);
