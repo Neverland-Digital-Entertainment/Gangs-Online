@@ -113,15 +113,24 @@ class NPCService {
     private combineTemplatesAndInstances(): void {
         this.npcCache.clear();
 
+        console.log(`📋 [NPCService] Combining templates and instances...`);
+        console.log(`📋 [NPCService] Available templates: ${Array.from(this.templateCache.keys()).join(', ') || '(none)'}`);
+        console.log(`📋 [NPCService] Available instances: ${Array.from(this.instanceCache.keys()).join(', ') || '(none)'}`);
+
         this.instanceCache.forEach((instance) => {
             const template = this.templateCache.get(instance.templateId);
             if (!template) {
-                console.warn(`[NPCService] Template ${instance.templateId} not found for instance ${instance.id}`);
+                console.warn(`⚠️ [NPCService] Template "${instance.templateId}" not found for instance "${instance.id}" - skipping`);
                 return;
             }
 
             // 只載入啟用的模板和實例
-            if (!template.isActive || !instance.isActive) {
+            if (!template.isActive) {
+                console.log(`⏭️ [NPCService] Template "${template.name}" is inactive - skipping instance "${instance.id}"`);
+                return;
+            }
+            if (!instance.isActive) {
+                console.log(`⏭️ [NPCService] Instance "${instance.id}" is inactive - skipping`);
                 return;
             }
 
