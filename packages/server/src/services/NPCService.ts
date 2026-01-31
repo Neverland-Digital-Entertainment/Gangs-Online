@@ -10,6 +10,18 @@ import { getFirestore, isFirebaseInitialized } from "./FirebaseService";
 import { INPCData, INPCTemplate, INPCInstance, NPCType, NPCStatus, DialogueTree } from "@gangs-online/shared";
 
 /**
+ * 安全地將 Firestore Timestamp 轉換為 Date
+ * 支援多種格式：Date、Timestamp with toDate()、Plain Object with seconds
+ */
+function convertToDate(value: any): Date {
+    if (!value) return new Date();
+    if (value instanceof Date) return value;
+    if (typeof value.toDate === 'function') return value.toDate();
+    if (typeof value.seconds === 'number') return new Date(value.seconds * 1000);
+    return new Date();
+}
+
+/**
  * 完整的 NPC 數據（模板 + 實例）
  */
 interface NPCCompleteData extends INPCData {
@@ -58,8 +70,8 @@ class NPCService {
                     combatType: data.combatType,
                     attackRange: data.attackRange,
                     dialogueTree: data.dialogueTree,
-                    createdAt: data.createdAt?.toDate() || new Date(),
-                    updatedAt: data.updatedAt?.toDate() || new Date(),
+                    createdAt: convertToDate(data.createdAt),
+                    updatedAt: convertToDate(data.updatedAt),
                     isActive: data.isActive ?? true,
                 };
                 this.templateCache.set(doc.id, template);
@@ -87,8 +99,8 @@ class NPCService {
                     isAttackable: data.isAttackable ?? true,
                     mapId: data.mapId,
                     territoryId: data.territoryId,
-                    createdAt: data.createdAt?.toDate() || new Date(),
-                    updatedAt: data.updatedAt?.toDate() || new Date(),
+                    createdAt: convertToDate(data.createdAt),
+                    updatedAt: convertToDate(data.updatedAt),
                     isActive: data.isActive ?? true,
                 };
                 this.instanceCache.set(doc.id, instance);
