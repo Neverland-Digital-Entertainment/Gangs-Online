@@ -95,9 +95,13 @@ export class EnemyManager {
         root.rotationQuaternion = null;
         root.checkCollisions = true;
         root.ellipsoid = new BABYLON.Vector3(0.5, 1.0, 0.5);
+        root.ellipsoidOffset = new BABYLON.Vector3(0, 1.0, 0); // 跟 PlayerManager 一樣
 
-        // Debug: Log model info
-        console.log(`✅ ${isNPC ? 'NPC' : 'Enemy'} model loaded: id="${enemyId}", position=(${enemyData.x}, ${enemyData.z}), meshCount=${result.meshes.length}, visibility=${root.visibility}, isEnabled=${root.isEnabled()}`);
+        // Debug: Log complete model info including Y position
+        console.log(`✅ ${isNPC ? 'NPC' : 'Enemy'} model loaded: id="${enemyId}"`);
+        console.log(`   Position: (${root.position.x.toFixed(1)}, ${root.position.y.toFixed(1)}, ${root.position.z.toFixed(1)})`);
+        console.log(`   Scale: ${root.scaling.x}, visibility=${root.visibility}, isEnabled=${root.isEnabled()}`);
+        console.log(`   meshCount=${result.meshes.length}, boundingBox=${root.getBoundingInfo()?.boundingBox?.minimumWorld?.y?.toFixed(1) ?? 'N/A'}`);
 
         // 設置 metadata 以便點擊偵測
         root.metadata = {
