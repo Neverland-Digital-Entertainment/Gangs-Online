@@ -129,6 +129,8 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
     // Phase 15: 設定地面 mesh 給 PlayerManager（用於地面偵測）
     playerManager.setGroundMeshes(sceneManager.getTerrainMeshes());
+    // Phase 16-2: 設定地面 mesh 給 EnemyManager（用於 NPC 地面偵測）
+    enemyManager.setGroundMeshes(sceneManager.getTerrainMeshes());
 
     // === Phase 11: 初始化音效和粒子系統 ===
     const soundManager = new SoundManager(scene);

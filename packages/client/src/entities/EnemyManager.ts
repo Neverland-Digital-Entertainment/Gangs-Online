@@ -34,10 +34,46 @@ export class EnemyManager {
     private scene: BABYLON.Scene;
     private uiSystem: UISystem;
     private enemies: Map<string, EnemyEntity> = new Map();
+    private groundMeshes: BABYLON.AbstractMesh[] = []; // Phase 16-2: 地面偵測用
 
     constructor(scene: BABYLON.Scene, uiSystem: UISystem) {
         this.scene = scene;
         this.uiSystem = uiSystem;
+    }
+
+    /**
+     * Phase 16-2: 設定可行走的地面 mesh（用於地面偵測）
+     */
+    setGroundMeshes(meshes: BABYLON.AbstractMesh[]): void {
+        this.groundMeshes = meshes;
+        console.log(`🌍 [EnemyManager] Ground meshes set: ${meshes.length}`);
+    }
+
+    /**
+     * Phase 16-2: 獲取指定位置的地面高度（跟 PlayerManager 一樣）
+     * 使用射線從上往下偵測
+     */
+    getGroundHeight(x: number, z: number): number {
+        // 從高處往下發射射線
+        const rayOrigin = new BABYLON.Vector3(x, 500, z);
+        const rayDirection = new BABYLON.Vector3(0, -1, 0);
+        const ray = new BABYLON.Ray(rayOrigin, rayDirection, 1000);
+
+        // 只檢測地面 mesh
+        const predicate = (mesh: BABYLON.AbstractMesh) => {
+            return this.groundMeshes.includes(mesh) ||
+                   mesh.name.toUpperCase().startsWith("T") ||
+                   mesh.metadata?.type === "terrain";
+        };
+
+        const hit = this.scene.pickWithRay(ray, predicate);
+
+        if (hit?.hit && hit.pickedPoint) {
+            return hit.pickedPoint.y;
+        }
+
+        // 如果沒偵測到地面，返回 0
+        return 0;
     }
 
     /**
@@ -90,7 +126,11 @@ export class EnemyManager {
         }
 
         const root = result.meshes[0];
-        root.position.set(enemyData.x, 0.1, enemyData.z);
+
+        // Phase 16-2: 使用地面高度設置 Y 坐標（跟 PlayerManager 一樣）
+        const groundY = this.getGroundHeight(enemyData.x, enemyData.z);
+        root.position.set(enemyData.x, groundY, enemyData.z);
+
         root.scaling.set(modelConfig.characterScale, modelConfig.characterScale, modelConfig.characterScale);
         root.rotationQuaternion = null;
         root.checkCollisions = true;
@@ -99,9 +139,9 @@ export class EnemyManager {
 
         // Debug: Log complete model info including Y position
         console.log(`✅ ${isNPC ? 'NPC' : 'Enemy'} model loaded: id="${enemyId}"`);
-        console.log(`   Position: (${root.position.x.toFixed(1)}, ${root.position.y.toFixed(1)}, ${root.position.z.toFixed(1)})`);
+        console.log(`   Position: (${root.position.x.toFixed(1)}, ${root.position.y.toFixed(1)}, ${root.position.z.toFixed(1)}) [groundY=${groundY.toFixed(1)}]`);
         console.log(`   Scale: ${root.scaling.x}, visibility=${root.visibility}, isEnabled=${root.isEnabled()}`);
-        console.log(`   meshCount=${result.meshes.length}, boundingBox=${root.getBoundingInfo()?.boundingBox?.minimumWorld?.y?.toFixed(1) ?? 'N/A'}`);
+        console.log(`   meshCount=${result.meshes.length}`);
 
         // 設置 metadata 以便點擊偵測
         root.metadata = {
