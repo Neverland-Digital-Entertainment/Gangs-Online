@@ -151,15 +151,9 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
     let pendingAttack: { targetId: string; targetType: EntityType; x: number; z: number } | null = null;
 
     try {
-        // 連接遊戲房間前，先檢查版本（0.7.1）
+        // 顯示版本資訊（版本號統一從 shared 導入）
         loadingScreen.updateText("正在檢查版本...");
-        try {
-            const serverVersion = await checkServerVersion();
-            loadingScreen.showVersionInfo(GAME_VERSION, serverVersion);
-        } catch (err) {
-            console.error("Version check failed, continuing anyway:", err);
-            loadingScreen.showVersionInfo(GAME_VERSION, "unknown");
-        }
+        loadingScreen.showVersionInfo(GAME_VERSION);
 
         // Phase 12.1: 使用登入結果
         const userId = loginResult.userId;
@@ -205,6 +199,14 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
         // Phase 15: 暫時隱藏 HUD（測試模式）
         hudManager.setVisible(false);
+
+        // Phase 16-3: 連接對話系統和商店系統
+        dialogueSystem.setOnOpenShop((npcId, shopId, npcName) => {
+            console.log(`🏪 [Dialogue->Shop] Opening shop: ${shopId} for NPC: ${npcId}`);
+            if (hudManager) {
+                hudManager.showShopPopupV2(npcId, shopId, npcName);
+            }
+        });
 
         // 監聽聊天訊息 (Phase 13: 支援多頻道)
         room.onMessage("chat", (msg: { sessionId: string; text: string; type?: string; senderName?: string }) => {
@@ -800,7 +802,8 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     try {
                         const dialogueTree = JSON.parse(npcData.dialogueTreeJson);
                         console.log("💬 Opening dialogue with:", npcData.name);
-                        dialogueSystem.show(target.id, npcData.name, dialogueTree);
+                        // Phase 16-3: 傳遞 linkedShopId 以支援對話中的 open_shop 動作
+                        dialogueSystem.show(target.id, npcData.name, dialogueTree, npcData.linkedShopId);
                         return;
                     } catch (error) {
                         console.error("⚠️ Failed to parse dialogue tree:", error);

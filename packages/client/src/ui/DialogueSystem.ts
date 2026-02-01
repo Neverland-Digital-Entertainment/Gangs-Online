@@ -14,7 +14,9 @@ export class DialogueSystem {
     private currentNode: DialogueNode | null = null;
     private npcId: string | null = null;
     private npcName: string | null = null;
+    private linkedShopId: string | null = null; // Phase 16-3: 關聯的商店 ID
     private onClose: (() => void) | null = null;
+    private onOpenShop: ((npcId: string, shopId: string, npcName: string) => void) | null = null;
 
     constructor() {
         this.createDialogueUI();
@@ -52,13 +54,18 @@ export class DialogueSystem {
 
     /**
      * 顯示對話
+     * @param npcId NPC ID
+     * @param npcName NPC 名稱
+     * @param tree 對話樹
+     * @param linkedShopId 可選的關聯商店 ID（用於 open_shop 動作）
      */
-    public show(npcId: string, npcName: string, tree: DialogueTree): void {
+    public show(npcId: string, npcName: string, tree: DialogueTree, linkedShopId?: string): void {
         if (!this.dialogueContainer) return;
 
         this.npcId = npcId;
         this.npcName = npcName;
         this.currentTree = tree;
+        this.linkedShopId = linkedShopId || null;
 
         // 找到起始節點
         const startNode = tree.nodes.find(n => n.nodeId === tree.startNodeId);
@@ -92,7 +99,11 @@ export class DialogueSystem {
             color: #FFD700;
             margin-bottom: 10px;
         `;
-        nameDiv.textContent = node.speaker || this.npcName || "NPC";
+        // 防止顯示 node ID 作為說話者名稱（如 node_xxx 格式）
+        const speakerName = (node.speaker && !node.speaker.startsWith("node_"))
+            ? node.speaker
+            : (this.npcName || "NPC");
+        nameDiv.textContent = speakerName;
         this.dialogueContainer.appendChild(nameDiv);
 
         // 對話內容
@@ -198,8 +209,14 @@ export class DialogueSystem {
 
         switch (node.actionType) {
             case 'open_shop':
-                // TODO: 打開商店
-                console.log("[DialogueSystem] Opening shop:", node.actionData);
+                // 從 actionData 或 linkedShopId 獲取商店 ID
+                const shopId = node.actionData?.shopId || this.linkedShopId;
+                if (shopId && this.npcId && this.onOpenShop) {
+                    console.log(`🏪 [DialogueSystem] Opening shop: ${shopId}`);
+                    this.onOpenShop(this.npcId, shopId, this.npcName || "商店");
+                } else {
+                    console.warn("[DialogueSystem] Cannot open shop: missing shopId or callback");
+                }
                 break;
             case 'accept_quest':
                 // TODO: 接受任務
@@ -222,6 +239,7 @@ export class DialogueSystem {
         this.currentNode = null;
         this.npcId = null;
         this.npcName = null;
+        this.linkedShopId = null;
 
         if (this.onClose) {
             this.onClose();
@@ -243,5 +261,12 @@ export class DialogueSystem {
      */
     public setOnClose(callback: () => void): void {
         this.onClose = callback;
+    }
+
+    /**
+     * 設置打開商店回調 (Phase 16-3)
+     */
+    public setOnOpenShop(callback: (npcId: string, shopId: string, npcName: string) => void): void {
+        this.onOpenShop = callback;
     }
 }
