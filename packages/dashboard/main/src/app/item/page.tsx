@@ -13,6 +13,9 @@ import {
   Package,
   LayoutGrid,
   List,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { itemService } from '@/lib/item/service';
 import { ItemImage } from '@/components/common/ItemImage';
@@ -40,13 +43,18 @@ export default function ItemsPage() {
     isActive: undefined,
   });
 
+  type SortField = 'name' | 'category' | 'price';
+  type SortOrder = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
   useEffect(() => {
     loadItems();
   }, []);
 
   useEffect(() => {
     applyFilters();
-  }, [items, filter]);
+  }, [items, filter, sortField, sortOrder]);
 
   async function loadItems() {
     try {
@@ -80,6 +88,25 @@ export default function ItemsPage() {
       filtered = filtered.filter((item) => item.isActive === filter.isActive);
     }
 
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let compareValue = 0;
+
+      switch (sortField) {
+        case 'name':
+          compareValue = a.name.localeCompare(b.name);
+          break;
+        case 'category':
+          compareValue = a.category.localeCompare(b.category);
+          break;
+        case 'price':
+          compareValue = a.price - b.price;
+          break;
+      }
+
+      return sortOrder === 'asc' ? compareValue : -compareValue;
+    });
+
     setFilteredItems(filtered);
   }
 
@@ -100,6 +127,28 @@ export default function ItemsPage() {
     } catch (err: any) {
       setError(err.message || 'Failed to duplicate item');
     }
+  }
+
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      // Toggle sort order if clicking the same field
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  }
+
+  function getSortIcon(field: SortField) {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />;
+    }
+    return sortOrder === 'asc' ? (
+      <ArrowUp className="w-3 h-3 ml-1" />
+    ) : (
+      <ArrowDown className="w-3 h-3 ml-1" />
+    );
   }
 
   const totalItems = items.length;
@@ -339,14 +388,32 @@ export default function ItemsPage() {
                   <th className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase w-16">
                     {t('item.imageUrl')}
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase">
-                    {t('common.name')} / {t('common.description')}
+                  <th
+                    className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase cursor-pointer hover:bg-[var(--table-hover)] select-none"
+                    onClick={() => handleSort('name')}
+                  >
+                    <div className="flex items-center">
+                      {t('common.name')} / {t('common.description')}
+                      {getSortIcon('name')}
+                    </div>
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase w-24">
-                    {t('common.type')}
+                  <th
+                    className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase w-24 cursor-pointer hover:bg-[var(--table-hover)] select-none"
+                    onClick={() => handleSort('category')}
+                  >
+                    <div className="flex items-center">
+                      {t('common.type')}
+                      {getSortIcon('category')}
+                    </div>
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase w-24">
-                    {t('common.price')}
+                  <th
+                    className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase w-24 cursor-pointer hover:bg-[var(--table-hover)] select-none"
+                    onClick={() => handleSort('price')}
+                  >
+                    <div className="flex items-center">
+                      {t('common.price')}
+                      {getSortIcon('price')}
+                    </div>
                   </th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-[var(--muted)] uppercase w-20">
                     {t('common.status')}

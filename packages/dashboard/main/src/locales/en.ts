@@ -52,6 +52,8 @@ export default {
   'nav.npc': 'NPC Management',
   'nav.npcTemplates': 'Template Management',
   'nav.npcInstances': 'Instance Management',
+  'nav.quest': 'Quest Management',
+  'nav.settings': 'Settings',
   'nav.comingSoon': 'Coming Soon',
 
   // Dashboard Home
@@ -129,7 +131,7 @@ export default {
   'item.attributes.policeDetectionHint': 'Police detection rate multiplier (1.0 = normal)',
   'item.attributes.stackLimit': 'Stack Limit',
   'item.attributes.stackLimitHint': 'Maximum stacks in single inventory slot',
-  'item.imageUrl': 'Image URL',
+  'item.imageUrl': 'Image',
   'item.missingId': 'Missing item ID',
   'item.loadFailed': 'Failed to load',
   'item.saveFailed': 'Failed to save',

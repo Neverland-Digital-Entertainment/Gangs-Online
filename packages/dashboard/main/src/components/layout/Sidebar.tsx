@@ -77,13 +77,13 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
-    titleKey: 'nav.comingSoon',
+    titleKey: 'nav.quest',
     icon: ScrollText,
     href: '/quest',
     disabled: true,
   },
   {
-    titleKey: 'nav.comingSoon',
+    titleKey: 'nav.settings',
     icon: Settings,
     href: '/settings',
     disabled: true,

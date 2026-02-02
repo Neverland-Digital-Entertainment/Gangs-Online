@@ -87,7 +87,7 @@ export default function ShopListPage() {
             const value = e.target.value;
             setFilterActive(value === 'all' ? undefined : value === 'active');
           }}
-          className="select"
+          className="select w-auto"
         >
           <option value="all">{t('common.all')}</option>
           <option value="active">{t('common.active')}</option>
