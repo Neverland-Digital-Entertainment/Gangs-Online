@@ -1,7 +1,8 @@
 # Gangs Online - 項目架構指南
 
-> **最後更新：** 2026-01-28
+> **最後更新：** 2026-02-02
 > **當前版本：** 0.16.3 - Shop & Economy System Complete
+> **版本號位置：** `packages/shared/src/index.ts` - 所有端統一使用此版本號
 > **目的：** 提供項目架構概覽，減少新對話中的重複代碼探索，節省 token 使用
 >
 > **重要：每次回應必須以繁體中文為主語言，再配以英文輔助**
@@ -31,17 +32,17 @@ Gangs-Online/
 
 **重要類型：**
 - `PlayerData` (Colyseus Schema) - 玩家狀態同步（注意：使用 `firebaseUid` 而非 `uid`）
-- `Enemy` (Colyseus Schema) - 敵人/NPC 狀態（注意：NPC 也使用此 schema）
+- `Enemy` (Colyseus Schema) - 敵人/NPC 狀態（注意：NPC 也使用此 schema，含 `linkedShopId` 欄位）
 - `INPCTemplate` - NPC 模板接口（Firebase 存儲）
-- `INPCInstance` - NPC 實例接口（Firebase 存儲，含 `linkedShopId` 和 `isGuildOnly`）
-- `INPCData` - 完整 NPC 數據（模板 + 實例組合）
+- `INPCInstance` - NPC 實例接口（Firebase 存儲，含 `shopId` 和 `isGuildOnly`）
+- `INPCData` - 完整 NPC 數據（模板 + 實例組合，含 `linkedShopId`）
 - `DialogueTree` / `DialogueNode` - 對話系統類型
 - `IItem` - 道具接口（Firebase 存儲，含 `ItemCategory` 和價格）
 - `IShop` - 商店接口（Firebase 存儲，含 `itemList` 和營業時間）
 - `IShopItem` - 商店商品配置（庫存、限購、價格倍率）
 - `IPurchaseRequest` / `IPurchaseResponse` - 購買請求/回應接口
 - `GAME_CONSTANTS` - 遊戲常數（攻擊範圍、移動速度等）
-- `GAME_VERSION` - 當前遊戲版本號（0.16.3）
+- `GAME_VERSION` - **當前遊戲版本號（0.16.3）- 統一定義在此，所有端共用**
 
 **注意事項：**
 - `modelId` 字段為**可選** (`string | undefined`)
@@ -63,6 +64,7 @@ Gangs-Online/
 - `services/NPCService.ts` - **NPC 數據管理服務**
   - 從 Firebase 載入 npc_templates 和 npc_instances
   - 組合模板和實例數據
+  - **關鍵：** 從 `instance.shopId` 讀取並映射到 `npcData.linkedShopId`
   - 提供 `getAllNPCs()`, `getNPC(id)` 等方法
 - `services/ShopService.ts` - **商店數據管理服務**（Phase 16.3）
   - 從 Firebase 載入 items 和 shops collection
@@ -81,22 +83,33 @@ Gangs-Online/
   - 從 NPCService 載入數據並生成 NPC
   - 將 NPC 添加到 room.state.enemies MapSchema
   - 處理 dialogueTree 序列化（轉為 JSON 字符串）
-  - **關鍵邏輯：** `npc.modelId = (data.modelId && data.modelId !== "undefined") ? data.modelId : ""`
+  - **關鍵邏輯：**
+    - `npc.modelId = (data.modelId && data.modelId !== "undefined") ? data.modelId : ""`
+    - `npc.linkedShopId = data.linkedShopId || ""` - 設定關聯商店 ID 到 Enemy schema
 
 **重要數據流：**
 ```
 Firebase (npc_templates + npc_instances)
   ↓
 NPCService.initialize()
-  ↓ 組合數據
-NPCService.getAllNPCs() → INPCData[]
+  ↓ 組合數據，從 instance.shopId 讀取
+NPCService.getAllNPCs() → INPCData[] (含 linkedShopId)
   ↓
 NPCManager.initialize()
   ↓ 創建 Enemy Schema
+  ↓ 設定 npc.linkedShopId = data.linkedShopId
 room.state.enemies.set(npcId, npc)
-  ↓ Colyseus 自動同步
-Client receives NPC data
+  ↓ Colyseus 自動同步（含 linkedShopId 欄位）
+Client receives NPC data (含 linkedShopId)
 ```
+
+**linkedShopId 傳輸流程（Phase 16-3 修復）：**
+1. Firebase `npc_instances` 集合儲存 `shopId` 欄位
+2. `NPCService.ts:169` 讀取 `instance.shopId` → 設定到 `npcData.linkedShopId`
+3. `NPCManager.ts:79` 從 `data.linkedShopId` → 設定到 `npc.linkedShopId` (Enemy Schema)
+4. `GameState.ts:94` Enemy Schema 定義 `@type("string") linkedShopId`
+5. Colyseus 自動同步到 Client
+6. Client 可從 `npcData.linkedShopId` 讀取並開啟商店
 
 ---
 
@@ -206,7 +219,20 @@ scene.onPointerDown = (evt, pickResult) => {
 - `components/npc/TemplateForm.tsx` - NPC 模板表單
   - `modelId` 為**可選字段**（不填則使用預設模型）
   - 驗證邏輯：`// modelId is now optional, will use default if not provided`
-- `components/npc/DialogueEditor.tsx` - 對話樹編輯器
+- `components/npc/DialogueEditor.tsx` - **對話樹編輯器（Phase 16-2 全新 Table 式介面）**
+  - **表格顯示：** #順序、內容（inline 編輯）、動作類型（icon + 文字）、刪除按鈕
+  - **Drag & Drop：** 拖曳 GripVertical 圖示可重新排序節點
+  - **Inline 編輯：** 直接在表格中點擊 content 欄位即可修改
+  - **展開編輯：** 點擊 ChevronDown/Right 圖示展開詳細設定（選項、動作參數）
+  - **智慧預設：** 新增選項時自動將 nextNodeId 設為下一個節點
+  - **自動清理：** 刪除節點時自動更新所有指向它的選項
+  - **起始節點：** 第一個節點（★ 標記）永遠是起始節點，無需手動選擇
+  - **動作模式：**
+    - `next_dialogue` - 下一句對話（自動選擇下一個節點）
+    - `player_options` - 玩家選項（可新增多個選項）
+    - `open_shop` - 開啟商店（dropdown 選擇已有商店或使用 linkedShopId）
+    - `end_dialogue` - 結束對話（單一對話預設模式）
+  - **新增節點行為：** 自動將前一個「結束對話」節點改為「下一句對話」指向新節點
 - `components/shop/ShopForm.tsx` - 商店表單（Phase 16.3）
   - Multi-select 商品選擇器（react-select）
   - 停用商品顯示 `[停用]` 標記
@@ -429,7 +455,7 @@ scene.onPointerDown = (evt, pickResult) => {
 - ✅ 商店 CRUD（Dashboard 管理界面）
 - ✅ 商店配置（營業時間、庫存、價格倍率）
 - ✅ 購買限制（全局庫存、個人限購）
-- ✅ NPC-商店關聯（linkedShopId）
+- ✅ NPC-商店關聯（linkedShopId 完整傳輸流程）
 - ✅ 公會專屬商店（isGuildOnly）
 - ✅ Server 端購買邏輯（庫存管理、限制驗證）
 - ✅ Client 端商店 UI（ShopSystemV2）
@@ -444,6 +470,9 @@ scene.onPointerDown = (evt, pickResult) => {
 **Phase 16-2:**
 - ✅ NPC 模板和實例管理（Firebase）
 - ✅ NPC 對話系統（DialogueTree）
+- ✅ **對話樹 Table 式編輯器**（Drag & Drop、Inline 編輯、展開詳細設定）
+- ✅ **對話樹智慧功能**（自動清理、智慧預設、起始節點鎖定）
+- ✅ **對話動作系統**（下一句對話、玩家選項、開啟商店、結束對話）
 - ✅ 多語言支持（i18n）
 - ✅ 道具分類翻譯模組化
 - ✅ NPC 自定義模型支持（可選 modelId）
@@ -549,6 +578,11 @@ scene.onPointerDown = (evt, pickResult) => {
 ### 如何修改 NPC 對話？
 1. Dashboard: 編輯 NPC Template
 2. 使用 DialogueEditor 組件編輯對話樹
+   - **拖曳排序：** 拖動 GripVertical 圖示重新排序節點
+   - **快速編輯：** 直接點擊內容欄位修改文字
+   - **詳細設定：** 點擊 ChevronDown 展開編輯選項和動作
+   - **動作選擇：** 從 dropdown 選擇下一句對話、玩家選項、開啟商店、結束對話
+   - **商店關聯：** 選擇「開啟商店」時可指定商店或使用 NPC 的 linkedShopId
 3. 保存後服務器需要重啟以載入最新數據
 4. 客戶端重新連接後自動獲取新對話
 
@@ -683,9 +717,85 @@ scene.onPointerDown = (evt, pickResult) => {
 
 ---
 
-## 🔄 Phase 16.3 後續改進總結
+## 🔄 重要修改總結
 
-### 修復的問題（2026-01-28）
+### Phase 16-3 & 16-2 關鍵修改（2026-02-02 更新）
+
+#### 1. 版本號統一管理
+**修改：** 所有端的版本號統一在 `packages/shared/src/index.ts`
+**位置：** `export const GAME_VERSION = "0.16.3";`
+**影響：**
+- Client、Server、Dashboard 都從 `@gangs-online/shared` 導入版本號
+- 不再有分散在不同檔案的版本號
+- 確保所有端版本同步
+
+#### 2. linkedShopId 傳輸問題修復
+**問題：** NPC 的商店關聯無法正確傳到 Client
+**原因：** 數據流不完整，Firebase → Service → Manager → Schema 缺少環節
+**修復流程：**
+1. `INPCInstance` interface 定義 `shopId?: string` 欄位
+2. `NPCService.ts:169` 從 `instance.shopId` 讀取 → `linkedShopId: instance.shopId`
+3. `NPCManager.ts:79` 設定到 Enemy Schema → `npc.linkedShopId = data.linkedShopId || ""`
+4. `GameState.ts:94` Enemy Schema 新增 `@type("string") linkedShopId: string = ""`
+5. Colyseus 自動同步到 Client
+6. Client `main.ts:174` 可從 `npcData.linkedShopId` 讀取並開啟商店
+
+**關鍵檔案：**
+- `packages/shared/src/index.ts:391` - INPCInstance 定義 shopId
+- `packages/server/src/services/NPCService.ts:169` - 映射 shopId → linkedShopId
+- `packages/server/src/systems/NPCManager.ts:79` - 設定到 Enemy schema
+- `packages/server/src/rooms/schema/GameState.ts:94` - Enemy schema 新增欄位
+- `packages/client/src/main.ts:174` - Client 讀取 linkedShopId
+
+#### 3. 對話樹 Table 式編輯器（Phase 16-2 重大更新）
+
+**全新介面特點：**
+- **表格佈局：** 清晰顯示 #順序、內容、動作類型、刪除按鈕
+- **視覺回饋：**
+  - 第一個節點有 ★ 標記（永遠是起始節點）
+  - 深灰色 header（`bg-gray-100 dark:bg-gray-800`）確保可見
+  - 動作類型顯示 icon + 文字（ArrowRight、ListOrdered、Store、XCircle）
+- **直覺操作：**
+  - 拖曳 GripVertical 圖示可重新排序
+  - 直接點擊內容欄位即可修改（inline editing）
+  - 點擊 ChevronDown/Right 展開詳細設定
+
+**智慧功能：**
+1. **自動預設 nextNodeId：** 新增選項時自動指向下一個節點
+2. **自動清理：** 刪除節點時自動更新所有指向它的選項
+3. **連鎖新增：** 新增節點時自動將前一個「結束對話」改為「下一句對話」
+4. **鎖定起始節點：** 第一個節點永遠是起始，無需手動選擇
+
+**動作模式：**
+- `next_dialogue` - 下一句對話（藍色 ArrowRight 圖示）
+- `player_options` - 玩家選項（紫色 ListOrdered 圖示）
+- `open_shop` - 開啟商店（綠色 Store 圖示，dropdown 選擇商店）
+- `end_dialogue` - 結束對話（灰色 XCircle 圖示，單一對話預設）
+
+**關鍵檔案：**
+- `packages/dashboard/main/src/components/npc/DialogueEditor.tsx` (617 lines)
+
+**實現細節：**
+- Lines 283-309: Drag & Drop 邏輯
+- Lines 425-434: Inline content 編輯
+- Lines 461-589: 展開詳細設定區
+- Lines 109-135: 新增節點自動連鎖邏輯
+- Lines 137-170: 刪除節點自動清理邏輯
+- Lines 234-249: 智慧預設 nextNodeId
+
+#### 4. 對話樹編輯器改進清單
+
+| 改進項目 | 狀態 | 說明 |
+|---------|------|------|
+| ✅ 移除「發言者」欄位 | 完成 | 使用 NPC 名稱，無需額外欄位 |
+| ✅ 移除「起始節點」選擇器 | 完成 | 第一個節點（★）永遠是起始 |
+| ✅ 「開啟商店」dropdown | 完成 | 選擇已有商店或使用 linkedShopId |
+| ✅ 單一對話預設「結束對話」 | 完成 | 新節點預設 `actionType: 'end_dialogue'` |
+| ✅ Table header 可見樣式 | 完成 | `bg-gray-100 dark:bg-gray-800` + 文字顏色 |
+| ✅ 動作欄 icon + 文字 | 完成 | 每種動作有專屬顏色 icon |
+| ✅ 新增節點連鎖邏輯 | 完成 | 自動將前一句改為「下一句對話」|
+
+### 其他修復的問題（2026-01-28）
 
 #### 1. NPC 對話樹數據完整性問題
 **問題：** 對話樹無法保存到 Firebase，錯誤：`Unsupported field value: undefined`
