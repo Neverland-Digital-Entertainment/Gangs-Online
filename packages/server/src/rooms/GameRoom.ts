@@ -56,20 +56,8 @@ export class GameRoom extends Room<GameState> {
 
         // 初始化 NPC 管理系統 (Phase 9, Phase 14: 從 Firebase 載入)
         this.npcManager = new NPCManager(this.state.enemies);
-        // NPC 初始化是非同步的，需要等待完成
-        this.npcManager.initialize().catch((err) => {
-            console.error("[GameRoom] Failed to initialize NPCs:", err);
-        });
-
-        // Phase 16-3: 初始化商店服務
-        shopService.initialize().catch((err) => {
-            console.error("[GameRoom] Failed to initialize ShopService:", err);
-        });
-
-        // Phase 16-3: 初始化購買服務
-        purchaseService.initialize().catch((err) => {
-            console.error("[GameRoom] Failed to initialize PurchaseService:", err);
-        });
+        // NPC 初始化是非同步的，使用 Promise 鏈確保順序初始化
+        this.initializeAsyncSystems();
 
         // 初始化任務管理系統 (Phase 10)
         this.questManager = new QuestManager();
@@ -971,6 +959,33 @@ export class GameRoom extends Room<GameState> {
             if (targetClient) {
                 targetClient.send("notification", `紅名懲罰：你掉落了 ${droppedItems.join(", ")}`);
             }
+        }
+    }
+
+    /**
+     * 初始化異步系統（NPC、商店、購買服務）
+     * 這些服務需要從 Firebase 載入數據，所以是異步的
+     */
+    private async initializeAsyncSystems(): Promise<void> {
+        console.log("📦 [GameRoom] Starting async systems initialization...");
+
+        try {
+            // 依序初始化各個服務
+            console.log("📦 [GameRoom] Initializing NPC Manager...");
+            await this.npcManager.initialize();
+            console.log(`✅ [GameRoom] NPC Manager initialized - ${this.state.enemies.size} NPCs in state`);
+
+            console.log("📦 [GameRoom] Initializing Shop Service...");
+            await shopService.initialize();
+            console.log("✅ [GameRoom] Shop Service initialized");
+
+            console.log("📦 [GameRoom] Initializing Purchase Service...");
+            await purchaseService.initialize();
+            console.log("✅ [GameRoom] Purchase Service initialized");
+
+            console.log("✅ [GameRoom] All async systems initialized successfully!");
+        } catch (error) {
+            console.error("❌ [GameRoom] Failed to initialize async systems:", error);
         }
     }
 

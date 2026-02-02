@@ -413,6 +413,7 @@ export interface INPCData {
     lootTable?: ILootTableEntry[];
     dialogue?: string; // 簡單對話文本（向後兼容）
     dialogueTree?: DialogueTree; // Phase 16-2: 對話樹
+    linkedShopId?: string; // Phase 16-3: 關聯商店 ID
     relatedQuests?: string[]; // 關聯任務 ID
     spawnX?: number;
     spawnZ?: number;

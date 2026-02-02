@@ -116,25 +116,16 @@ export class LoadingScreen {
     }
 
     /**
-     * 顯示版本資訊（0.7.1）
+     * 顯示版本資訊（簡化版 - 只顯示一個版本號）
      */
-    showVersionInfo(clientVersion: string, serverVersion: string): void {
+    showVersionInfo(version: string): void {
         if (this.versionInfo) {
-            const match = clientVersion === serverVersion;
-            const icon = match ? "✅" : "⚠️";
-            const color = match ? "#4CAF50" : "#FF9800";
-
             this.versionInfo.innerHTML = `
-                <div style="color: ${color};">
-                    ${icon} Client: ${clientVersion} | Server: ${serverVersion}
+                <div style="color: #4CAF50;">
+                    v${version}
                 </div>
             `;
-
-            if (!match) {
-                console.warn(`⚠️ Version mismatch! Client: ${clientVersion}, Server: ${serverVersion}`);
-            } else {
-                console.log(`✅ Version matched: ${clientVersion}`);
-            }
+            console.log(`✅ Game Version: ${version}`);
         }
     }
 

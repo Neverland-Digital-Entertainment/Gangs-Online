@@ -1,17 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Plus,
   Trash2,
-  Edit,
+  GripVertical,
   MessageSquare,
-  ArrowRight,
   Save,
-  X,
+  ChevronDown,
+  ChevronRight,
+  Store,
+  ListOrdered,
+  ArrowRight,
+  XCircle,
 } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
+import { shopService } from '@/lib/shop/shop-service';
+import type { Shop } from '@/types/shop';
 import type { DialogueTree, DialogueNode, DialogueOption } from '@/types/npc';
+
+// 動作類型
+type ActionMode = 'next_dialogue' | 'player_options' | 'open_shop' | 'end_dialogue';
 
 interface DialogueEditorProps {
   initialTree?: DialogueTree;
@@ -31,22 +40,67 @@ export default function DialogueEditor({
       nodes: [
         {
           nodeId: 'start',
-          speaker: 'NPC',
+          speaker: '',
           content: t('npc.dialogueEditor.defaultGreeting'),
           options: [],
+          actionType: 'end_dialogue', // Default single node to end_dialogue
         },
       ],
       startNodeId: 'start',
     }
   );
 
-  const [editingNode, setEditingNode] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<DialogueNode | null>(null);
+  // Expanded row for inline editing
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
 
-  // Action type labels mapping
-  const getActionTypeLabel = (actionType: string) => {
-    return t(`npc.actionType.${actionType}`);
-  };
+  // Shops for dropdown
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [loadingShops, setLoadingShops] = useState(true);
+
+  // Drag and drop state
+  const dragItem = useRef<number | null>(null);
+  const dragOverItem = useRef<number | null>(null);
+
+  useEffect(() => {
+    loadShops();
+  }, []);
+
+  async function loadShops() {
+    try {
+      setLoadingShops(true);
+      const data = await shopService.getAllShops();
+      setShops(data);
+    } catch (err) {
+      console.error('Failed to load shops:', err);
+    } finally {
+      setLoadingShops(false);
+    }
+  }
+
+  // Determine action mode from node data
+  function getActionMode(node: DialogueNode): ActionMode {
+    if (node.actionType === 'end_dialogue') return 'end_dialogue';
+    if (node.actionType === 'open_shop') return 'open_shop';
+    if (node.options && node.options.length > 1) return 'player_options';
+    if (node.options && node.options.length === 1) return 'next_dialogue';
+    return 'end_dialogue';
+  }
+
+  // Get next node ID for "下一句對話" mode
+  function getNextNodeId(node: DialogueNode): string {
+    if (node.options && node.options.length === 1) {
+      return node.options[0].nextNodeId;
+    }
+    // Default to next node in sequence
+    const currentIndex = tree.nodes.findIndex(n => n.nodeId === node.nodeId);
+    const nextNode = tree.nodes[currentIndex + 1];
+    return nextNode?.nodeId || tree.nodes[0].nodeId;
+  }
+
+  // Get shop ID for "開啟商店" mode
+  function getShopId(node: DialogueNode): string {
+    return node.actionData?.shopId || '';
+  }
 
   function generateNodeId(): string {
     return `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -56,90 +110,237 @@ export default function DialogueEditor({
     const newNodeId = generateNodeId();
     const newNode: DialogueNode = {
       nodeId: newNodeId,
-      speaker: 'NPC',
+      speaker: '',
       content: t('npc.dialogueEditor.newDialogueContent'),
       options: [],
+      actionType: 'end_dialogue',
     };
 
-    setTree({
-      ...tree,
-      nodes: [...tree.nodes, newNode],
-    });
-  }
-
-  function deleteNode(nodeId: string) {
-    if (nodeId === tree.startNodeId) {
-      alert(t('npc.dialogueEditor.cannotDeleteStart'));
-      return;
+    // Update the previous last node to point to this new node
+    const updatedNodes = [...tree.nodes];
+    const lastNode = updatedNodes[updatedNodes.length - 1];
+    if (lastNode && getActionMode(lastNode) === 'end_dialogue') {
+      // Change last node to "next_dialogue" pointing to new node
+      lastNode.options = [{ text: '繼續', nextNodeId: newNodeId }];
+      lastNode.actionType = undefined;
     }
 
     setTree({
       ...tree,
-      nodes: tree.nodes.filter((node) => node.nodeId !== nodeId),
+      nodes: [...updatedNodes, newNode],
+      startNodeId: tree.nodes[0].nodeId, // Always first node
     });
+
+    setExpandedNodeId(newNodeId);
   }
 
-  function startEditNode(node: DialogueNode) {
-    setEditingNode(node.nodeId);
-    setEditForm({ ...node });
-  }
+  function deleteNode(nodeId: string) {
+    if (tree.nodes.length === 1) {
+      alert(t('npc.dialogueEditor.cannotDeleteLast'));
+      return;
+    }
 
-  function cancelEditNode() {
-    setEditingNode(null);
-    setEditForm(null);
-  }
+    const nodeIndex = tree.nodes.findIndex(n => n.nodeId === nodeId);
 
-  function saveEditNode() {
-    if (!editForm) return;
+    // Update any nodes pointing to this node
+    const updatedNodes = tree.nodes
+      .filter((node) => node.nodeId !== nodeId)
+      .map((node) => {
+        const updatedOptions = node.options?.map(opt => {
+          if (opt.nextNodeId === nodeId) {
+            // Point to the node after the deleted one, or the first node
+            const nextIndex = nodeIndex < tree.nodes.length - 1 ? nodeIndex : 0;
+            const newTarget = tree.nodes.filter(n => n.nodeId !== nodeId)[nextIndex];
+            return { ...opt, nextNodeId: newTarget?.nodeId || tree.nodes[0].nodeId };
+          }
+          return opt;
+        });
+        return { ...node, options: updatedOptions };
+      });
 
     setTree({
       ...tree,
-      nodes: tree.nodes.map((node) =>
-        node.nodeId === editForm.nodeId ? editForm : node
-      ),
+      nodes: updatedNodes,
+      startNodeId: updatedNodes[0].nodeId, // Always first node
     });
 
-    setEditingNode(null);
-    setEditForm(null);
+    if (expandedNodeId === nodeId) {
+      setExpandedNodeId(null);
+    }
   }
 
-  function addOption() {
-    if (!editForm) return;
+  function updateNode(nodeId: string, updates: Partial<DialogueNode>) {
+    setTree({
+      ...tree,
+      nodes: tree.nodes.map((node) =>
+        node.nodeId === nodeId ? { ...node, ...updates } : node
+      ),
+    });
+  }
+
+  function setActionMode(nodeId: string, mode: ActionMode) {
+    const node = tree.nodes.find(n => n.nodeId === nodeId);
+    if (!node) return;
+
+    const currentIndex = tree.nodes.findIndex(n => n.nodeId === nodeId);
+    const nextNode = tree.nodes[currentIndex + 1] || tree.nodes[0];
+
+    switch (mode) {
+      case 'next_dialogue':
+        updateNode(nodeId, {
+          options: [{ text: '繼續', nextNodeId: nextNode.nodeId }],
+          actionType: undefined,
+          actionData: undefined,
+        });
+        break;
+      case 'player_options':
+        updateNode(nodeId, {
+          options: node.options?.length ? node.options : [
+            { text: t('npc.dialogueEditor.newOption'), nextNodeId: nextNode.nodeId }
+          ],
+          actionType: undefined,
+          actionData: undefined,
+        });
+        break;
+      case 'open_shop':
+        updateNode(nodeId, {
+          options: [],
+          actionType: 'open_shop',
+          actionData: node.actionData || undefined,
+        });
+        break;
+      case 'end_dialogue':
+        updateNode(nodeId, {
+          options: [],
+          actionType: 'end_dialogue',
+          actionData: undefined,
+        });
+        break;
+    }
+  }
+
+  function setNextNodeId(nodeId: string, nextNodeId: string) {
+    updateNode(nodeId, {
+      options: [{ text: '繼續', nextNodeId }],
+    });
+  }
+
+  function setShopIdForNode(nodeId: string, shopId: string) {
+    updateNode(nodeId, {
+      actionData: shopId ? { shopId } : undefined,
+    });
+  }
+
+  function addOption(nodeId: string) {
+    const node = tree.nodes.find((n) => n.nodeId === nodeId);
+    if (!node) return;
+
+    const currentIndex = tree.nodes.findIndex((n) => n.nodeId === nodeId);
+    const nextNode = tree.nodes[currentIndex + 1] || tree.nodes[0];
 
     const newOption: DialogueOption = {
       text: t('npc.dialogueEditor.newOption'),
-      nextNodeId: tree.startNodeId,
+      nextNodeId: nextNode.nodeId,
     };
 
-    setEditForm({
-      ...editForm,
-      options: [...(editForm.options || []), newOption],
+    updateNode(nodeId, {
+      options: [...(node.options || []), newOption],
     });
   }
 
-  function updateOption(index: number, field: keyof DialogueOption, value: string) {
-    if (!editForm) return;
+  function updateOption(
+    nodeId: string,
+    optionIndex: number,
+    field: keyof DialogueOption,
+    value: string
+  ) {
+    const node = tree.nodes.find((n) => n.nodeId === nodeId);
+    if (!node || !node.options) return;
 
-    const options = [...(editForm.options || [])];
-    options[index] = { ...options[index], [field]: value };
+    const newOptions = [...node.options];
+    newOptions[optionIndex] = { ...newOptions[optionIndex], [field]: value };
 
-    setEditForm({
-      ...editForm,
-      options,
-    });
+    updateNode(nodeId, { options: newOptions });
   }
 
-  function deleteOption(index: number) {
-    if (!editForm) return;
+  function deleteOption(nodeId: string, optionIndex: number) {
+    const node = tree.nodes.find((n) => n.nodeId === nodeId);
+    if (!node || !node.options) return;
 
-    setEditForm({
-      ...editForm,
-      options: editForm.options?.filter((_, i) => i !== index),
+    const newOptions = node.options.filter((_, i) => i !== optionIndex);
+
+    // If no options left, switch to end_dialogue
+    if (newOptions.length === 0) {
+      updateNode(nodeId, {
+        options: [],
+        actionType: 'end_dialogue',
+      });
+    } else {
+      updateNode(nodeId, { options: newOptions });
+    }
+  }
+
+  // Drag and drop handlers
+  function handleDragStart(index: number) {
+    dragItem.current = index;
+  }
+
+  function handleDragEnter(index: number) {
+    dragOverItem.current = index;
+  }
+
+  function handleDragEnd() {
+    if (dragItem.current === null || dragOverItem.current === null) return;
+    if (dragItem.current === dragOverItem.current) return;
+
+    const newNodes = [...tree.nodes];
+    const draggedNode = newNodes[dragItem.current];
+    newNodes.splice(dragItem.current, 1);
+    newNodes.splice(dragOverItem.current, 0, draggedNode);
+
+    setTree({
+      ...tree,
+      nodes: newNodes,
+      startNodeId: newNodes[0].nodeId, // Always first node is start
     });
+
+    dragItem.current = null;
+    dragOverItem.current = null;
   }
 
   function handleSave() {
-    onSave(tree);
+    // Ensure startNodeId is always the first node
+    const finalTree = {
+      ...tree,
+      startNodeId: tree.nodes[0].nodeId,
+    };
+    onSave(finalTree);
+  }
+
+  function toggleExpand(nodeId: string) {
+    setExpandedNodeId(expandedNodeId === nodeId ? null : nodeId);
+  }
+
+  function getActionLabel(mode: ActionMode): string {
+    switch (mode) {
+      case 'next_dialogue': return t('npc.dialogueEditor.actionNextDialogue');
+      case 'player_options': return t('npc.dialogueEditor.actionPlayerOptions');
+      case 'open_shop': return t('npc.dialogueEditor.actionOpenShop');
+      case 'end_dialogue': return t('npc.dialogueEditor.actionEndDialogue');
+    }
+  }
+
+  function getActionIcon(mode: ActionMode) {
+    switch (mode) {
+      case 'next_dialogue':
+        return <ArrowRight className="w-4 h-4 text-blue-500" />;
+      case 'player_options':
+        return <ListOrdered className="w-4 h-4 text-purple-500" />;
+      case 'open_shop':
+        return <Store className="w-4 h-4 text-green-500" />;
+      case 'end_dialogue':
+        return <XCircle className="w-4 h-4 text-gray-500" />;
+    }
   }
 
   return (
@@ -149,286 +350,263 @@ export default function DialogueEditor({
         <div className="flex items-center gap-2">
           <MessageSquare className="w-5 h-5" />
           <h3 className="text-lg font-semibold">{t('npc.dialogueEditor.title')}</h3>
+          <span className="text-sm text-[var(--muted-foreground)]">
+            ({tree.nodes.length} {t('npc.dialogueEditor.nodes')})
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={addNode}
-            className="btn btn-sm btn-outline"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            {t('npc.dialogueEditor.addNode')}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={addNode}
+          className="btn btn-sm btn-primary"
+        >
+          <Plus className="w-4 h-4 mr-1" />
+          {t('npc.dialogueEditor.addNode')}
+        </button>
       </div>
 
-      {/* Start Node Selector */}
-      <div className="card">
-        <div className="card-body">
-          <label className="label">{t('npc.dialogueEditor.startNode')}</label>
-          <select
-            className="input"
-            value={tree.startNodeId}
-            onChange={(e) => setTree({ ...tree, startNodeId: e.target.value })}
-          >
-            {tree.nodes.map((node) => (
-              <option key={node.nodeId} value={node.nodeId}>
-                {node.nodeId} - {node.content.substring(0, 30)}
-                {node.content.length > 30 ? '...' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      {/* Table */}
+      <div className="border rounded-lg overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-100 dark:bg-gray-800 text-sm">
+            <tr>
+              <th className="w-8 p-2"></th>
+              <th className="w-16 p-2 text-left text-gray-700 dark:text-gray-300">#</th>
+              <th className="p-2 text-left text-gray-700 dark:text-gray-300">{t('npc.dialogueEditor.content')}</th>
+              <th className="w-40 p-2 text-center text-gray-700 dark:text-gray-300">{t('npc.dialogueEditor.actionType')}</th>
+              <th className="w-16 p-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {tree.nodes.map((node, index) => {
+              const actionMode = getActionMode(node);
+              return (
+                <>
+                  {/* Main Row */}
+                  <tr
+                    key={node.nodeId}
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragEnter={() => handleDragEnter(index)}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={(e) => e.preventDefault()}
+                    className={`border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-move ${
+                      index === 0 ? 'bg-primary/5' : ''
+                    } ${expandedNodeId === node.nodeId ? 'bg-gray-50 dark:bg-gray-800/30' : ''}`}
+                  >
+                    {/* Drag Handle */}
+                    <td className="p-2 text-center">
+                      <GripVertical className="w-4 h-4 text-gray-400 mx-auto" />
+                    </td>
 
-      {/* Nodes List */}
-      <div className="space-y-3">
-        {tree.nodes.map((node) => (
-          <div
-            key={node.nodeId}
-            className={`card ${
-              node.nodeId === tree.startNodeId
-                ? 'border-2 border-primary'
-                : ''
-            }`}
-          >
-            <div className="card-body">
-              {editingNode === node.nodeId && editForm ? (
-                // Edit Mode
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold">{t('npc.dialogueEditor.editNode')}: {node.nodeId}</h4>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={saveEditNode}
-                        className="btn btn-sm btn-primary"
-                      >
-                        <Save className="w-4 h-4 mr-1" />
-                        {t('npc.dialogueEditor.save')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelEditNode}
-                        className="btn btn-sm btn-outline"
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        {t('npc.dialogueEditor.cancel')}
-                      </button>
-                    </div>
-                  </div>
+                    {/* Order Number */}
+                    <td className="p-2">
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(node.nodeId)}
+                          className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                        >
+                          {expandedNodeId === node.nodeId ? (
+                            <ChevronDown className="w-4 h-4" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4" />
+                          )}
+                        </button>
+                        <span className="font-mono text-sm">
+                          {index + 1}
+                          {index === 0 && (
+                            <span className="ml-1 text-primary text-xs" title={t('npc.dialogueEditor.startNodeHint')}>★</span>
+                          )}
+                        </span>
+                      </div>
+                    </td>
 
-                  {/* Speaker */}
-                  <div>
-                    <label className="label">{t('npc.dialogueEditor.speaker')}</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={editForm.speaker}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, speaker: e.target.value })
-                      }
-                    />
-                  </div>
-
-                  {/* Content */}
-                  <div>
-                    <label className="label">{t('npc.dialogueEditor.content')}</label>
-                    <textarea
-                      className="input min-h-[100px]"
-                      value={editForm.content}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, content: e.target.value })
-                      }
-                    />
-                  </div>
-
-                  {/* Action Type */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">{t('npc.dialogueEditor.actionType')}</label>
-                      <select
-                        className="input"
-                        value={editForm.actionType || ''}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            actionType: e.target.value
-                              ? (e.target.value as any)
-                              : undefined,
-                          })
-                        }
-                      >
-                        <option value="">{t('npc.dialogueEditor.noAction')}</option>
-                        {(['open_shop', 'accept_quest', 'end_dialogue'] as const).map((actionType) => (
-                          <option key={actionType} value={actionType}>
-                            {t(`npc.actionType.${actionType}`)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="label">{t('npc.dialogueEditor.actionData')} (JSON)</label>
+                    {/* Content - Inline Editable */}
+                    <td className="p-2">
                       <input
                         type="text"
-                        className="input"
-                        value={
-                          editForm.actionData
-                            ? JSON.stringify(editForm.actionData)
-                            : ''
+                        className="input input-sm w-full bg-transparent border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-primary"
+                        value={node.content}
+                        onChange={(e) =>
+                          updateNode(node.nodeId, { content: e.target.value })
                         }
-                        onChange={(e) => {
-                          try {
-                            const data = e.target.value
-                              ? JSON.parse(e.target.value)
-                              : undefined;
-                            setEditForm({ ...editForm, actionData: data });
-                          } catch {
-                            // Invalid JSON, ignore
-                          }
-                        }}
-                        placeholder={t('npc.dialogueEditor.actionDataPlaceholder')}
+                        placeholder={t('npc.dialogueEditor.contentPlaceholder')}
                       />
-                    </div>
-                  </div>
+                    </td>
 
-                  {/* Options */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="label mb-0">{t('npc.dialogueEditor.playerOptions')}</label>
-                      <button
-                        type="button"
-                        onClick={addOption}
-                        className="btn btn-sm btn-outline"
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        {t('npc.dialogueEditor.addOption')}
-                      </button>
-                    </div>
-
-                    <div className="space-y-2">
-                      {(editForm.options || []).map((option, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded"
-                        >
-                          <div className="flex-1 space-y-2">
-                            <input
-                              type="text"
-                              className="input input-sm"
-                              placeholder={t('npc.dialogueEditor.optionText')}
-                              value={option.text}
-                              onChange={(e) =>
-                                updateOption(index, 'text', e.target.value)
-                              }
-                            />
-                            <select
-                              className="input input-sm"
-                              value={option.nextNodeId}
-                              onChange={(e) =>
-                                updateOption(index, 'nextNodeId', e.target.value)
-                              }
-                            >
-                              {tree.nodes.map((n) => (
-                                <option key={n.nodeId} value={n.nodeId}>
-                                  → {n.nodeId}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => deleteOption(index)}
-                            className="btn btn-sm btn-outline text-red-600"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                // View Mode
-                <div>
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-semibold">{node.nodeId}</h4>
-                        {node.nodeId === tree.startNodeId && (
-                          <span className="badge badge-primary text-xs">{t('npc.dialogueEditor.start')}</span>
-                        )}
-                        {node.actionType && (
-                          <span className="badge badge-gray text-xs">
-                            {getActionTypeLabel(node.actionType)}
-                          </span>
-                        )}
+                    {/* Action Type Display */}
+                    <td className="p-2 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {getActionIcon(actionMode)}
+                        <span className="text-xs text-gray-600 dark:text-gray-400">
+                          {getActionLabel(actionMode)}
+                        </span>
                       </div>
-                      <p className="text-sm text-[var(--muted-foreground)] mb-2">
-                        <strong>{node.speaker}:</strong> {node.content}
-                      </p>
-                    </div>
+                    </td>
 
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => startEditNode(node)}
-                        className="btn btn-sm btn-outline"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
+                    {/* Actions */}
+                    <td className="p-2 text-right">
                       <button
                         type="button"
                         onClick={() => deleteNode(node.nodeId)}
-                        className="btn btn-sm btn-outline text-red-600"
-                        disabled={node.nodeId === tree.startNodeId}
+                        className="btn btn-xs btn-ghost text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30"
+                        disabled={tree.nodes.length === 1}
+                        title={tree.nodes.length === 1 ? t('npc.dialogueEditor.cannotDeleteLast') : t('npc.dialogueEditor.delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                    </div>
-                  </div>
+                    </td>
+                  </tr>
 
-                  {node.options && node.options.length > 0 && (
-                    <div className="space-y-1">
-                      <p className="text-xs text-[var(--muted-foreground)] mb-1">
-                        {t('npc.dialogueEditor.playerOptions')}:
-                      </p>
-                      {node.options.map((option, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 text-sm text-[var(--muted-foreground)] pl-4"
-                        >
-                          <ArrowRight className="w-3 h-3" />
-                          <span>{option.text}</span>
-                          <span className="text-xs">→ {option.nextNodeId}</span>
+                  {/* Expanded Row */}
+                  {expandedNodeId === node.nodeId && (
+                    <tr key={`${node.nodeId}-expanded`}>
+                      <td colSpan={5} className="p-0 bg-gray-50 dark:bg-gray-800/20">
+                        <div className="p-4 space-y-4 border-l-4 border-primary ml-2">
+                          {/* Action Type Selector */}
+                          <div className="flex flex-wrap items-center gap-4">
+                            <label className="text-sm font-medium w-20">
+                              {t('npc.dialogueEditor.actionType')}:
+                            </label>
+                            <select
+                              className="input input-sm w-48"
+                              value={actionMode}
+                              onChange={(e) => setActionMode(node.nodeId, e.target.value as ActionMode)}
+                            >
+                              <option value="next_dialogue">{t('npc.dialogueEditor.actionNextDialogue')}</option>
+                              <option value="player_options">{t('npc.dialogueEditor.actionPlayerOptions')}</option>
+                              <option value="open_shop">{t('npc.dialogueEditor.actionOpenShop')}</option>
+                              <option value="end_dialogue">{t('npc.dialogueEditor.actionEndDialogue')}</option>
+                            </select>
+
+                            {/* Next Dialogue Selector */}
+                            {actionMode === 'next_dialogue' && (
+                              <div className="flex items-center gap-2">
+                                <ArrowRight className="w-4 h-4 text-gray-400" />
+                                <select
+                                  className="input input-sm w-48"
+                                  value={getNextNodeId(node)}
+                                  onChange={(e) => setNextNodeId(node.nodeId, e.target.value)}
+                                >
+                                  {tree.nodes.filter(n => n.nodeId !== node.nodeId).map((n, nIndex) => {
+                                    const actualIndex = tree.nodes.findIndex(tn => tn.nodeId === n.nodeId);
+                                    return (
+                                      <option key={n.nodeId} value={n.nodeId}>
+                                        #{actualIndex + 1} - {n.content.substring(0, 20)}...
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </div>
+                            )}
+
+                            {/* Shop Selector */}
+                            {actionMode === 'open_shop' && (
+                              <div className="flex items-center gap-2">
+                                <Store className="w-4 h-4 text-gray-400" />
+                                <select
+                                  className="input input-sm w-64"
+                                  value={getShopId(node)}
+                                  onChange={(e) => setShopIdForNode(node.nodeId, e.target.value)}
+                                  disabled={loadingShops}
+                                >
+                                  <option value="">{t('npc.dialogueEditor.useLinkedShop')}</option>
+                                  {shops.map((shop) => (
+                                    <option key={shop.id} value={shop.id}>
+                                      {shop.name} {!shop.isActive ? ' [停用]' : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Player Options Section */}
+                          {actionMode === 'player_options' && (
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <label className="text-sm font-medium">
+                                  {t('npc.dialogueEditor.playerOptions')}
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => addOption(node.nodeId)}
+                                  className="btn btn-xs btn-outline"
+                                >
+                                  <Plus className="w-3 h-3 mr-1" />
+                                  {t('npc.dialogueEditor.addOption')}
+                                </button>
+                              </div>
+
+                              <div className="space-y-2">
+                                {node.options?.map((option, optIndex) => (
+                                  <div
+                                    key={optIndex}
+                                    className="flex items-center gap-2 p-2 bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700"
+                                  >
+                                    <span className="text-xs text-gray-500 w-6">
+                                      {optIndex + 1}.
+                                    </span>
+                                    <input
+                                      type="text"
+                                      className="input input-sm flex-1"
+                                      placeholder={t('npc.dialogueEditor.optionText')}
+                                      value={option.text}
+                                      onChange={(e) =>
+                                        updateOption(node.nodeId, optIndex, 'text', e.target.value)
+                                      }
+                                    />
+                                    <ArrowRight className="w-4 h-4 text-gray-400" />
+                                    <select
+                                      className="input input-sm w-48"
+                                      value={option.nextNodeId}
+                                      onChange={(e) =>
+                                        updateOption(node.nodeId, optIndex, 'nextNodeId', e.target.value)
+                                      }
+                                    >
+                                      {tree.nodes.map((n, nIndex) => (
+                                        <option key={n.nodeId} value={n.nodeId}>
+                                          #{nIndex + 1} - {n.content.substring(0, 15)}...
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteOption(node.nodeId, optIndex)}
+                                      className="btn btn-xs btn-ghost text-red-500"
+                                      disabled={node.options?.length === 1}
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
+                      </td>
+                    </tr>
                   )}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
+                </>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
+      {/* Hint */}
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        💡 {t('npc.dialogueEditor.hint')} <span className="text-primary">★</span> = {t('npc.dialogueEditor.startNodeHint')}
+      </p>
+
       {/* Save & Cancel Buttons */}
-      <div className="flex items-center justify-end gap-3 pt-4 border-t">
+      <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
         {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="btn btn-outline"
-          >
+          <button type="button" onClick={onCancel} className="btn btn-outline">
             {t('npc.dialogueEditor.cancel')}
           </button>
         )}
-        <button
-          type="button"
-          onClick={handleSave}
-          className="btn btn-primary"
-        >
+        <button type="button" onClick={handleSave} className="btn btn-primary">
           <Save className="w-4 h-4 mr-2" />
           {t('npc.dialogueEditor.saveTree')}
         </button>

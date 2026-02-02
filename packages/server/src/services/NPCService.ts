@@ -10,6 +10,18 @@ import { getFirestore, isFirebaseInitialized } from "./FirebaseService";
 import { INPCData, INPCTemplate, INPCInstance, NPCType, NPCStatus, DialogueTree } from "@gangs-online/shared";
 
 /**
+ * 安全地將 Firestore Timestamp 轉換為 Date
+ * 支援多種格式：Date、Timestamp with toDate()、Plain Object with seconds
+ */
+function convertToDate(value: any): Date {
+    if (!value) return new Date();
+    if (value instanceof Date) return value;
+    if (typeof value.toDate === 'function') return value.toDate();
+    if (typeof value.seconds === 'number') return new Date(value.seconds * 1000);
+    return new Date();
+}
+
+/**
  * 完整的 NPC 數據（模板 + 實例）
  */
 interface NPCCompleteData extends INPCData {
@@ -58,8 +70,8 @@ class NPCService {
                     combatType: data.combatType,
                     attackRange: data.attackRange,
                     dialogueTree: data.dialogueTree,
-                    createdAt: data.createdAt?.toDate() || new Date(),
-                    updatedAt: data.updatedAt?.toDate() || new Date(),
+                    createdAt: convertToDate(data.createdAt),
+                    updatedAt: convertToDate(data.updatedAt),
                     isActive: data.isActive ?? true,
                 };
                 this.templateCache.set(doc.id, template);
@@ -87,8 +99,8 @@ class NPCService {
                     isAttackable: data.isAttackable ?? true,
                     mapId: data.mapId,
                     territoryId: data.territoryId,
-                    createdAt: data.createdAt?.toDate() || new Date(),
-                    updatedAt: data.updatedAt?.toDate() || new Date(),
+                    createdAt: convertToDate(data.createdAt),
+                    updatedAt: convertToDate(data.updatedAt),
                     isActive: data.isActive ?? true,
                 };
                 this.instanceCache.set(doc.id, instance);
@@ -113,15 +125,24 @@ class NPCService {
     private combineTemplatesAndInstances(): void {
         this.npcCache.clear();
 
+        console.log(`📋 [NPCService] Combining templates and instances...`);
+        console.log(`📋 [NPCService] Available templates: ${Array.from(this.templateCache.keys()).join(', ') || '(none)'}`);
+        console.log(`📋 [NPCService] Available instances: ${Array.from(this.instanceCache.keys()).join(', ') || '(none)'}`);
+
         this.instanceCache.forEach((instance) => {
             const template = this.templateCache.get(instance.templateId);
             if (!template) {
-                console.warn(`[NPCService] Template ${instance.templateId} not found for instance ${instance.id}`);
+                console.warn(`⚠️ [NPCService] Template "${instance.templateId}" not found for instance "${instance.id}" - skipping`);
                 return;
             }
 
             // 只載入啟用的模板和實例
-            if (!template.isActive || !instance.isActive) {
+            if (!template.isActive) {
+                console.log(`⏭️ [NPCService] Template "${template.name}" is inactive - skipping instance "${instance.id}"`);
+                return;
+            }
+            if (!instance.isActive) {
+                console.log(`⏭️ [NPCService] Instance "${instance.id}" is inactive - skipping`);
                 return;
             }
 
@@ -145,6 +166,7 @@ class NPCService {
                 level: instance.level,
                 rotation: instance.rotation,
                 interactionRadius: instance.interactionRadius,
+                linkedShopId: instance.shopId, // Phase 16-3: 從 instance 讀取關聯商店 ID
                 status: 'active',
             };
 

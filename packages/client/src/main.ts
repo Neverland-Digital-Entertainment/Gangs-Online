@@ -129,6 +129,8 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
     // Phase 15: 設定地面 mesh 給 PlayerManager（用於地面偵測）
     playerManager.setGroundMeshes(sceneManager.getTerrainMeshes());
+    // Phase 16-2: 設定地面 mesh 給 EnemyManager（用於 NPC 地面偵測）
+    enemyManager.setGroundMeshes(sceneManager.getTerrainMeshes());
 
     // === Phase 11: 初始化音效和粒子系統 ===
     const soundManager = new SoundManager(scene);
@@ -149,15 +151,9 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
     let pendingAttack: { targetId: string; targetType: EntityType; x: number; z: number } | null = null;
 
     try {
-        // 連接遊戲房間前，先檢查版本（0.7.1）
+        // 顯示版本資訊（版本號統一從 shared 導入）
         loadingScreen.updateText("正在檢查版本...");
-        try {
-            const serverVersion = await checkServerVersion();
-            loadingScreen.showVersionInfo(GAME_VERSION, serverVersion);
-        } catch (err) {
-            console.error("Version check failed, continuing anyway:", err);
-            loadingScreen.showVersionInfo(GAME_VERSION, "unknown");
-        }
+        loadingScreen.showVersionInfo(GAME_VERSION);
 
         // Phase 12.1: 使用登入結果
         const userId = loginResult.userId;
@@ -203,6 +199,14 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
         // Phase 15: 暫時隱藏 HUD（測試模式）
         hudManager.setVisible(false);
+
+        // Phase 16-3: 連接對話系統和商店系統
+        dialogueSystem.setOnOpenShop((npcId, shopId, npcName) => {
+            console.log(`🏪 [Dialogue->Shop] Opening shop: ${shopId} for NPC: ${npcId}`);
+            if (hudManager) {
+                hudManager.showShopPopupV2(npcId, shopId, npcName);
+            }
+        });
 
         // 監聽聊天訊息 (Phase 13: 支援多頻道)
         room.onMessage("chat", (msg: { sessionId: string; text: string; type?: string; senderName?: string }) => {
@@ -593,17 +597,35 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     return;
                 }
 
-                // 為已存在的敵人創建實體
+                // 為已存在的敵人創建實體（使用 Promise.allSettled 確保個別失敗不影響其他）
                 const enemyCreationPromises: Promise<any>[] = [];
                 enemiesMap.forEach((enemy: any, enemyId: string) => {
                     enemyCreationPromises.push(enemyManager.createEnemy(enemy, enemyId));
                 });
-                await Promise.all(enemyCreationPromises);
+                const results = await Promise.allSettled(enemyCreationPromises);
+
+                // 統計創建結果
+                const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                const failed = results.filter(r => r.status === 'rejected').length;
+                if (failed > 0) {
+                    console.warn(`⚠️ Enemy/NPC creation: ${succeeded} succeeded, ${failed} failed`);
+                    results.forEach((result, index) => {
+                        if (result.status === 'rejected') {
+                            console.error(`❌ Failed to create enemy/NPC:`, result.reason);
+                        }
+                    });
+                } else {
+                    console.log(`✅ All ${succeeded} enemies/NPCs created successfully`);
+                }
 
                 // 設置新敵人加入的監聽器
                 enemiesMap.onAdd(async (enemy: any, enemyId: string) => {
                     if (enemyManager.getEntity(enemyId)) return;
-                    await enemyManager.createEnemy(enemy, enemyId);
+                    try {
+                        await enemyManager.createEnemy(enemy, enemyId);
+                    } catch (error) {
+                        console.error(`❌ Failed to create enemy/NPC ${enemyId}:`, error);
+                    }
                 });
 
                 // 設置敵人移除的監聽器
@@ -776,11 +798,14 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 }
 
                 // Phase 16-2: 新的對話系統 - 檢查是否有對話樹
+                console.log(`💬 [NPC 診斷] npcData.dialogueTreeJson: ${npcData.dialogueTreeJson?.substring(0, 200)}...`);
+                console.log(`💬 [NPC 診斷] npcData.linkedShopId: ${npcData.linkedShopId}`);
                 if (npcData.dialogueTreeJson && npcData.dialogueTreeJson !== "") {
                     try {
                         const dialogueTree = JSON.parse(npcData.dialogueTreeJson);
                         console.log("💬 Opening dialogue with:", npcData.name);
-                        dialogueSystem.show(target.id, npcData.name, dialogueTree);
+                        // Phase 16-3: 傳遞 linkedShopId 以支援對話中的 open_shop 動作
+                        dialogueSystem.show(target.id, npcData.name, dialogueTree, npcData.linkedShopId);
                         return;
                     } catch (error) {
                         console.error("⚠️ Failed to parse dialogue tree:", error);
