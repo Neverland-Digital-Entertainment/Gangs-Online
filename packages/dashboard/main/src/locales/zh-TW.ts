@@ -275,6 +275,12 @@ export default {
   'npc.dialogueEditor.newDialogueContent': '新對話內容',
   'npc.dialogueEditor.newOption': '新選項',
   'npc.dialogueEditor.defaultGreeting': '你好！',
+  'npc.dialogueEditor.nodes': '個節點',
+  'npc.dialogueEditor.options': '選項',
+  'npc.dialogueEditor.action': '動作',
+  'npc.dialogueEditor.delete': '刪除',
+  'npc.dialogueEditor.noOptions': '沒有選項 - 對話將在此結束',
+  'npc.dialogueEditor.hint': '拖曳列可重新排序。點擊展開箭頭編輯選項和動作設定。',
 
   // NPC Template Form
   'npc.template.basicInfo': '基本資訊',

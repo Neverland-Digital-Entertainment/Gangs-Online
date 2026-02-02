@@ -274,6 +274,12 @@ export default {
   'npc.dialogueEditor.newDialogueContent': 'New dialogue content',
   'npc.dialogueEditor.newOption': 'New option',
   'npc.dialogueEditor.defaultGreeting': 'Hello!',
+  'npc.dialogueEditor.nodes': 'nodes',
+  'npc.dialogueEditor.options': 'Options',
+  'npc.dialogueEditor.action': 'Action',
+  'npc.dialogueEditor.delete': 'Delete',
+  'npc.dialogueEditor.noOptions': 'No options - dialogue will end here',
+  'npc.dialogueEditor.hint': 'Drag rows to reorder. Click expand arrow to edit options and action settings.',
 
   // NPC Template Form
   'npc.template.basicInfo': 'Basic Information',
