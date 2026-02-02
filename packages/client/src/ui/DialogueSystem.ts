@@ -67,6 +67,15 @@ export class DialogueSystem {
         this.currentTree = tree;
         this.linkedShopId = linkedShopId || null;
 
+        // 診斷: 顯示完整對話樹結構
+        console.log(`💬 [DialogueSystem] === 對話診斷 ===`);
+        console.log(`💬 [DialogueSystem] NPC: ${npcName}, linkedShopId: ${linkedShopId || 'none'}`);
+        console.log(`💬 [DialogueSystem] 對話樹:`, JSON.stringify(tree, null, 2));
+        console.log(`💬 [DialogueSystem] 節點數量: ${tree.nodes.length}`);
+        tree.nodes.forEach((n, i) => {
+            console.log(`💬 [DialogueSystem] 節點[${i}]: id=${n.nodeId}, options=${JSON.stringify(n.options)}, actionType=${n.actionType || 'none'}`);
+        });
+
         // 找到起始節點
         const startNode = tree.nodes.find(n => n.nodeId === tree.startNodeId);
         if (!startNode) {
@@ -76,8 +85,6 @@ export class DialogueSystem {
 
         this.showNode(startNode);
         this.dialogueContainer.style.display = "block";
-
-        console.log(`💬 [DialogueSystem] Showing dialogue with ${npcName}`);
     }
 
     /**
@@ -117,8 +124,16 @@ export class DialogueSystem {
         contentDiv.textContent = node.content;
         this.dialogueContainer.appendChild(contentDiv);
 
+        // 診斷: 檢查選項
+        console.log(`💬 [DialogueSystem] 當前節點: ${node.nodeId}`);
+        console.log(`💬 [DialogueSystem] options 類型: ${typeof node.options}, 是陣列: ${Array.isArray(node.options)}`);
+        console.log(`💬 [DialogueSystem] options 內容:`, node.options);
+        console.log(`💬 [DialogueSystem] options.length: ${node.options?.length || 0}`);
+        console.log(`💬 [DialogueSystem] actionType: ${node.actionType || 'none'}`);
+
         // 選項按鈕
         if (node.options && node.options.length > 0) {
+            console.log(`💬 [DialogueSystem] 顯示 ${node.options.length} 個選項按鈕`);
             const optionsDiv = document.createElement("div");
             optionsDiv.style.cssText = `
                 display: flex;
@@ -155,6 +170,7 @@ export class DialogueSystem {
             this.dialogueContainer.appendChild(optionsDiv);
         } else {
             // 沒有選項，顯示關閉按鈕
+            console.log(`💬 [DialogueSystem] 無選項，顯示關閉按鈕。將執行 actionType: ${node.actionType || 'none'}`);
             const closeButton = document.createElement("button");
             closeButton.textContent = "關閉";
             closeButton.style.cssText = `
@@ -203,19 +219,34 @@ export class DialogueSystem {
      * 執行對話動作
      */
     private executeAction(node: DialogueNode): void {
-        if (!node.actionType) return;
+        console.log(`🎬 [DialogueSystem] executeAction 被呼叫`);
+        console.log(`🎬 [DialogueSystem] node.actionType: ${node.actionType || 'undefined/none'}`);
+        console.log(`🎬 [DialogueSystem] node.actionData:`, node.actionData);
+        console.log(`🎬 [DialogueSystem] this.linkedShopId: ${this.linkedShopId}`);
+        console.log(`🎬 [DialogueSystem] this.npcId: ${this.npcId}`);
+        console.log(`🎬 [DialogueSystem] this.onOpenShop 已註冊: ${!!this.onOpenShop}`);
 
-        console.log(`🎬 [DialogueSystem] Executing action: ${node.actionType}`, node.actionData);
+        if (!node.actionType) {
+            console.log(`🎬 [DialogueSystem] 無 actionType，嘗試使用 linkedShopId 開啟商店`);
+            // 如果沒有 actionType 但有 linkedShopId，自動開啟商店
+            if (this.linkedShopId && this.npcId && this.onOpenShop) {
+                console.log(`🏪 [DialogueSystem] 自動開啟商店: ${this.linkedShopId}`);
+                this.onOpenShop(this.npcId, this.linkedShopId, this.npcName || "商店");
+            }
+            return;
+        }
 
         switch (node.actionType) {
             case 'open_shop':
                 // 從 actionData 或 linkedShopId 獲取商店 ID
                 const shopId = node.actionData?.shopId || this.linkedShopId;
+                console.log(`🏪 [DialogueSystem] open_shop: shopId=${shopId}, npcId=${this.npcId}, callback=${!!this.onOpenShop}`);
                 if (shopId && this.npcId && this.onOpenShop) {
-                    console.log(`🏪 [DialogueSystem] Opening shop: ${shopId}`);
+                    console.log(`🏪 [DialogueSystem] 開啟商店: ${shopId}`);
                     this.onOpenShop(this.npcId, shopId, this.npcName || "商店");
                 } else {
-                    console.warn("[DialogueSystem] Cannot open shop: missing shopId or callback");
+                    console.warn("[DialogueSystem] 無法開啟商店: 缺少 shopId 或 callback");
+                    console.warn(`  shopId: ${shopId}, npcId: ${this.npcId}, onOpenShop: ${!!this.onOpenShop}`);
                 }
                 break;
             case 'accept_quest':

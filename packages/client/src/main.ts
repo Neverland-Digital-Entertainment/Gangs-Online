@@ -798,6 +798,8 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 }
 
                 // Phase 16-2: 新的對話系統 - 檢查是否有對話樹
+                console.log(`💬 [NPC 診斷] npcData.dialogueTreeJson: ${npcData.dialogueTreeJson?.substring(0, 200)}...`);
+                console.log(`💬 [NPC 診斷] npcData.linkedShopId: ${npcData.linkedShopId}`);
                 if (npcData.dialogueTreeJson && npcData.dialogueTreeJson !== "") {
                     try {
                         const dialogueTree = JSON.parse(npcData.dialogueTreeJson);
