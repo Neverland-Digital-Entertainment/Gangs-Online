@@ -325,7 +325,7 @@ export default function NpcTemplatesPage() {
                       {template.isActive ? t('common.disable') : t('common.enable')}
                     </button>
                     <Link href={`/npc/templates/edit?id=${template.id}`}>
-                      <button className="btn btn-sm btn-outline" title={t('common.edit')}>
+                      <button className="btn btn-sm btn-light" title={t('common.edit')}>
                         <Edit className="w-4 h-4" />
                       </button>
                     </Link>
