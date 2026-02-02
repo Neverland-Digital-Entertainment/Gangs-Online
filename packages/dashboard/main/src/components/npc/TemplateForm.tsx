@@ -388,7 +388,7 @@ export default function TemplateForm({
         <div className="card-body">
           <DialogueEditor
             initialTree={formData.dialogueTree}
-            onSave={(tree: DialogueTree) => {
+            onChange={(tree: DialogueTree) => {
               setFormData({ ...formData, dialogueTree: tree });
             }}
             onClearTree={() => {
