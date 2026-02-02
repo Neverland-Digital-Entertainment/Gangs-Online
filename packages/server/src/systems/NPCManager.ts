@@ -76,11 +76,13 @@ export class NPCManager {
         // Phase 16-2: 設定自定義模型 ID，確保 undefined 轉為空字串
         npc.modelId = (data.modelId && data.modelId !== "undefined") ? data.modelId : "";
         npc.dialogueTreeJson = data.dialogueTree ? JSON.stringify(data.dialogueTree) : ""; // Phase 16-2: 序列化對話樹
+        npc.linkedShopId = data.linkedShopId || ""; // Phase 16-3: 關聯商店 ID
 
         this.npcs.set(npc.id, npc);
         const modelInfo = data.modelId ? ` with model: ${data.modelId}` : ' with default model';
         const dialogueInfo = data.dialogueTree ? ' [has dialogue]' : '';
-        console.log(`✅ [NPCManager] Spawned ${data.type} NPC "${data.name}" at (${npc.x}, ${npc.z})${modelInfo}${dialogueInfo}`);
+        const shopInfo = data.linkedShopId ? ` [shop: ${data.linkedShopId}]` : '';
+        console.log(`✅ [NPCManager] Spawned ${data.type} NPC "${data.name}" at (${npc.x}, ${npc.z})${modelInfo}${dialogueInfo}${shopInfo}`);
     }
 
     /**

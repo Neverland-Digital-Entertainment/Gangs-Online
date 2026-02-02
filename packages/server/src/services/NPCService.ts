@@ -166,6 +166,7 @@ class NPCService {
                 level: instance.level,
                 rotation: instance.rotation,
                 interactionRadius: instance.interactionRadius,
+                linkedShopId: instance.shopId, // Phase 16-3: 從 instance 讀取關聯商店 ID
                 status: 'active',
             };
 

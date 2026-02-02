@@ -91,6 +91,7 @@ export class Enemy extends Schema implements IEnemyData {
     @type("number") attack: number = 5; // Phase 14: 攻擊力
     @type("string") modelId: string = ""; // Phase 16-2: 自定義模型 ID，空字串時使用預設模型
     @type("string") dialogueTreeJson: string = ""; // Phase 16-2: 對話樹 JSON（序列化的 DialogueTree）
+    @type("string") linkedShopId: string = ""; // Phase 16-3: 關聯商店 ID
 }
 
 /**
