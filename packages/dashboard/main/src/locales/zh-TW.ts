@@ -52,6 +52,8 @@ export default {
   'nav.npc': 'NPC 管理',
   'nav.npcTemplates': '模板管理',
   'nav.npcInstances': '實例管理',
+  'nav.quest': '任務管理',
+  'nav.settings': '設定',
   'nav.comingSoon': '即將推出',
 
   // Dashboard Home
@@ -129,7 +131,7 @@ export default {
   'item.attributes.policeDetectionHint': '警察查獲機率的倍率 (1.0 = 正常)',
   'item.attributes.stackLimit': '堆疊上限',
   'item.attributes.stackLimitHint': '單一物品欄位最多可堆疊數量',
-  'item.imageUrl': '圖片網址',
+  'item.imageUrl': '圖片',
   'item.missingId': '缺少道具 ID',
   'item.loadFailed': '載入失敗',
   'item.saveFailed': '儲存失敗',
@@ -277,6 +279,8 @@ export default {
   'npc.dialogueEditor.actionOpenShop': '開啟商店',
   'npc.dialogueEditor.actionEndDialogue': '結束對話',
   'npc.dialogueEditor.useLinkedShop': '使用 NPC 關聯的商店',
+  'npc.dialogueEditor.confirmClearTree': '刪除第一個對話將清空整個對話樹，確定要繼續嗎？',
+  'npc.dialogueEditor.deleteFirstNodeHint': '刪除第一個對話將清空整個對話樹',
 
   // NPC Template Form
   'npc.template.basicInfo': '基本資訊',

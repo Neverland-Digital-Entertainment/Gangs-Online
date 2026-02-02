@@ -319,13 +319,13 @@ export default function NpcTemplatesPage() {
                       onClick={() =>
                         handleToggleStatus(template.id, template.isActive)
                       }
-                      className="btn btn-sm btn-outline"
+                      className="btn btn-sm btn-light"
                       title={template.isActive ? t('common.disable') : t('common.enable')}
                     >
                       {template.isActive ? t('common.disable') : t('common.enable')}
                     </button>
                     <Link href={`/npc/templates/edit?id=${template.id}`}>
-                      <button className="btn btn-sm btn-outline" title={t('common.edit')}>
+                      <button className="btn btn-sm btn-light" title={t('common.edit')}>
                         <Edit className="w-4 h-4" />
                       </button>
                     </Link>
@@ -339,7 +339,7 @@ export default function NpcTemplatesPage() {
                         </button>
                         <button
                           onClick={() => setDeleteConfirm(null)}
-                          className="btn btn-sm btn-outline"
+                          className="btn btn-sm btn-light"
                         >
                           {t('common.cancel')}
                         </button>
@@ -347,10 +347,10 @@ export default function NpcTemplatesPage() {
                     ) : (
                       <button
                         onClick={() => setDeleteConfirm(template.id)}
-                        className="btn btn-sm btn-outline text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        className="btn btn-sm btn-light hover:bg-red-50 dark:hover:bg-red-900/20"
                         title={t('common.delete')}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4 text-red-500" />
                       </button>
                     )}
                   </div>

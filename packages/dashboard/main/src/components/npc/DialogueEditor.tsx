@@ -6,7 +6,6 @@ import {
   Trash2,
   GripVertical,
   MessageSquare,
-  Save,
   ChevronDown,
   ChevronRight,
   Store,
@@ -24,14 +23,14 @@ type ActionMode = 'next_dialogue' | 'player_options' | 'open_shop' | 'end_dialog
 
 interface DialogueEditorProps {
   initialTree?: DialogueTree;
-  onSave: (tree: DialogueTree) => void;
-  onCancel?: () => void;
+  onChange: (tree: DialogueTree) => void;
+  onClearTree?: () => void;
 }
 
 export default function DialogueEditor({
   initialTree,
-  onSave,
-  onCancel,
+  onChange,
+  onClearTree,
 }: DialogueEditorProps) {
   const { t } = useI18n();
 
@@ -75,6 +74,12 @@ export default function DialogueEditor({
     } finally {
       setLoadingShops(false);
     }
+  }
+
+  // Update tree and notify parent
+  function updateTree(newTree: DialogueTree) {
+    setTree(newTree);
+    onChange(newTree);
   }
 
   // Determine action mode from node data
@@ -125,7 +130,7 @@ export default function DialogueEditor({
       lastNode.actionType = undefined;
     }
 
-    setTree({
+    updateTree({
       ...tree,
       nodes: [...updatedNodes, newNode],
       startNodeId: tree.nodes[0].nodeId, // Always first node
@@ -135,12 +140,23 @@ export default function DialogueEditor({
   }
 
   function deleteNode(nodeId: string) {
+    const nodeIndex = tree.nodes.findIndex(n => n.nodeId === nodeId);
+
+    // If deleting the first node (start node), clear the entire dialogue tree
+    if (nodeIndex === 0) {
+      if (onClearTree) {
+        const confirmed = window.confirm(t('npc.dialogueEditor.confirmClearTree'));
+        if (confirmed) {
+          onClearTree();
+        }
+      }
+      return;
+    }
+
     if (tree.nodes.length === 1) {
       alert(t('npc.dialogueEditor.cannotDeleteLast'));
       return;
     }
-
-    const nodeIndex = tree.nodes.findIndex(n => n.nodeId === nodeId);
 
     // Update any nodes pointing to this node
     const updatedNodes = tree.nodes
@@ -158,7 +174,7 @@ export default function DialogueEditor({
         return { ...node, options: updatedOptions };
       });
 
-    setTree({
+    updateTree({
       ...tree,
       nodes: updatedNodes,
       startNodeId: updatedNodes[0].nodeId, // Always first node
@@ -170,7 +186,7 @@ export default function DialogueEditor({
   }
 
   function updateNode(nodeId: string, updates: Partial<DialogueNode>) {
-    setTree({
+    updateTree({
       ...tree,
       nodes: tree.nodes.map((node) =>
         node.nodeId === nodeId ? { ...node, ...updates } : node
@@ -298,7 +314,7 @@ export default function DialogueEditor({
     newNodes.splice(dragItem.current, 1);
     newNodes.splice(dragOverItem.current, 0, draggedNode);
 
-    setTree({
+    updateTree({
       ...tree,
       nodes: newNodes,
       startNodeId: newNodes[0].nodeId, // Always first node is start
@@ -306,15 +322,6 @@ export default function DialogueEditor({
 
     dragItem.current = null;
     dragOverItem.current = null;
-  }
-
-  function handleSave() {
-    // Ensure startNodeId is always the first node
-    const finalTree = {
-      ...tree,
-      startNodeId: tree.nodes[0].nodeId,
-    };
-    onSave(finalTree);
   }
 
   function toggleExpand(nodeId: string) {
@@ -450,8 +457,7 @@ export default function DialogueEditor({
                         type="button"
                         onClick={() => deleteNode(node.nodeId)}
                         className="btn btn-xs btn-ghost text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30"
-                        disabled={tree.nodes.length === 1}
-                        title={tree.nodes.length === 1 ? t('npc.dialogueEditor.cannotDeleteLast') : t('npc.dialogueEditor.delete')}
+                        title={index === 0 ? t('npc.dialogueEditor.deleteFirstNodeHint') : t('npc.dialogueEditor.delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -598,19 +604,6 @@ export default function DialogueEditor({
       <p className="text-xs text-gray-500 dark:text-gray-400">
         💡 {t('npc.dialogueEditor.hint')} <span className="text-primary">★</span> = {t('npc.dialogueEditor.startNodeHint')}
       </p>
-
-      {/* Save & Cancel Buttons */}
-      <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-        {onCancel && (
-          <button type="button" onClick={onCancel} className="btn btn-outline">
-            {t('npc.dialogueEditor.cancel')}
-          </button>
-        )}
-        <button type="button" onClick={handleSave} className="btn btn-primary">
-          <Save className="w-4 h-4 mr-2" />
-          {t('npc.dialogueEditor.saveTree')}
-        </button>
-      </div>
     </div>
   );
 }

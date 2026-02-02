@@ -15,15 +15,12 @@ export default function ShopListPage() {
 
   useEffect(() => {
     loadShops();
-  }, [filterActive]);
+  }, []);
 
   const loadShops = async () => {
     try {
       setLoading(true);
-      const data = await shopService.getAllShops({
-        search: searchQuery,
-        isActive: filterActive,
-      });
+      const data = await shopService.getAllShops();
       setShops(data);
     } catch (error) {
       console.error('Failed to load shops:', error);
@@ -33,7 +30,7 @@ export default function ShopListPage() {
   };
 
   const handleSearch = () => {
-    loadShops();
+    // Search is now handled by filteredShops
   };
 
   const handleDelete = async (shopId: string) => {
@@ -50,13 +47,19 @@ export default function ShopListPage() {
     }
   };
 
-  const filteredShops = searchQuery
-    ? shops.filter(
-        (shop) =>
-          shop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          shop.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : shops;
+  const filteredShops = shops.filter((shop) => {
+    // Apply search filter
+    const matchesSearch =
+      !searchQuery ||
+      shop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shop.description?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Apply active status filter
+    const matchesStatus =
+      filterActive === undefined || shop.isActive === filterActive;
+
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -87,7 +90,7 @@ export default function ShopListPage() {
             const value = e.target.value;
             setFilterActive(value === 'all' ? undefined : value === 'active');
           }}
-          className="select"
+          className="select w-auto"
         >
           <option value="all">{t('common.all')}</option>
           <option value="active">{t('common.active')}</option>

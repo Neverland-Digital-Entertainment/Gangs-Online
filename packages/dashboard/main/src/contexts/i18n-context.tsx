@@ -15,7 +15,7 @@ const I18nContext = createContext<I18nContextType | undefined>(undefined);
 const LOCALE_STORAGE_KEY = 'dashboard_locale';
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>('zh-TW');
+  const [locale, setLocaleState] = useState<Locale>('en');
   const [translations, setTranslations] = useState<Record<string, string>>({});
 
   useEffect(() => {
