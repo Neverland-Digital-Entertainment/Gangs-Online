@@ -26,12 +26,14 @@ interface DialogueEditorProps {
   initialTree?: DialogueTree;
   onSave: (tree: DialogueTree) => void;
   onCancel?: () => void;
+  onClearTree?: () => void;
 }
 
 export default function DialogueEditor({
   initialTree,
   onSave,
   onCancel,
+  onClearTree,
 }: DialogueEditorProps) {
   const { t } = useI18n();
 
@@ -135,12 +137,23 @@ export default function DialogueEditor({
   }
 
   function deleteNode(nodeId: string) {
+    const nodeIndex = tree.nodes.findIndex(n => n.nodeId === nodeId);
+
+    // If deleting the first node (start node), clear the entire dialogue tree
+    if (nodeIndex === 0) {
+      if (onClearTree) {
+        const confirmed = window.confirm(t('npc.dialogueEditor.confirmClearTree'));
+        if (confirmed) {
+          onClearTree();
+        }
+      }
+      return;
+    }
+
     if (tree.nodes.length === 1) {
       alert(t('npc.dialogueEditor.cannotDeleteLast'));
       return;
     }
-
-    const nodeIndex = tree.nodes.findIndex(n => n.nodeId === nodeId);
 
     // Update any nodes pointing to this node
     const updatedNodes = tree.nodes
@@ -450,8 +463,7 @@ export default function DialogueEditor({
                         type="button"
                         onClick={() => deleteNode(node.nodeId)}
                         className="btn btn-xs btn-ghost text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30"
-                        disabled={tree.nodes.length === 1}
-                        title={tree.nodes.length === 1 ? t('npc.dialogueEditor.cannotDeleteLast') : t('npc.dialogueEditor.delete')}
+                        title={index === 0 ? t('npc.dialogueEditor.deleteFirstNodeHint') : t('npc.dialogueEditor.delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

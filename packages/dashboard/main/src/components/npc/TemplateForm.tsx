@@ -45,7 +45,6 @@ export default function TemplateForm({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showDialogueEditor, setShowDialogueEditor] = useState(false);
 
   // Update formData when template prop changes (for edit mode)
   useEffect(() => {
@@ -384,67 +383,18 @@ export default function TemplateForm({
       {/* Dialogue Tree */}
       <div className="card">
         <div className="card-header">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">{t('npc.template.dialogueSettings')}</h3>
-            {formData.dialogueTree && !showDialogueEditor && (
-              <span className="badge badge-primary">
-                {formData.dialogueTree.nodes.length} {t('npc.template.nodes')}
-              </span>
-            )}
-          </div>
+          <h3 className="text-lg font-semibold">{t('npc.template.dialogueSettings')}</h3>
         </div>
         <div className="card-body">
-          {!showDialogueEditor ? (
-            <div className="text-center py-8">
-              <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              {formData.dialogueTree ? (
-                <>
-                  <p className="text-[var(--muted-foreground)] mb-4">
-                    {t('npc.template.dialogueTreeSet')} {formData.dialogueTree.nodes.length} {t('npc.template.nodes')}
-                  </p>
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowDialogueEditor(true)}
-                      className="btn btn-outline"
-                    >
-                      {t('npc.template.editDialogueTree')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, dialogueTree: undefined })}
-                      className="btn btn-outline text-red-600"
-                    >
-                      {t('npc.template.removeDialogueTree')}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-[var(--muted-foreground)] mb-4">
-                    {t('npc.template.noDialogueTree')}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowDialogueEditor(true)}
-                    className="btn btn-primary"
-                  >
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    {t('npc.template.createDialogueTree')}
-                  </button>
-                </>
-              )}
-            </div>
-          ) : (
-            <DialogueEditor
-              initialTree={formData.dialogueTree}
-              onSave={(tree: DialogueTree) => {
-                setFormData({ ...formData, dialogueTree: tree });
-                setShowDialogueEditor(false);
-              }}
-              onCancel={() => setShowDialogueEditor(false)}
-            />
-          )}
+          <DialogueEditor
+            initialTree={formData.dialogueTree}
+            onSave={(tree: DialogueTree) => {
+              setFormData({ ...formData, dialogueTree: tree });
+            }}
+            onClearTree={() => {
+              setFormData({ ...formData, dialogueTree: undefined });
+            }}
+          />
         </div>
       </div>
 

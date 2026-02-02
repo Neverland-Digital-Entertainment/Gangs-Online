@@ -277,6 +277,8 @@ export default {
   'npc.dialogueEditor.actionOpenShop': '開啟商店',
   'npc.dialogueEditor.actionEndDialogue': '結束對話',
   'npc.dialogueEditor.useLinkedShop': '使用 NPC 關聯的商店',
+  'npc.dialogueEditor.confirmClearTree': '刪除第一個對話將清空整個對話樹，確定要繼續嗎？',
+  'npc.dialogueEditor.deleteFirstNodeHint': '刪除第一個對話將清空整個對話樹',
 
   // NPC Template Form
   'npc.template.basicInfo': '基本資訊',

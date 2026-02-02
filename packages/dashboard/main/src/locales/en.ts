@@ -276,6 +276,8 @@ export default {
   'npc.dialogueEditor.actionOpenShop': 'Open Shop',
   'npc.dialogueEditor.actionEndDialogue': 'End Dialogue',
   'npc.dialogueEditor.useLinkedShop': 'Use NPC linked shop',
+  'npc.dialogueEditor.confirmClearTree': 'Deleting the first dialogue will clear the entire dialogue tree. Are you sure?',
+  'npc.dialogueEditor.deleteFirstNodeHint': 'Deleting the first dialogue will clear the entire dialogue tree',
 
   // NPC Template Form
   'npc.template.basicInfo': 'Basic Information',
