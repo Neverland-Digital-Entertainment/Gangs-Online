@@ -9,6 +9,85 @@
 
 ---
 
+## 📝 最新更新 (2026-02-02)
+
+### Dashboard UI/UX 改進
+本次更新專注於改善 Dashboard 使用者體驗和一致性：
+
+#### 1. 對話設定 UI 簡化
+- **移除中間卡片 UI**：不再顯示「已設定對話樹，包含 X 個節點」的卡片
+- **直接顯示編輯器**：打開 NPC 模板即直接看到 DialogueEditor
+- **刪除功能改進**：刪除第一個對話節點 = 清空整個對話樹（含確認提示）
+- **即時更新**：移除「儲存對話」按鈕，所有修改即時反映到表單，統一使用「更新模板」保存
+- **技術細節**：
+  - `DialogueEditor.tsx`: `onSave` → `onChange`，新增 `updateTree()` 統一更新邏輯
+  - `TemplateForm.tsx`: 移除 `showDialogueEditor` 狀態，直接渲染編輯器
+  - 所有 `setTree()` 改為 `updateTree()`，同步更新本地和父組件
+
+#### 2. 側邊欄菜單更新
+- **具體化菜單項**：
+  - 第一項「即將推出」→「任務管理」(Quest Management)
+  - 第二項「即將推出」→「設定」(Settings)
+- **保持狀態**：維持「即將推出」badge 和 disabled 狀態
+- **雙語支援**：zh-TW / en 翻譯同步更新
+
+#### 3. NPC 管理列表樣式統一
+- **按鈕風格一致**：所有按鈕統一使用 `btn-light` 樣式
+  - 模板管理：啟用/停用、編輯、刪除按鈕
+  - 實例管理：啟用/停用、編輯、刪除按鈕
+- **刪除按鈕**：圖標改為紅色 (`text-red-500`)
+
+#### 4. 物品管理列表增強
+- **排序功能**：支援三個欄位排序（升序/降序）
+  - 名稱 / 描述（使用名稱排序）
+  - 類型（category）
+  - 價格
+- **排序 UI**：點擊 column header 切換，顯示圖標
+  - `ArrowUpDown`: 未排序
+  - `ArrowUp`: 升序
+  - `ArrowDown`: 降序
+- **欄位名稱**：「圖片網址」→「圖片」(Image URL → Image)
+- **技術細節**：
+  - 新增 `sortField`, `sortOrder` 狀態
+  - `handleSort()` 處理排序切換
+  - `applyFilters()` 整合排序邏輯
+  - 使用 `localeCompare()` 處理字串排序
+
+#### 5. 商店管理頁面優化
+- **布局調整**：
+  - 狀態 dropdown: 添加 `w-auto`，根據內容自動調整寬度
+  - 搜尋輸入欄: 使用 `flex-1`，占用剩餘空間
+- **篩選修復**：狀態篩選功能正常運作
+  - 改為客戶端統一處理所有篩選
+  - `filteredShops` 同時處理搜尋和狀態篩選
+  - 移除 useEffect 對 filterActive 的依賴
+
+#### 6. 預設語言調整
+- **Dashboard 預設語言**：zh-TW → en
+- **位置**：`packages/dashboard/main/src/contexts/i18n-context.tsx`
+- **注意**：使用者的語言偏好仍會保存在 localStorage
+
+### 修改的文件清單
+```
+packages/dashboard/main/src/
+├── components/
+│   ├── layout/Sidebar.tsx                    # 側邊欄菜單更新
+│   ├── npc/DialogueEditor.tsx                 # 即時更新、刪除邏輯
+│   └── npc/TemplateForm.tsx                   # 移除中間 UI 狀態
+├── contexts/
+│   └── i18n-context.tsx                       # 預設語言改為 en
+├── locales/
+│   ├── en.ts                                  # 翻譯更新
+│   └── zh-TW.ts                               # 翻譯更新
+└── app/
+    ├── item/page.tsx                          # 排序功能
+    ├── shop/page.tsx                          # 篩選修復、布局優化
+    ├── npc/templates/page.tsx                 # 按鈕樣式統一
+    └── npc/instances/page.tsx                 # 按鈕樣式統一
+```
+
+---
+
 ## 📦 項目結構
 
 ```
