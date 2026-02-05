@@ -1,162 +1,181 @@
-# Gangs Online：任務藍圖系統技術說明書  
-**版本：Phase 19**
-
----
+# 專案規格書：Gangs Online  
+## 模組化角色系統 (Modular Character System)
 
 ## 1. 系統概述 (System Overview)
 
-本系統為《Gangs Online》開發的核心組件，旨在建立一個**可視化的節點式任務編輯器**。  
-透過圖形化介面定義任務的生命週期，並將邏輯輸出為標準 JSON 數據，供伺服器驗證與客戶端演出。
+本專案旨在為 MMORPG《Gangs Online》建立一個基於 Web 的 3D 角色客製化系統。  
+此系統將同時用於：
 
-### 設計核心原則
+- 後台 NPC 製作 Dashboard
+- 前台玩家創角介面
 
-- **原子化設計 (Atomic Design)**  
-  每個任務 ID 為獨立文件，降低系統耦合度，方便 Debug 與未來擴充。
-
-- **手動接取節奏 (Manual Pacing)**  
-  遵循經典 MMORPG 體驗，連環任務之間不自動彈出，需玩家主動與 NPC 交互，提供劇情緩衝感。
-
-- **性能優化**  
-  利用客戶端實例化 (Phasing) 技術處理任務中途的 NPC，減輕伺服器負擔並提升玩家沉浸感。
+核心目標是利用 **Babylon.js** 實現高效能、低多邊形（Low Poly）的紙娃娃換裝功能，  
+並將角色設定數據儲存於 **Firebase**。
 
 ---
 
-## 2. 三端職責與協作架構
+## 2. 功能需求 (Functional Requirements)
 
-| 模組 | 運作環境 | 核心職責 |
-|---|---|---|
-| 管理儀表板 (Dashboard) | Web (React Flow) | 提供設計師編輯畫布、配置節點屬性、執行邏輯驗證（如死循環檢查） |
-| 邏輯執行引擎 (Server) | Game Server | 解析 JSON、驗證玩家資格（等級 / 道具）、紀錄任務進度旗標、發放獎勵 |
-| 遊戲呈現層 (Client) | Game Client | 渲染任務 UI、處理對話演出、動態渲染任務 NPC (Phasing)、提供路徑追蹤導航 |
+### 2.1 3D 渲染與展示
 
----
+#### 素體 (Base Body)
 
-## 3. 節點定義與屬性配置 (Node Specifications)
+- 支援男性與女性兩種基礎模型
+- Low Poly 風格（面數 < 3000），已經 Decimate 優化
+- 必須包含完整骨架（Skeleton）與權重（Rigging）
 
-編輯器需實作以下自定義節點，每個節點需具備側邊欄編輯面板供設計師填寫參數。
+#### 場景環境 (Scene)
 
----
-
-### 3.1 流程與對話節點
-
-#### 開始節點 (Start Node)
-
-- **觸發點**：必須選擇並掛載於特定的 NPC 模板 ID  
-- **前置檢查**：
-  - 最低 / 最高等級限制
-  - 指定任務 ID 狀態（檢測是否為「已完成」）
-
-#### 對話節點 (Dialogue Node)
-
-- **演出屬性**：
-  - 說話者 ID
-  - 表情代碼
-  - 多語言文本
-- 支援多段連續對話序列
-
-#### 選擇節點 (Choice Node)
-
-- **分支邏輯**：
-  - 多個選項按鈕文字
-  - 各自連線至不同後續邏輯節點
-
-#### 結束節點 (End Node)
-
-- **結算行為**：
-  - 經驗值
-  - HKD
-  - 道具 ID 與數量
-- 執行後更新伺服器端玩家任務旗標
+- 簡單攝影棚燈光，確保模型無死角
+- 攝影機可圍繞角色旋轉（ArcRotateCamera），方便預覽背面
 
 ---
 
-### 3.2 目標與判定節點
+### 2.2 換裝機制 (Equipment System)
 
-#### 任務目標 (Task Node)
+#### 部位拆分
 
-- **收集目標**：指定道具 ID 與數量（需檢測背包）
-- **擊殺目標**：指定敵人模板 ID 與數量
-- **交互目標**：與指定 NPC 模板進行對話
-- **位置目標**：限時內抵達指定座標區域
+系統需支援以下部位的獨立更換：
 
-#### 條件判定 (Condition Node)
+- 髮型（Hair）：獨立 Mesh
+- 上衣（Top）：獨立 Mesh（如 T-shirt、夾克）
+- 下身（Bottom）：獨立 Mesh（如 牛仔褲、短褲）
+- 鞋子（Shoes）：獨立 Mesh
 
-- **即時檢查項目**：
-  - 金錢餘額
-  - 指定道具持有數
-  - 全域變數狀態
-- 輸出路徑：
-  - 成功
-  - 失敗
+#### 骨架綁定 (Skeleton Linking)
 
-#### 動作執行 (Action Node)
-
-- **系統指令**：
-  - 扣除道具 / 金錢
-  - 觸發特定 Client-side NPC 的渲染狀態
+- 所有穿戴裝備必須綁定至素體的主骨架
+- 素體播放動畫（Idle、Walk）時：
+  - 衣服需同步運動
+  - 不可穿模或脫落
 
 ---
 
-## 4. 關鍵業務邏輯 (Core Business Rules)
+### 2.3 客製化調整 (Customization)
 
-### 4.1 連環任務實作 (Quest Chaining)
+#### 顏色變更
 
-- **解耦邏輯**  
-  任務 A 與任務 B 在實體檔案上完全獨立。  
-  任務 B 的開始節點僅檢查玩家資料庫中的 `Completed_Quests` 是否包含任務 A ID。
-
-- **交互儀式**  
-  任務 A 完成後，玩家必須再次主動與 NPC 對話才能觸發任務 B，確保節奏具備「喘息感」。
+- 髮型需支援 RGB 顏色即時修改
+  - 透過 Material 的 Albedo Color
+- 其他部位預設使用貼圖
+  - 保留未來換色的擴充彈性
 
 ---
 
-### 4.2 客戶端實體化機制 (Phasing)
+### 2.4 資料持久化 (Data Persistence)
 
-- **動態 NPC**  
-  任務流程中的非起始 NPC 僅在客戶端渲染，降低伺服器負擔。
+#### 輸出 (Output)
 
-- **數據回傳**  
-  所有影響數值的行為（對話完成、道具取得）必須回傳伺服器進行最終校驗，防止作弊。
+- 生成角色外觀設定的 JSON 物件
+- 包含：
+  - 各部位 ID
+  - 顏色參數
 
----
+#### 輸入 (Input)
 
-### 4.3 任務狀態機 (State Machine)
-
-系統需管理每位玩家對應各任務 ID 的四種狀態：
-
-- **Locked**：未滿足前置任務或等級不足  
-- **Available**：可接取，NPC 顯示驚嘆號提示  
-- **Active**：任務進行中，任務日誌顯示目標  
-- **Completed**：獎勵已發放，存入歷史列表，不可重複接取（除非為日常任務）
+- 可讀取 JSON
+- 自動還原角色外觀
 
 ---
 
-## 5. Dashboard 編輯器功能要求 (React Flow)
+## 3. 開發路徑圖  
+### (Development Roadmap for Claude Code)
 
-- **視覺化驗證**
-  - 偵測斷頭路（未連接 End）
-  - 偵測邏輯死循環
-
-- **物件選擇器**
-  - 整合 NPC 模板庫
-  - 整合道具資料庫
-  - 可透過名稱搜尋並選取 ID
-
-- **JSON 導出**
-  - UI 座標與邏輯資料分離
-  - 後端僅讀取輕量化邏輯圖
+請 AI **依 Phase 順序開發**，每個 Phase 完成並測試無誤後才進入下一階段。
 
 ---
 
-## 6. 異常與邊界情況處理
+### Phase 1：基礎場景與素體載入 (The Foundation)
 
-- **放棄任務**
-  - 狀態重置為 Available
-  - 清除該任務在客戶端生成的所有臨時 NPC
+**目標**  
+在 Next.js 頁面建立 Babylon.js 畫布，並載入靜態男性素體。
 
-- **空間檢查**
-  - 發放獎勵前檢查背包格數
-  - 空間不足時暫停結算並提示玩家清理背包
+**工序**
 
+- 初始化 Babylon.js Engine 與 Scene
+- 加入 HemisphericLight 與 Camera
+- 使用 SceneLoader 載入 `male_body.glb`
 
-## 7. 更改版本號為0.19.0
+**驗收標準**
+
+- 網頁顯示男性模型
+- 滑鼠可旋轉觀看
+
+**資料夾及檔案位置**
+
+- 所有3D model相關檔案都放在/packages/shared/characters/
+- 素體: /packages/shared/characters/body/
+- 髮型和鬍子: /packages/shared/characters/hair/
+- 貼圖: /packages/shared/characters/texture/
+
+---
+
+### Phase 2：資產容器與動態加載 (Asset Management)
+
+**目標**  
+建立資產管理器，預載並切換髮型與服裝。
+
+**工序**
+
+- 使用 AssetContainer 載入所有 `.glb`（身體、頭髮、衣服）
+- 實作 `equipItem(category, itemId)`
+- 切換時移除舊 Mesh，實例化新 Mesh
+
+**驗收標準**
+
+- 點擊測試按鈕
+- 頭髮可在「光頭」與「髮型 A」間切換
+
+---
+
+### Phase 3：骨架同步與動畫 (Animation Sync)
+
+**目標**  
+確保穿戴裝備隨角色動畫移動。
+
+**工序**
+
+- 載入動畫（如 `idle.glb`）
+- 在 `equipItem` 中將新 Mesh 的 skeleton 指向素體 skeleton
+
+**驗收標準**
+
+- 角色播放待機動畫
+- 衣服貼合移動，無分離
+
+---
+
+### Phase 4：顏色更換系統 (Color Customization)
+
+**目標**  
+支援髮色即時變更。
+
+**工序**
+
+- 取得髮型 Mesh 的 Material
+- 實作 `changeColor(mesh, hexColor)`
+
+**驗收標準**
+
+- 使用顏色選擇器
+- 髮色即時改變
+
+---
+
+### Phase 5：UI 整合與資料串接 (UI & Data)
+
+**目標**  
+完成 UI 與 Firebase 整合。
+
+**工序**
+
+- 建立側欄 UI（Tabs：髮型 / 上衣 / 褲子）
+- 實作：
+  - `getCharacterConfig()`
+  - `loadCharacterConfig(json)`
+- 整合 Firebase Firestore 的存取功能
+
+**驗收標準**
+
+- 調整角色後重新整理
+- 角色外觀自動恢復
