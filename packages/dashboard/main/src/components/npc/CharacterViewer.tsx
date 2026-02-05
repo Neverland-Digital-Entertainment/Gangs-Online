@@ -50,28 +50,8 @@ export default function CharacterViewer({ gender, onSceneReady }: CharacterViewe
       const meshes = result.meshes;
       modelRef.current = meshes;
 
-      // Apply body texture
-      const texturePath = `/characters/texture/${currentGender}-body.webp`;
-      const bodyTexture = new BABYLON.Texture(texturePath, scene, false, true);
-      bodyTexture.hasAlpha = false;
-
-      meshes.forEach((mesh: any) => {
-        if (mesh.material) {
-          // For PBR materials (from glTF)
-          if (mesh.material.albedoTexture !== undefined) {
-            mesh.material.albedoTexture = bodyTexture;
-          } else if (mesh.material.diffuseTexture !== undefined) {
-            mesh.material.diffuseTexture = bodyTexture;
-          }
-        } else if (mesh.name !== '__root__') {
-          // Create a new PBR material if none exists
-          const mat = new BABYLON.PBRMaterial(`${mesh.name}_mat`, scene);
-          mat.albedoTexture = bodyTexture;
-          mat.metallic = 0;
-          mat.roughness = 0.8;
-          mesh.material = mat;
-        }
-      });
+      // GLB already contains embedded textures with correct UV mapping.
+      // Do NOT override materials — let the model's built-in textures work as-is.
 
       // Center the model and adjust scale
       const rootMesh = meshes[0];
@@ -105,6 +85,9 @@ export default function CharacterViewer({ gender, onSceneReady }: CharacterViewe
         // Adjust root mesh position to center at origin
         rootMesh.position.x = -center.x;
         rootMesh.position.z = -center.z;
+
+        // Rotate model 180° so it faces the camera
+        rootMesh.rotation.y = Math.PI;
       }
 
       setLoading(false);
