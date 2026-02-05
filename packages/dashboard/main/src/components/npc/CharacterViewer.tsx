@@ -78,16 +78,13 @@ export default function CharacterViewer({ gender, onSceneReady }: CharacterViewe
         if (camera) {
           camera.target = new BABYLON.Vector3(0, height / 2, 0);
           camera.radius = height * 1.8;
-          camera.alpha = Math.PI / 2;
+          camera.alpha = -Math.PI / 2;
           camera.beta = Math.PI / 2.2;
         }
 
         // Adjust root mesh position to center at origin
         rootMesh.position.x = -center.x;
         rootMesh.position.z = -center.z;
-
-        // Rotate model 180° so it faces the camera
-        rootMesh.rotation.y = Math.PI;
       }
 
       setLoading(false);
@@ -128,7 +125,7 @@ export default function CharacterViewer({ gender, onSceneReady }: CharacterViewe
       // Camera - ArcRotateCamera for 360 rotation
       const camera = new BABYLON.ArcRotateCamera(
         'camera',
-        Math.PI / 2,   // alpha - horizontal rotation
+        -Math.PI / 2,  // alpha - horizontal rotation (face front of model)
         Math.PI / 2.2, // beta - vertical rotation
         3,             // radius
         new BABYLON.Vector3(0, 1, 0),
