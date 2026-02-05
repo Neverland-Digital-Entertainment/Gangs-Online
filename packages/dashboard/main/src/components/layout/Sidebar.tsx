@@ -17,6 +17,7 @@ import {
   ShoppingBag,
   FileText,
   UserCheck,
+  Palette,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
@@ -73,6 +74,11 @@ const menuItems: MenuItem[] = [
         titleKey: 'nav.npcInstances',
         href: '/npc/instances',
         icon: UserCheck,
+      },
+      {
+        titleKey: 'nav.npcAppearances',
+        href: '/npc/appearances',
+        icon: Palette,
       },
     ],
   },

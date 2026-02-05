@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, MapPin, Plus, ArrowRight } from 'lucide-react';
+import { FileText, MapPin, Palette, Plus, ArrowRight } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
 
 export default function NpcManagementPage() {
@@ -18,7 +18,7 @@ export default function NpcManagementPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {/* NPC Templates */}
         <Link href="/npc/templates" className="group">
           <div className="card hover:shadow-lg transition-all duration-200 h-full">
@@ -61,6 +61,30 @@ export default function NpcManagementPage() {
               </p>
               <div className="flex items-center gap-2 text-sm text-primary font-medium">
                 <span>{t('npc.instances')}</span>
+                <ArrowRight className="w-4 h-4" />
+              </div>
+            </div>
+          </div>
+        </Link>
+
+        {/* NPC Appearances */}
+        <Link href="/npc/appearances" className="group">
+          <div className="card hover:shadow-lg transition-all duration-200 h-full">
+            <div className="card-body">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                  <Palette className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                </div>
+                <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
+              </div>
+              <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">
+                {t('npc.appearances')}
+              </h3>
+              <p className="text-[var(--muted-foreground)] text-sm mb-4">
+                {t('npc.appearances.subtitle')}
+              </p>
+              <div className="flex items-center gap-2 text-sm text-primary font-medium">
+                <span>{t('npc.appearances')}</span>
                 <ArrowRight className="w-4 h-4" />
               </div>
             </div>

@@ -52,6 +52,7 @@ export default {
   'nav.npc': 'NPC Management',
   'nav.npcTemplates': 'Template Management',
   'nav.npcInstances': 'Instance Management',
+  'nav.npcAppearances': 'Appearance Management',
   'nav.quest': 'Quest Management',
   'nav.settings': 'Settings',
   'nav.comingSoon': 'Coming Soon',
@@ -69,6 +70,7 @@ export default {
   'home.npcManagement.desc': 'Manage NPC templates and instances',
   'home.npcTemplates.desc': 'Create and manage reusable NPC templates',
   'home.npcInstances.desc': 'Deploy NPC instances in the game world',
+  'home.npcAppearances.desc': 'Customize NPC appearance with 3D character models',
 
   // Item Management
   'item.title': 'Item Management',
@@ -378,6 +380,23 @@ export default {
   'npc.instance.loadError': 'Failed to load NPC instance',
   'npc.instance.loadErrorTryAgain': 'Failed to load, please try again later',
   'npc.instance.reload': 'Reload',
+
+  // NPC Appearance Management (Phase 19)
+  'npc.appearances': 'Appearance Management',
+  'npc.appearances.title': 'NPC Appearance Management',
+  'npc.appearances.subtitle': 'Customize NPC appearance with 3D character models',
+  'npc.appearances.gender': 'Gender',
+  'npc.appearances.male': 'Male',
+  'npc.appearances.female': 'Female',
+  'npc.appearances.hair': 'Hair',
+  'npc.appearances.top': 'Top',
+  'npc.appearances.bottom': 'Bottom',
+  'npc.appearances.shoes': 'Shoes',
+  'npc.appearances.hairColor': 'Hair Color',
+  'npc.appearances.none': 'None (Bald)',
+  'npc.appearances.loadingModel': 'Loading 3D model...',
+  'npc.appearances.loadError': 'Failed to load 3D model',
+  'npc.appearances.rotateHint': 'Drag to rotate the model',
 
   // Dialogue Editor
   'dialogue.title': 'Dialogue Tree Editor',

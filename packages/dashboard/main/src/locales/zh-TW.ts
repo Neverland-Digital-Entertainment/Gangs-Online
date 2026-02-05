@@ -52,6 +52,7 @@ export default {
   'nav.npc': 'NPC 管理',
   'nav.npcTemplates': '模板管理',
   'nav.npcInstances': '實例管理',
+  'nav.npcAppearances': '造型管理',
   'nav.quest': '任務管理',
   'nav.settings': '設定',
   'nav.comingSoon': '即將推出',
@@ -69,6 +70,7 @@ export default {
   'home.npcManagement.desc': '管理 NPC 模板和實例',
   'home.npcTemplates.desc': '建立和管理可重複使用的 NPC 模板',
   'home.npcInstances.desc': '在遊戲世界中部署 NPC 實例',
+  'home.npcAppearances.desc': '使用 3D 角色模型自訂 NPC 外觀造型',
 
   // Item Management
   'item.title': '道具管理',
@@ -379,6 +381,23 @@ export default {
   'npc.instance.loadError': '載入 NPC 實例失敗',
   'npc.instance.loadErrorTryAgain': '載入失敗，請稍後再試',
   'npc.instance.reload': '重新載入',
+
+  // NPC Appearance Management (Phase 19)
+  'npc.appearances': '造型管理',
+  'npc.appearances.title': 'NPC 造型管理',
+  'npc.appearances.subtitle': '使用 3D 角色模型自訂 NPC 外觀造型',
+  'npc.appearances.gender': '性別',
+  'npc.appearances.male': '男性',
+  'npc.appearances.female': '女性',
+  'npc.appearances.hair': '髮型',
+  'npc.appearances.top': '上衣',
+  'npc.appearances.bottom': '下身',
+  'npc.appearances.shoes': '鞋子',
+  'npc.appearances.hairColor': '髮色',
+  'npc.appearances.none': '無（光頭）',
+  'npc.appearances.loadingModel': '載入 3D 模型中...',
+  'npc.appearances.loadError': '載入 3D 模型失敗',
+  'npc.appearances.rotateHint': '拖曳可旋轉模型',
 
   // Dialogue Editor
   'dialogue.title': '對話樹編輯器',
