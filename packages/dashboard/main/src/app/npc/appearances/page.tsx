@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { User, Palette } from 'lucide-react';
+import { User } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
+import type { EquipmentState, EquipmentSlot } from '@/components/npc/CharacterViewer';
 
-// Dynamic import to avoid SSR issues with Babylon.js
 const CharacterViewer = dynamic(
   () => import('@/components/npc/CharacterViewer'),
   { ssr: false }
@@ -13,9 +13,68 @@ const CharacterViewer = dynamic(
 
 type Gender = 'male' | 'female';
 
+// Equipment catalog: slot -> array of { id, labelKey }
+// id = null means "none", otherwise matches filename without .glb
+interface EquipmentOption {
+  id: string | null;
+  labelKey: string;
+}
+
+const EQUIPMENT_CATALOG: Record<EquipmentSlot, EquipmentOption[]> = {
+  hair: [
+    { id: null, labelKey: 'npc.appearances.none' },
+    { id: 'short', labelKey: 'npc.appearances.hair.short' },
+    { id: 'buzzed', labelKey: 'npc.appearances.hair.buzzed' },
+    { id: 'buzzed-female', labelKey: 'npc.appearances.hair.buzzedFemale' },
+    { id: 'long', labelKey: 'npc.appearances.hair.long' },
+    { id: 'bun', labelKey: 'npc.appearances.hair.bun' },
+  ],
+  beard: [
+    { id: null, labelKey: 'npc.appearances.none' },
+    { id: 'beard', labelKey: 'npc.appearances.beard.beard' },
+  ],
+  head: [
+    { id: null, labelKey: 'npc.appearances.none' },
+    { id: 'cap', labelKey: 'npc.appearances.head.cap' },
+  ],
+  top: [
+    { id: null, labelKey: 'npc.appearances.none' },
+    { id: 'shirt01', labelKey: 'npc.appearances.top.shirt01' },
+  ],
+  bottom: [
+    { id: null, labelKey: 'npc.appearances.none' },
+    { id: 'pants01', labelKey: 'npc.appearances.bottom.pants01' },
+  ],
+  shoe: [
+    { id: null, labelKey: 'npc.appearances.none' },
+    { id: 'shoe01', labelKey: 'npc.appearances.shoe.shoe01' },
+  ],
+};
+
+const SLOT_CONFIG: { slot: EquipmentSlot; titleKey: string }[] = [
+  { slot: 'hair', titleKey: 'npc.appearances.hair' },
+  { slot: 'beard', titleKey: 'npc.appearances.beard' },
+  { slot: 'head', titleKey: 'npc.appearances.head' },
+  { slot: 'top', titleKey: 'npc.appearances.top' },
+  { slot: 'bottom', titleKey: 'npc.appearances.bottom' },
+  { slot: 'shoe', titleKey: 'npc.appearances.shoes' },
+];
+
 export default function NpcAppearancesPage() {
   const { t } = useI18n();
   const [gender, setGender] = useState<Gender>('male');
+  const [equipment, setEquipment] = useState<EquipmentState>({
+    hair: null,
+    beard: null,
+    head: null,
+    top: null,
+    bottom: null,
+    shoe: null,
+  });
+
+  const handleSlotChange = useCallback((slot: EquipmentSlot, itemId: string | null) => {
+    setEquipment((prev) => ({ ...prev, [slot]: itemId }));
+  }, []);
 
   return (
     <div className="container-fixed">
@@ -34,13 +93,13 @@ export default function NpcAppearancesPage() {
         <div className="lg:col-span-2">
           <div className="card">
             <div className="card-body p-0 overflow-hidden rounded-lg" style={{ height: '600px' }}>
-              <CharacterViewer gender={gender} />
+              <CharacterViewer gender={gender} equipment={equipment} />
             </div>
           </div>
         </div>
 
         {/* Right Panel - Controls */}
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[600px] overflow-y-auto">
           {/* Gender Selection */}
           <div className="card">
             <div className="card-header">
@@ -75,77 +134,36 @@ export default function NpcAppearancesPage() {
             </div>
           </div>
 
-          {/* Hair Selection - Placeholder for Phase 2 */}
-          <div className="card opacity-50">
-            <div className="card-header">
-              <h3 className="card-title flex items-center gap-2">
-                <Palette className="w-4 h-4" />
-                {t('npc.appearances.hair')}
-              </h3>
-              <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
-                Phase 2
-              </span>
-            </div>
-            <div className="card-body">
-              <p className="text-sm text-[var(--muted-foreground)]">
-                {t('nav.comingSoon')}
-              </p>
-            </div>
-          </div>
+          {/* Equipment Slots */}
+          {SLOT_CONFIG.map(({ slot, titleKey }) => {
+            const options = EQUIPMENT_CATALOG[slot];
+            const current = equipment[slot];
 
-          {/* Top Selection - Placeholder for Phase 2 */}
-          <div className="card opacity-50">
-            <div className="card-header">
-              <h3 className="card-title flex items-center gap-2">
-                <Palette className="w-4 h-4" />
-                {t('npc.appearances.top')}
-              </h3>
-              <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
-                Phase 2
-              </span>
-            </div>
-            <div className="card-body">
-              <p className="text-sm text-[var(--muted-foreground)]">
-                {t('nav.comingSoon')}
-              </p>
-            </div>
-          </div>
-
-          {/* Bottom Selection - Placeholder for Phase 2 */}
-          <div className="card opacity-50">
-            <div className="card-header">
-              <h3 className="card-title flex items-center gap-2">
-                <Palette className="w-4 h-4" />
-                {t('npc.appearances.bottom')}
-              </h3>
-              <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
-                Phase 2
-              </span>
-            </div>
-            <div className="card-body">
-              <p className="text-sm text-[var(--muted-foreground)]">
-                {t('nav.comingSoon')}
-              </p>
-            </div>
-          </div>
-
-          {/* Shoes Selection - Placeholder for Phase 2 */}
-          <div className="card opacity-50">
-            <div className="card-header">
-              <h3 className="card-title flex items-center gap-2">
-                <Palette className="w-4 h-4" />
-                {t('npc.appearances.shoes')}
-              </h3>
-              <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
-                Phase 2
-              </span>
-            </div>
-            <div className="card-body">
-              <p className="text-sm text-[var(--muted-foreground)]">
-                {t('nav.comingSoon')}
-              </p>
-            </div>
-          </div>
+            return (
+              <div key={slot} className="card">
+                <div className="card-header py-2">
+                  <h3 className="card-title text-sm">{t(titleKey)}</h3>
+                </div>
+                <div className="card-body pt-0">
+                  <div className="flex flex-wrap gap-1.5">
+                    {options.map((opt) => (
+                      <button
+                        key={opt.id ?? '__none__'}
+                        onClick={() => handleSlotChange(slot, opt.id)}
+                        className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                          current === opt.id
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'bg-gray-100 dark:bg-gray-800 text-[var(--foreground)] hover:bg-gray-200 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {t(opt.labelKey)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
