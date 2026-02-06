@@ -21,11 +21,21 @@ interface CharacterViewerProps {
   equipment: EquipmentState;
 }
 
+const SLOT_FOLDERS: Record<EquipmentSlot, string> = {
+  hair: 'hair',
+  beard: 'beard',
+  head: 'head',
+  top: 'top',
+  bottom: 'bottom',
+  shoe: 'shoe',
+};
+
 export default function CharacterViewer({ gender, equipment }: CharacterViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<any>(null);
   const sceneRef = useRef<any>(null);
   const bodyMeshesRef = useRef<any[]>([]);
+  const bodySkeletonRef = useRef<any>(null);
   const equipmentMeshesRef = useRef<Record<EquipmentSlot, any[]>>({
     hair: [], beard: [], head: [], top: [], bottom: [], shoe: [],
   });
@@ -35,16 +45,6 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
   const prevGenderRef = useRef<Gender>(gender);
   const prevEquipmentRef = useRef<EquipmentState>(equipment);
   const sceneReadyRef = useRef(false);
-
-  // Folder mapping for each slot
-  const slotFolders: Record<EquipmentSlot, string> = {
-    hair: 'hair',
-    beard: 'beard',
-    head: 'head',
-    top: 'top',
-    bottom: 'bottom',
-    shoe: 'shoe',
-  };
 
   const disposeSlot = useCallback((slot: EquipmentSlot) => {
     const meshes = equipmentMeshesRef.current[slot];
@@ -57,6 +57,7 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
   const disposeBody = useCallback(() => {
     bodyMeshesRef.current.forEach((mesh: any) => mesh.dispose());
     bodyMeshesRef.current = [];
+    bodySkeletonRef.current = null;
   }, []);
 
   const disposeAll = useCallback(() => {
@@ -74,18 +75,32 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
 
     try {
       const BABYLON = await import('@babylonjs/core');
-      const folder = slotFolders[slot];
+      const folder = SLOT_FOLDERS[slot];
       const result = await BABYLON.SceneLoader.ImportMeshAsync(
         '',
         `/characters/${folder}/`,
         `${itemId}.glb`,
         scene,
       );
+
+      // Bind equipment meshes to the body's skeleton so they align correctly.
+      // Equipment GLBs are rigged to the same armature as the body, so replacing
+      // the skeleton reference makes bones match by name/index.
+      if (bodySkeletonRef.current && result.skeletons.length > 0) {
+        result.meshes.forEach((mesh: any) => {
+          if (mesh.skeleton) {
+            mesh.skeleton = bodySkeletonRef.current;
+          }
+        });
+        // Dispose the equipment's own skeletons (now unused)
+        result.skeletons.forEach((s: any) => s.dispose());
+      }
+
       equipmentMeshesRef.current[slot] = result.meshes;
     } catch (err) {
       console.warn(`Failed to load equipment ${slot}/${itemId}:`, err);
     }
-  }, [disposeSlot, slotFolders]);
+  }, [disposeSlot]);
 
   const loadBody = useCallback(async (scene: any, currentGender: Gender) => {
     const BABYLON = await import('@babylonjs/core');
@@ -99,6 +114,11 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
     );
 
     bodyMeshesRef.current = result.meshes;
+
+    // Store body skeleton for equipment binding
+    if (result.skeletons.length > 0) {
+      bodySkeletonRef.current = result.skeletons[0];
+    }
 
     // Compute model bounds for camera framing
     const rootMesh = result.meshes[0];
@@ -130,7 +150,6 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
     }
   }, []);
 
-  // Full reload: body + all equipment
   const loadAll = useCallback(async (scene: any, currentGender: Gender, equip: EquipmentState) => {
     setLoading(true);
     setError(null);
@@ -138,13 +157,10 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
 
     try {
       await loadBody(scene, currentGender);
-
-      // Load all equipment in parallel
       const slots = Object.keys(equip) as EquipmentSlot[];
       await Promise.all(
         slots.map((slot) => loadEquipmentSlot(scene, slot, equip[slot]))
       );
-
       setLoading(false);
     } catch (err) {
       console.error('Failed to load character:', err);
@@ -157,7 +173,6 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     let disposed = false;
 
     const initScene = async () => {
@@ -175,14 +190,9 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
       scene.clearColor = new BABYLON.Color4(0.15, 0.15, 0.18, 1);
       sceneRef.current = scene;
 
-      // Camera
       const camera = new BABYLON.ArcRotateCamera(
-        'camera',
-        -Math.PI / 2,
-        Math.PI / 2.2,
-        3,
-        new BABYLON.Vector3(0, 1, 0),
-        scene,
+        'camera', -Math.PI / 2, Math.PI / 2.2, 3,
+        new BABYLON.Vector3(0, 1, 0), scene,
       );
       camera.attachControl(canvas, true);
       camera.lowerRadiusLimit = 1.5;
@@ -192,7 +202,6 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
       camera.wheelDeltaPercentage = 0.01;
       camera.panningSensibility = 0;
 
-      // Lighting
       const keyLight = new BABYLON.DirectionalLight('keyLight', new BABYLON.Vector3(-1, -1, 1), scene);
       keyLight.intensity = 1.2;
       const fillLight = new BABYLON.DirectionalLight('fillLight', new BABYLON.Vector3(1, -0.5, -1), scene);
@@ -201,7 +210,6 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
       ambient.intensity = 0.4;
       ambient.groundColor = new BABYLON.Color3(0.2, 0.2, 0.25);
 
-      // Ground
       const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 6, height: 6 }, scene);
       const groundMat = new BABYLON.StandardMaterial('groundMat', scene);
       groundMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.22);
@@ -212,7 +220,6 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
       const onResize = () => engine.resize();
       window.addEventListener('resize', onResize);
 
-      // Load initial character
       await loadAll(scene, gender, equipment);
       sceneReadyRef.current = true;
       prevGenderRef.current = gender;
@@ -234,7 +241,7 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // React to gender change → full reload
+  // Gender change → full reload
   useEffect(() => {
     if (!sceneReadyRef.current || !sceneRef.current) return;
     if (gender === prevGenderRef.current) return;
@@ -243,7 +250,7 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
     loadAll(sceneRef.current, gender, equipment);
   }, [gender]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // React to individual equipment slot changes → swap only the changed slot
+  // Equipment slot changes → swap only changed slots
   useEffect(() => {
     if (!sceneReadyRef.current || !sceneRef.current) return;
     const prev = prevEquipmentRef.current;
@@ -254,7 +261,6 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
         loadEquipmentSlot(scene, slot, equipment[slot]);
       }
     });
-
     prevEquipmentRef.current = equipment;
   }, [equipment]); // eslint-disable-line react-hooks/exhaustive-deps
 
