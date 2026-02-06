@@ -80,7 +80,7 @@ export async function generateAllThumbnails(
       const maxDim = Math.max(extent.x, extent.y, extent.z);
 
       camera.target = center;
-      camera.radius = maxDim * 1.6;
+      camera.radius = maxDim * 1.0;
 
       scene.render();
       const dataUrl = canvas.toDataURL('image/webp', 0.8);

@@ -36,6 +36,7 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
   const sceneRef = useRef<any>(null);
   const bodyMeshesRef = useRef<any[]>([]);
   const bodySkeletonRef = useRef<any>(null);
+  const bodyOffsetRef = useRef<{ x: number; z: number }>({ x: 0, z: 0 });
   const equipmentMeshesRef = useRef<Record<EquipmentSlot, any[]>>({
     hair: [], beard: [], head: [], top: [], bottom: [], shoe: [],
   });
@@ -58,6 +59,7 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
     bodyMeshesRef.current.forEach((mesh: any) => mesh.dispose());
     bodyMeshesRef.current = [];
     bodySkeletonRef.current = null;
+    bodyOffsetRef.current = { x: 0, z: 0 };
   }, []);
 
   const disposeAll = useCallback(() => {
@@ -82,6 +84,13 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
         `${itemId}.glb`,
         scene,
       );
+
+      // Apply the same position offset as the body root so equipment aligns
+      const equipRoot = result.meshes[0];
+      if (equipRoot) {
+        equipRoot.position.x = bodyOffsetRef.current.x;
+        equipRoot.position.z = bodyOffsetRef.current.z;
+      }
 
       // Bind equipment meshes to the body's skeleton so they align correctly.
       // Equipment GLBs are rigged to the same armature as the body, so replacing
@@ -147,6 +156,7 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
 
       rootMesh.position.x = -center.x;
       rootMesh.position.z = -center.z;
+      bodyOffsetRef.current = { x: -center.x, z: -center.z };
     }
   }, []);
 
