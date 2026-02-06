@@ -36,7 +36,7 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
   const sceneRef = useRef<any>(null);
   const bodyMeshesRef = useRef<any[]>([]);
   const bodySkeletonRef = useRef<any>(null);
-  const bodyOffsetRef = useRef<{ x: number; z: number }>({ x: 0, z: 0 });
+  const characterRootRef = useRef<any>(null);
   const equipmentMeshesRef = useRef<Record<EquipmentSlot, any[]>>({
     hair: [], beard: [], head: [], top: [], bottom: [], shoe: [],
   });
@@ -59,7 +59,10 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
     bodyMeshesRef.current.forEach((mesh: any) => mesh.dispose());
     bodyMeshesRef.current = [];
     bodySkeletonRef.current = null;
-    bodyOffsetRef.current = { x: 0, z: 0 };
+    if (characterRootRef.current) {
+      characterRootRef.current.dispose();
+      characterRootRef.current = null;
+    }
   }, []);
 
   const disposeAll = useCallback(() => {
@@ -85,16 +88,15 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
         scene,
       );
 
-      // Apply the same position offset as the body root so equipment aligns
+      // Parent equipment root under the shared character root so it inherits
+      // the same centering transform as the body automatically.
       const equipRoot = result.meshes[0];
-      if (equipRoot) {
-        equipRoot.position.x = bodyOffsetRef.current.x;
-        equipRoot.position.z = bodyOffsetRef.current.z;
+      if (equipRoot && characterRootRef.current) {
+        equipRoot.parent = characterRootRef.current;
       }
 
-      // Bind equipment meshes to the body's skeleton so they align correctly.
-      // Equipment GLBs are rigged to the same armature as the body, so replacing
-      // the skeleton reference makes bones match by name/index.
+      // Bind equipment meshes to the body's skeleton so bone-weighted parts
+      // (hair, beard, etc.) deform together with the body.
       if (bodySkeletonRef.current && result.skeletons.length > 0) {
         result.meshes.forEach((mesh: any) => {
           if (mesh.skeleton) {
@@ -129,14 +131,14 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
       bodySkeletonRef.current = result.skeletons[0];
     }
 
-    // Compute model bounds for camera framing
+    // Compute model bounds for camera framing (only visible meshes)
     const rootMesh = result.meshes[0];
     if (rootMesh) {
       let min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
       let max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
 
       result.meshes.forEach((mesh: any) => {
-        if (mesh.getBoundingInfo) {
+        if (mesh.getTotalVertices && mesh.getTotalVertices() > 0) {
           const bi = mesh.getBoundingInfo();
           min = BABYLON.Vector3.Minimize(min, bi.boundingBox.minimumWorld);
           max = BABYLON.Vector3.Maximize(max, bi.boundingBox.maximumWorld);
@@ -154,9 +156,14 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
         camera.beta = Math.PI / 2.2;
       }
 
-      rootMesh.position.x = -center.x;
-      rootMesh.position.z = -center.z;
-      bodyOffsetRef.current = { x: -center.x, z: -center.z };
+      // Create a shared parent TransformNode. Both body and equipment roots
+      // are parented here so they all share the same centering offset.
+      const charRoot = new BABYLON.TransformNode('characterRoot', scene);
+      charRoot.position.x = -center.x;
+      charRoot.position.z = -center.z;
+      characterRootRef.current = charRoot;
+
+      rootMesh.parent = charRoot;
     }
   }, []);
 

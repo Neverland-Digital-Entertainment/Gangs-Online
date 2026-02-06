@@ -64,11 +64,11 @@ export async function generateAllThumbnails(
         '', `/characters/${item.folder}/`, `${item.file}.glb`, scene,
       );
 
-      // Auto-frame the model
+      // Auto-frame: only include meshes with actual geometry (skip skeleton/bone nodes)
       let min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
       let max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
       loadResult.meshes.forEach((mesh: any) => {
-        if (mesh.getBoundingInfo) {
+        if (mesh.getTotalVertices && mesh.getTotalVertices() > 0) {
           const bi = mesh.getBoundingInfo();
           min = BABYLON.Vector3.Minimize(min, bi.boundingBox.minimumWorld);
           max = BABYLON.Vector3.Maximize(max, bi.boundingBox.maximumWorld);
