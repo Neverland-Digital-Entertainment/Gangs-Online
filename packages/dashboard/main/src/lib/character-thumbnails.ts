@@ -64,32 +64,44 @@ export async function generateAllThumbnails(
         '', `/characters/${item.folder}/`, `${item.file}.glb`, scene,
       );
 
-      // Auto-frame: only include meshes with actual geometry (skip skeleton/bone nodes)
-      let min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
-      let max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
+      // Detach skeletons so meshes render in bind pose (avoids bone-space bounding issues)
       loadResult.meshes.forEach((mesh: any) => {
-        if (mesh.getTotalVertices && mesh.getTotalVertices() > 0) {
-          const bi = mesh.getBoundingInfo();
-          min = BABYLON.Vector3.Minimize(min, bi.boundingBox.minimumWorld);
-          max = BABYLON.Vector3.Maximize(max, bi.boundingBox.maximumWorld);
+        if (mesh.skeleton) {
+          mesh.skeleton = null;
         }
       });
+      loadResult.skeletons.forEach((s: any) => s.dispose());
+
+      // Force world matrix computation on all meshes
+      loadResult.meshes.forEach((mesh: any) => {
+        mesh.computeWorldMatrix(true);
+      });
+
+      // Do a first render pass so all transforms are fully resolved
+      scene.render();
+
+      // Now use getWorldExtends which gives the actual scene-wide bounds
+      const worldExtends = scene.getWorldExtends(
+        (mesh: any) => loadResult.meshes.includes(mesh) && mesh.getTotalVertices && mesh.getTotalVertices() > 0
+      );
+      const min = worldExtends.min;
+      const max = worldExtends.max;
 
       const center = BABYLON.Vector3.Center(min, max);
       const extent = max.subtract(min);
       const maxDim = Math.max(extent.x, extent.y, extent.z);
 
       camera.target = center;
-      camera.radius = maxDim * 1.0;
+      camera.radius = maxDim * 1.2;
 
+      // Render the final frame with correct camera
       scene.render();
       const dataUrl = canvas.toDataURL('image/webp', 0.8);
       result[key] = dataUrl;
       onProgress?.(key, dataUrl);
 
-      // Cleanup this item's meshes and skeletons
+      // Cleanup this item's meshes
       loadResult.meshes.forEach((m: any) => m.dispose());
-      loadResult.skeletons.forEach((s: any) => s.dispose());
     } catch (err) {
       console.warn(`Thumbnail failed for ${key}:`, err);
     }

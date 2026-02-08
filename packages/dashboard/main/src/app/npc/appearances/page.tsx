@@ -180,7 +180,7 @@ export default function NpcAppearancesPage() {
                 {/* Content - Thumbnail Grid */}
                 {isExpanded && (
                   <div className="px-3 pb-3">
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-6 gap-1.5">
                       {options.map((opt) => {
                         const isSelected = current === opt.id;
                         const thumbSrc = opt.thumbnailKey ? thumbnails[opt.thumbnailKey] : null;
