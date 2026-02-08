@@ -33,7 +33,6 @@ export async function generateAllThumbnails(
   const scene = new BABYLON.Scene(engine);
   scene.clearColor = new BABYLON.Color4(0.22, 0.22, 0.26, 1);
 
-  // Default camera - will be repositioned per item
   const camera = new BABYLON.ArcRotateCamera(
     'thumbCam', -Math.PI / 2, Math.PI / 2.5, 3,
     BABYLON.Vector3.Zero(), scene,
@@ -53,43 +52,19 @@ export async function generateAllThumbnails(
         '', `/characters/${item.folder}/`, `${item.file}.glb`, scene,
       );
 
-      // Debug: log mesh info
-      const meshInfo = loadResult.meshes.map((m: any) => ({
-        name: m.name,
-        vertices: m.getTotalVertices?.() ?? 0,
-        position: m.position?.toString(),
-        hasSkeleton: !!m.skeleton,
-      }));
-      console.log(`[Thumbnail] ${key}:`, {
-        meshCount: loadResult.meshes.length,
-        skeletonCount: loadResult.skeletons.length,
-        meshes: meshInfo,
-      });
+      // CRITICAL: wait for all shaders and textures to be compiled/loaded.
+      // Without this, parallel shader compilation means the first render
+      // draws nothing (materials not ready yet).
+      await scene.whenReadyAsync();
 
-      // Use scene.createDefaultCamera to auto-frame everything in the scene
-      // This is Babylon's built-in "frame all meshes" utility
-      camera.target = BABYLON.Vector3.Zero();
-      camera.radius = 3;
-
-      // First render to evaluate skeletons and world matrices
-      scene.render();
-
-      // Now try to get actual bounds using getHierarchyBoundingVectors on root
+      // Auto-frame: compute hierarchy bounds
       const rootMesh = loadResult.meshes[0];
       if (rootMesh) {
         rootMesh.computeWorldMatrix(true);
-        // getHierarchyBoundingVectors traverses all children and computes total bounds
         const bounds = rootMesh.getHierarchyBoundingVectors(true);
         const center = BABYLON.Vector3.Center(bounds.min, bounds.max);
         const extent = bounds.max.subtract(bounds.min);
         const maxDim = Math.max(extent.x, extent.y, extent.z);
-
-        console.log(`[Thumbnail] ${key} bounds:`, {
-          min: bounds.min.toString(),
-          max: bounds.max.toString(),
-          center: center.toString(),
-          maxDim,
-        });
 
         if (maxDim > 0 && maxDim < 1000) {
           camera.target = center;
@@ -97,7 +72,7 @@ export async function generateAllThumbnails(
         }
       }
 
-      // Final render
+      // Render and capture
       scene.render();
       const dataUrl = canvas.toDataURL('image/webp', 0.8);
       result[key] = dataUrl;
