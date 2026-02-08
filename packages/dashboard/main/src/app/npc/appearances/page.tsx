@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { User, ChevronDown, X } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
@@ -20,15 +20,20 @@ interface EquipmentOption {
   thumbnailKey?: string;
 }
 
-const EQUIPMENT_CATALOG: Record<EquipmentSlot, EquipmentOption[]> = {
-  hair: [
-    { id: null, labelKey: 'npc.appearances.none' },
-    { id: 'short', labelKey: 'npc.appearances.hair.short', thumbnailKey: 'hair/short' },
-    { id: 'buzzed', labelKey: 'npc.appearances.hair.buzzed', thumbnailKey: 'hair/buzzed' },
-    { id: 'buzzed-female', labelKey: 'npc.appearances.hair.buzzedFemale', thumbnailKey: 'hair/buzzed-female' },
-    { id: 'long', labelKey: 'npc.appearances.hair.long', thumbnailKey: 'hair/long' },
-    { id: 'bun', labelKey: 'npc.appearances.hair.bun', thumbnailKey: 'hair/bun' },
-  ],
+const MALE_HAIR_OPTIONS: EquipmentOption[] = [
+  { id: null, labelKey: 'npc.appearances.none' },
+  { id: 'short', labelKey: 'npc.appearances.hair.short', thumbnailKey: 'hair/male/short' },
+  { id: 'buzzed', labelKey: 'npc.appearances.hair.buzzed', thumbnailKey: 'hair/male/buzzed' },
+];
+
+const FEMALE_HAIR_OPTIONS: EquipmentOption[] = [
+  { id: null, labelKey: 'npc.appearances.none' },
+  { id: 'buzzed-female', labelKey: 'npc.appearances.hair.buzzedFemale', thumbnailKey: 'hair/female/buzzed-female' },
+  { id: 'long', labelKey: 'npc.appearances.hair.long', thumbnailKey: 'hair/female/long' },
+  { id: 'bun', labelKey: 'npc.appearances.hair.bun', thumbnailKey: 'hair/female/bun' },
+];
+
+const SHARED_CATALOG: Record<Exclude<EquipmentSlot, 'hair'>, EquipmentOption[]> = {
   beard: [
     { id: null, labelKey: 'npc.appearances.none' },
     { id: 'beard', labelKey: 'npc.appearances.beard.beard', thumbnailKey: 'beard/beard' },
@@ -51,6 +56,30 @@ const EQUIPMENT_CATALOG: Record<EquipmentSlot, EquipmentOption[]> = {
   ],
 };
 
+function getCatalog(gender: Gender): Record<EquipmentSlot, EquipmentOption[]> {
+  return {
+    hair: gender === 'male' ? MALE_HAIR_OPTIONS : FEMALE_HAIR_OPTIONS,
+    ...SHARED_CATALOG,
+  };
+}
+
+/** Build the list of thumbnail items for the given gender */
+function getThumbnailItems(gender: Gender) {
+  const catalog = getCatalog(gender);
+  const items: { folder: string; file: string }[] = [];
+  for (const options of Object.values(catalog)) {
+    for (const opt of options) {
+      if (opt.thumbnailKey) {
+        const parts = opt.thumbnailKey.split('/');
+        const file = parts.pop()!;
+        const folder = parts.join('/');
+        items.push({ folder, file });
+      }
+    }
+  }
+  return items;
+}
+
 const SLOT_ORDER: { slot: EquipmentSlot; titleKey: string }[] = [
   { slot: 'hair', titleKey: 'npc.appearances.hair' },
   { slot: 'beard', titleKey: 'npc.appearances.beard' },
@@ -69,15 +98,24 @@ export default function NpcAppearancesPage() {
   const [expandedSlot, setExpandedSlot] = useState<EquipmentSlot | null>('hair');
   const [thumbnails, setThumbnails] = useState<ThumbnailMap>({});
 
-  // Generate thumbnails on mount (progressive updates)
+  const catalog = useMemo(() => getCatalog(gender), [gender]);
+
+  // Generate thumbnails when gender changes (hair thumbnails differ per gender)
   useEffect(() => {
     let cancelled = false;
-    generateAllThumbnails((key, dataUrl) => {
+    const items = getThumbnailItems(gender);
+    generateAllThumbnails(items, (key, dataUrl) => {
       if (!cancelled) {
         setThumbnails((prev) => ({ ...prev, [key]: dataUrl }));
       }
     });
     return () => { cancelled = true; };
+  }, [gender]);
+
+  const handleGenderChange = useCallback((newGender: Gender) => {
+    setGender(newGender);
+    // Clear hair when switching gender since hair options differ
+    setEquipment((prev) => ({ ...prev, hair: null }));
   }, []);
 
   const handleSlotChange = useCallback((slot: EquipmentSlot, itemId: string | null) => {
@@ -91,7 +129,7 @@ export default function NpcAppearancesPage() {
   const getSelectedLabel = (slot: EquipmentSlot): string | null => {
     const current = equipment[slot];
     if (!current) return null;
-    const opt = EQUIPMENT_CATALOG[slot].find((o) => o.id === current);
+    const opt = catalog[slot].find((o) => o.id === current);
     return opt ? t(opt.labelKey) : null;
   };
 
@@ -126,7 +164,7 @@ export default function NpcAppearancesPage() {
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => setGender('male')}
+                onClick={() => handleGenderChange('male')}
                 className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   gender === 'male'
                     ? 'bg-blue-600 text-white shadow-md'
@@ -136,7 +174,7 @@ export default function NpcAppearancesPage() {
                 {t('npc.appearances.male')}
               </button>
               <button
-                onClick={() => setGender('female')}
+                onClick={() => handleGenderChange('female')}
                 className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   gender === 'female'
                     ? 'bg-pink-600 text-white shadow-md'
@@ -151,7 +189,7 @@ export default function NpcAppearancesPage() {
           {/* Accordion Equipment Slots */}
           {SLOT_ORDER.map(({ slot, titleKey }) => {
             const isExpanded = expandedSlot === slot;
-            const options = EQUIPMENT_CATALOG[slot];
+            const options = catalog[slot];
             const current = equipment[slot];
             const selectedLabel = getSelectedLabel(slot);
 

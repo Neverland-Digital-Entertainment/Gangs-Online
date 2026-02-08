@@ -30,6 +30,17 @@ const SLOT_FOLDERS: Record<EquipmentSlot, string> = {
   shoe: 'shoe',
 };
 
+/** Slots where the asset path includes a gender subfolder */
+const GENDER_SUBFOLDERED_SLOTS: Set<EquipmentSlot> = new Set(['hair']);
+
+function getEquipmentPath(slot: EquipmentSlot, gender: Gender): string {
+  const folder = SLOT_FOLDERS[slot];
+  if (GENDER_SUBFOLDERED_SLOTS.has(slot)) {
+    return `/characters/${folder}/${gender}/`;
+  }
+  return `/characters/${folder}/`;
+}
+
 export default function CharacterViewer({ gender, equipment }: CharacterViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<any>(null);
@@ -74,16 +85,17 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
     scene: any,
     slot: EquipmentSlot,
     itemId: string | null,
+    currentGender: Gender,
   ) => {
     disposeSlot(slot);
     if (!itemId) return;
 
     try {
       const BABYLON = await import('@babylonjs/core');
-      const folder = SLOT_FOLDERS[slot];
+      const basePath = getEquipmentPath(slot, currentGender);
       const result = await BABYLON.SceneLoader.ImportMeshAsync(
         '',
-        `/characters/${folder}/`,
+        basePath,
         `${itemId}.glb`,
         scene,
       );
@@ -176,7 +188,7 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
       await loadBody(scene, currentGender);
       const slots = Object.keys(equip) as EquipmentSlot[];
       await Promise.all(
-        slots.map((slot) => loadEquipmentSlot(scene, slot, equip[slot]))
+        slots.map((slot) => loadEquipmentSlot(scene, slot, equip[slot], currentGender))
       );
       setLoading(false);
     } catch (err) {
@@ -275,7 +287,7 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
 
     (Object.keys(equipment) as EquipmentSlot[]).forEach((slot) => {
       if (equipment[slot] !== prev[slot]) {
-        loadEquipmentSlot(scene, slot, equipment[slot]);
+        loadEquipmentSlot(scene, slot, equipment[slot], gender);
       }
     });
     prevEquipmentRef.current = equipment;

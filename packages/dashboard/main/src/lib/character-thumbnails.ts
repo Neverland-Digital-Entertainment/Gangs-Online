@@ -9,26 +9,16 @@ interface ThumbnailItem {
   file: string;
 }
 
-const ALL_THUMBNAIL_ITEMS: ThumbnailItem[] = [
-  { folder: 'hair', file: 'short' },
-  { folder: 'hair', file: 'buzzed' },
-  { folder: 'hair', file: 'buzzed-female' },
-  { folder: 'hair', file: 'long' },
-  { folder: 'hair', file: 'bun' },
-  { folder: 'beard', file: 'beard' },
-  { folder: 'head', file: 'cap' },
-  { folder: 'top', file: 'shirt01' },
-  { folder: 'bottom', file: 'pants01' },
-  { folder: 'shoe', file: 'shoe01' },
-];
-
 export type ThumbnailMap = Record<string, string>;
 
 /**
  * Generate thumbnails for all equipment items.
  * Calls onProgress after each item is rendered, so the UI can update progressively.
+ * The items list is passed in so the page can control which items to render
+ * (e.g. gender-specific hair).
  */
 export async function generateAllThumbnails(
+  items: ThumbnailItem[],
   onProgress?: (key: string, dataUrl: string) => void,
 ): Promise<ThumbnailMap> {
   const BABYLON = await import('@babylonjs/core');
@@ -57,51 +47,51 @@ export async function generateAllThumbnails(
 
   const result: ThumbnailMap = {};
 
-  for (const item of ALL_THUMBNAIL_ITEMS) {
+  for (const item of items) {
     const key = `${item.folder}/${item.file}`;
     try {
       const loadResult = await BABYLON.SceneLoader.ImportMeshAsync(
         '', `/characters/${item.folder}/`, `${item.file}.glb`, scene,
       );
 
-      // Detach skeletons so meshes render in bind pose (avoids bone-space bounding issues)
+      // First render pass: forces skeleton evaluation and world matrix updates
+      scene.render();
+
+      // Recompute bounding info with skeleton-applied vertex positions.
+      // Only consider meshes with actual geometry (not __root__ TransformNodes).
+      let min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
+      let max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
+      let hasGeometry = false;
+
       loadResult.meshes.forEach((mesh: any) => {
-        if (mesh.skeleton) {
-          mesh.skeleton = null;
+        if (mesh.getTotalVertices && mesh.getTotalVertices() > 0) {
+          // refreshBoundingInfo(true) recalculates using CPU-skinned positions
+          mesh.refreshBoundingInfo(true);
+          const bi = mesh.getBoundingInfo();
+          min = BABYLON.Vector3.Minimize(min, bi.boundingBox.minimumWorld);
+          max = BABYLON.Vector3.Maximize(max, bi.boundingBox.maximumWorld);
+          hasGeometry = true;
         }
       });
-      loadResult.skeletons.forEach((s: any) => s.dispose());
 
-      // Force world matrix computation on all meshes
-      loadResult.meshes.forEach((mesh: any) => {
-        mesh.computeWorldMatrix(true);
-      });
+      if (hasGeometry) {
+        const center = BABYLON.Vector3.Center(min, max);
+        const extent = max.subtract(min);
+        const maxDim = Math.max(extent.x, extent.y, extent.z);
 
-      // Do a first render pass so all transforms are fully resolved
-      scene.render();
+        camera.target = center;
+        camera.radius = maxDim * 1.2;
 
-      // Now use getWorldExtends which gives the actual scene-wide bounds
-      const worldExtends = scene.getWorldExtends(
-        (mesh: any) => loadResult.meshes.includes(mesh) && mesh.getTotalVertices && mesh.getTotalVertices() > 0
-      );
-      const min = worldExtends.min;
-      const max = worldExtends.max;
+        // Final render with correct camera framing
+        scene.render();
+        const dataUrl = canvas.toDataURL('image/webp', 0.8);
+        result[key] = dataUrl;
+        onProgress?.(key, dataUrl);
+      }
 
-      const center = BABYLON.Vector3.Center(min, max);
-      const extent = max.subtract(min);
-      const maxDim = Math.max(extent.x, extent.y, extent.z);
-
-      camera.target = center;
-      camera.radius = maxDim * 1.2;
-
-      // Render the final frame with correct camera
-      scene.render();
-      const dataUrl = canvas.toDataURL('image/webp', 0.8);
-      result[key] = dataUrl;
-      onProgress?.(key, dataUrl);
-
-      // Cleanup this item's meshes
+      // Cleanup this item's meshes and skeletons
       loadResult.meshes.forEach((m: any) => m.dispose());
+      loadResult.skeletons.forEach((s: any) => s.dispose());
     } catch (err) {
       console.warn(`Thumbnail failed for ${key}:`, err);
     }
