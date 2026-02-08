@@ -16,9 +16,15 @@ export interface EquipmentState {
   shoe: string | null;
 }
 
+export interface ColorState {
+  hair: string;
+  beard: string;
+}
+
 interface CharacterViewerProps {
   gender: Gender;
   equipment: EquipmentState;
+  colors: ColorState;
 }
 
 const SLOT_FOLDERS: Record<EquipmentSlot, string> = {
@@ -41,7 +47,7 @@ function getEquipmentPath(slot: EquipmentSlot, gender: Gender): string {
   return `/characters/${folder}/`;
 }
 
-export default function CharacterViewer({ gender, equipment }: CharacterViewerProps) {
+export default function CharacterViewer({ gender, equipment, colors }: CharacterViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<any>(null);
   const sceneRef = useRef<any>(null);
@@ -56,6 +62,7 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
   const { t } = useI18n();
   const prevGenderRef = useRef<Gender>(gender);
   const prevEquipmentRef = useRef<EquipmentState>(equipment);
+  const prevColorsRef = useRef<ColorState>(colors);
   const sceneReadyRef = useRef(false);
 
   const disposeSlot = useCallback((slot: EquipmentSlot) => {
@@ -292,6 +299,40 @@ export default function CharacterViewer({ gender, equipment }: CharacterViewerPr
     });
     prevEquipmentRef.current = equipment;
   }, [equipment]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Apply color tint to hair/beard meshes
+  useEffect(() => {
+    if (!sceneReadyRef.current) return;
+
+    const applyColor = async (slot: EquipmentSlot, hexColor: string) => {
+      const BABYLON = await import('@babylonjs/core');
+      const color = BABYLON.Color3.FromHexString(hexColor);
+      const meshes = equipmentMeshesRef.current[slot];
+      meshes.forEach((mesh: any) => {
+        if (mesh.material && mesh.getTotalVertices?.() > 0) {
+          // Clone material to avoid shared material issues
+          if (!mesh.material._colorTinted) {
+            mesh.material = mesh.material.clone(mesh.material.name + '_tinted');
+            mesh.material._colorTinted = true;
+          }
+          if ('albedoColor' in mesh.material) {
+            mesh.material.albedoColor = color;
+          } else if ('diffuseColor' in mesh.material) {
+            mesh.material.diffuseColor = color;
+          }
+        }
+      });
+    };
+
+    const prev = prevColorsRef.current;
+    if (colors.hair !== prev.hair) {
+      applyColor('hair', colors.hair);
+    }
+    if (colors.beard !== prev.beard) {
+      applyColor('beard', colors.beard);
+    }
+    prevColorsRef.current = colors;
+  }, [colors]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="relative w-full h-full min-h-[400px]">

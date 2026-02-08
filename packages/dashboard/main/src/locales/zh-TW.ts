@@ -396,6 +396,7 @@ export default {
   'npc.appearances.beard': '鬍子',
   'npc.appearances.head': '頭飾',
   'npc.appearances.hairColor': '髮色',
+  'npc.appearances.beardColor': '鬍子顏色',
   'npc.appearances.none': '無',
   'npc.appearances.hair.short': '短髮',
   'npc.appearances.hair.buzzed': '平頭',

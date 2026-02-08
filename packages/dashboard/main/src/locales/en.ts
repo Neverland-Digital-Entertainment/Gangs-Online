@@ -395,6 +395,7 @@ export default {
   'npc.appearances.beard': 'Beard',
   'npc.appearances.head': 'Head',
   'npc.appearances.hairColor': 'Hair Color',
+  'npc.appearances.beardColor': 'Beard Color',
   'npc.appearances.none': 'None',
   'npc.appearances.hair.short': 'Short',
   'npc.appearances.hair.buzzed': 'Buzzed',

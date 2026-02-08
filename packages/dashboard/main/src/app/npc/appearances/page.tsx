@@ -2,9 +2,9 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { User, ChevronDown, X } from 'lucide-react';
+import { User, ChevronDown, X, Pipette } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
-import type { EquipmentState, EquipmentSlot } from '@/components/npc/CharacterViewer';
+import type { EquipmentState, EquipmentSlot, ColorState } from '@/components/npc/CharacterViewer';
 import { generateAllThumbnails, type ThumbnailMap } from '@/lib/character-thumbnails';
 
 const CharacterViewer = dynamic(
@@ -89,16 +89,28 @@ const SLOT_ORDER: { slot: EquipmentSlot; titleKey: string }[] = [
   { slot: 'shoe', titleKey: 'npc.appearances.shoes' },
 ];
 
+/** Slots hidden for specific genders */
+const HIDDEN_SLOTS: Partial<Record<Gender, Set<EquipmentSlot>>> = {
+  female: new Set(['beard']),
+};
+
+const DEFAULT_COLORS: ColorState = {
+  hair: '#3D2B1F',
+  beard: '#3D2B1F',
+};
+
 export default function NpcAppearancesPage() {
   const { t } = useI18n();
   const [gender, setGender] = useState<Gender>('male');
   const [equipment, setEquipment] = useState<EquipmentState>({
     hair: null, beard: null, head: null, top: null, bottom: null, shoe: null,
   });
+  const [colors, setColors] = useState<ColorState>(DEFAULT_COLORS);
   const [expandedSlot, setExpandedSlot] = useState<EquipmentSlot | null>('hair');
   const [thumbnails, setThumbnails] = useState<ThumbnailMap>({});
 
   const catalog = useMemo(() => getCatalog(gender), [gender]);
+  const hiddenSlots = HIDDEN_SLOTS[gender] ?? new Set();
 
   // Generate thumbnails when gender changes (hair thumbnails differ per gender)
   useEffect(() => {
@@ -114,12 +126,22 @@ export default function NpcAppearancesPage() {
 
   const handleGenderChange = useCallback((newGender: Gender) => {
     setGender(newGender);
-    // Clear hair when switching gender since hair options differ
-    setEquipment((prev) => ({ ...prev, hair: null }));
+    // Clear gender-specific equipment
+    setEquipment((prev) => ({ ...prev, hair: null, beard: null }));
+    // If currently expanded slot will be hidden, switch to hair
+    const willBeHidden = HIDDEN_SLOTS[newGender];
+    setExpandedSlot((prev) => {
+      if (prev && willBeHidden?.has(prev)) return 'hair';
+      return prev;
+    });
   }, []);
 
   const handleSlotChange = useCallback((slot: EquipmentSlot, itemId: string | null) => {
     setEquipment((prev) => ({ ...prev, [slot]: itemId }));
+  }, []);
+
+  const handleColorChange = useCallback((key: keyof ColorState, color: string) => {
+    setColors((prev) => ({ ...prev, [key]: color }));
   }, []);
 
   const toggleSlot = useCallback((slot: EquipmentSlot) => {
@@ -149,7 +171,7 @@ export default function NpcAppearancesPage() {
         <div className="lg:col-span-2">
           <div className="card">
             <div className="card-body p-0 overflow-hidden rounded-lg" style={{ height: '600px' }}>
-              <CharacterViewer gender={gender} equipment={equipment} />
+              <CharacterViewer gender={gender} equipment={equipment} colors={colors} />
             </div>
           </div>
         </div>
@@ -188,10 +210,14 @@ export default function NpcAppearancesPage() {
 
           {/* Accordion Equipment Slots */}
           {SLOT_ORDER.map(({ slot, titleKey }) => {
+            if (hiddenSlots.has(slot)) return null;
+
             const isExpanded = expandedSlot === slot;
             const options = catalog[slot];
             const current = equipment[slot];
             const selectedLabel = getSelectedLabel(slot);
+            const hasColorPicker = slot === 'hair' || slot === 'beard';
+            const colorKey = slot as keyof ColorState;
 
             return (
               <div key={slot} className="border-b border-[var(--border)] last:border-b-0">
@@ -215,9 +241,26 @@ export default function NpcAppearancesPage() {
                   />
                 </button>
 
-                {/* Content - Thumbnail Grid */}
+                {/* Content */}
                 {isExpanded && (
                   <div className="px-3 pb-3">
+                    {/* Color picker for hair/beard */}
+                    {hasColorPicker && current && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <Pipette className="w-3.5 h-3.5 text-[var(--muted-foreground)]" />
+                        <span className="text-xs text-[var(--muted-foreground)]">
+                          {t(slot === 'hair' ? 'npc.appearances.hairColor' : 'npc.appearances.beardColor')}
+                        </span>
+                        <input
+                          type="color"
+                          value={colors[colorKey]}
+                          onChange={(e) => handleColorChange(colorKey, e.target.value)}
+                          className="w-6 h-6 rounded cursor-pointer border border-[var(--border)] bg-transparent p-0"
+                        />
+                      </div>
+                    )}
+
+                    {/* Thumbnail Grid */}
                     <div className="grid grid-cols-6 gap-1.5">
                       {options.map((opt) => {
                         const isSelected = current === opt.id;
