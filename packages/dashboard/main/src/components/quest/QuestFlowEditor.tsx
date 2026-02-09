@@ -179,10 +179,9 @@ export default function QuestFlowEditor({
         deleteKeyCode={['Backspace', 'Delete']}
         className="bg-gray-50 dark:bg-gray-900"
       >
-        <Controls className="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-700 !shadow-lg" />
+        <Controls />
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
         <MiniMap
-          className="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-700"
           nodeColor={(node) => getNodeColor(node.type || 'default')}
         />
 

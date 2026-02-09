@@ -323,4 +323,41 @@
   .dark .theme-toggle:hover {
     background-color: rgb(55 65 81);
   }
+
+  /* React Flow Controls - Dark Mode Fix (Phase 20) */
+  .dark .react-flow__controls {
+    background-color: rgb(31 41 55);
+    border-color: rgb(55 65 81);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3);
+  }
+
+  .dark .react-flow__controls-button {
+    background-color: rgb(31 41 55);
+    border-color: rgb(55 65 81);
+    fill: rgb(209 213 219);
+    color: rgb(209 213 219);
+  }
+
+  .dark .react-flow__controls-button:hover {
+    background-color: rgb(55 65 81);
+  }
+
+  .dark .react-flow__controls-button svg {
+    fill: rgb(209 213 219);
+  }
+
+  /* React Flow MiniMap - Dark Mode Fix */
+  .dark .react-flow__minimap {
+    background-color: rgb(31 41 55);
+    border-color: rgb(55 65 81);
+  }
+
+  /* React Flow Attribution - Dark Mode Fix */
+  .dark .react-flow__attribution {
+    background-color: rgb(31 41 55 / 0.7);
+  }
+
+  .dark .react-flow__attribution a {
+    color: rgb(156 163 175);
+  }
 }
