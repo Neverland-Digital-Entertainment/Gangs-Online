@@ -1,6 +1,6 @@
 # Gangs Online - 項目架構指南
 
-> **最後更新：** 2026-02-02
+> **最後更新：** 2026-02-09
 > **當前版本：** 0.16.3 - Shop & Economy System Complete
 > **版本號位置：** `packages/shared/src/index.ts` - 所有端統一使用此版本號
 > **目的：** 提供項目架構概覽，減少新對話中的重複代碼探索，節省 token 使用
@@ -9,7 +9,54 @@
 
 ---
 
-## 📝 最新更新 (2026-02-02)
+## 📝 最新更新 (2026-02-09)
+
+### Phase 19 - NPC 造型管理系統（開發中，標記為「即將推出」）
+
+Dashboard 新增 NPC 造型管理頁面，使用 Babylon.js 3D 引擎在瀏覽器內即時預覽和編輯角色外觀。目前仍在開發中，Sidebar 已標記為「即將推出」，但頁面可通過 `/npc/appearances` 直接訪問進行測試。
+
+#### 已完成功能
+- **3D 角色預覽器**：使用 Babylon.js 7 的 `ArcRotateCamera` 實現 360° 旋轉查看
+- **性別切換**：支援男性/女性身體模型載入（`body/male.glb`, `body/female.glb`）
+- **裝備插槽系統**：6 個獨立插槽（hair, beard, head, top, bottom, shoe），支援獨立載入/卸載
+- **性別專屬髮型**：男性（`hair/male/`）和女性（`hair/female/`）使用不同髮型資料夾
+- **骨骼綁定**：有骨骼的裝備（髮型、鬍子）會綁定到身體骨骼（`mesh.skeleton = bodySkeletonRef`）
+- **共享 TransformNode**：身體和所有裝備的 root 都 parent 到同一個 `characterRoot` 節點，確保位置對齊
+- **髮色/鬍色修改**：即時修改 material 的 `albedoColor`/`diffuseColor`，材質先 clone 避免共用問題
+- **性別感知 UI**：女性隱藏鬍子區塊，切換性別自動清除性別專屬裝備
+- **3D 縮圖預覽**：使用離屏 Babylon engine 生成 128x128 縮圖，漸進式更新
+- **Accordion UI**：6 欄位分類摺疊面板，選中項目顯示在 header，6 格/行的縮圖 grid
+- **顏色選擇器**：髮型和鬍子區域有 `<input type="color">` 調色盤（選中配件後顯示）
+
+#### 關鍵技術
+- **Babylon.js SSR 安全**：使用 `dynamic()` + `{ ssr: false }` 載入 CharacterViewer
+- **GLB 座標系統**：GLB `__root__` 節點有右手→左手座標轉換，不能手動旋轉模型，改用 camera alpha 調整視角
+- **GLB 內建紋理**：GLB 自帶紋理和 UV mapping，不需要也不應該外部覆蓋 texture
+- **共享資源**：`public/characters` → `../../../shared/characters` 符號連結，client 和 dashboard 共用
+- **Shader 編譯**：縮圖生成必須 `await scene.whenReadyAsync()` 等待 shader 編譯完成，否則渲染空白
+- **Bounding Box**：使用 `getHierarchyBoundingVectors(true)` 取得完整層級的邊界，過濾無頂點的 TransformNode
+
+#### 已知問題
+- **Cap 模型偏移**：`head/cap.glb` 頂點在 Z~-16 位置，且無 material，需要在 Blender 重新匯出（歸零原點、加上材質、綁定骨骼）
+- **縮圖渲染**：部分骨骼綁定的配件縮圖可能仍有顯示問題（bounding box 受骨骼影響）
+- **無骨骼裝備對齊**：服裝（top, bottom, shoe）無骨骼，依靠 TransformNode 父子關係對齊
+
+#### 涉及的文件
+- `app/npc/appearances/page.tsx` - 造型管理頁面（Accordion UI、性別切換、顏色選擇器）
+- `components/npc/CharacterViewer.tsx` - 3D 角色預覽器（Babylon.js scene、裝備管理、骨骼綁定、顏色應用）
+- `lib/character-thumbnails.ts` - 離屏 3D 縮圖生成器
+- `components/layout/Sidebar.tsx` - 側邊欄新增造型管理入口（disabled, 即將推出）
+- `app/npc/page.tsx` - NPC 管理頁新增造型管理卡片（coming soon）
+- `locales/en.ts` / `locales/zh-TW.ts` - 新增 `npc.appearances.*` 相關翻譯 keys
+
+#### 未來開發
+- Phase 19.3: 動畫系統
+- Phase 19.4: 更多顏色自訂（膚色等）
+- Phase 19.5: UI 完善 + Firebase 資料持久化
+
+---
+
+### 過去更新 (2026-02-02)
 
 ### Dashboard UI/UX 改進
 本次更新專注於改善 Dashboard 使用者體驗和一致性：
@@ -287,6 +334,7 @@ scene.onPointerDown = (evt, pickResult) => {
 - `app/npc/templates/page.tsx` - NPC 模板列表
 - `app/npc/instances/page.tsx` - NPC 實例列表
 - `app/item/page.tsx` - 道具管理
+- `app/npc/appearances/page.tsx` - NPC 造型管理（Phase 19，即將推出）
 - `app/shop/page.tsx` - 商店列表（Phase 16.3）
 - `app/shop/edit/page.tsx` - 商店編輯/新增（Phase 16.3）
 
@@ -312,6 +360,9 @@ scene.onPointerDown = (evt, pickResult) => {
     - `open_shop` - 開啟商店（dropdown 選擇已有商店或使用 linkedShopId）
     - `end_dialogue` - 結束對話（單一對話預設模式）
   - **新增節點行為：** 自動將前一個「結束對話」節點改為「下一句對話」指向新節點
+- `components/npc/CharacterViewer.tsx` - **3D 角色預覽器**（Phase 19，Babylon.js 7）
+  - 裝備插槽管理、骨骼綁定、共享 TransformNode、髮色/鬍色修改
+- `lib/character-thumbnails.ts` - **3D 縮圖生成器**（Phase 19，離屏 Babylon engine）
 - `components/shop/ShopForm.tsx` - 商店表單（Phase 16.3）
   - Multi-select 商品選擇器（react-select）
   - 停用商品顯示 `[停用]` 標記
@@ -528,6 +579,20 @@ scene.onPointerDown = (evt, pickResult) => {
 ## 📋 當前進度
 
 ### ✅ 已完成功能
+
+**Phase 19 (開發中 - 即將推出):**
+- 🚧 NPC 造型管理系統（Babylon.js 3D 角色預覽）
+- ✅ 3D 角色預覽器（ArcRotateCamera、燈光、地板）
+- ✅ 性別切換（男/女身體模型）
+- ✅ 6 個裝備插槽（hair, beard, head, top, bottom, shoe）
+- ✅ 性別專屬髮型路徑（`hair/male/`, `hair/female/`）
+- ✅ 骨骼綁定 + 共享 TransformNode 對齊
+- ✅ 髮色/鬍色即時修改（Color Picker）
+- ✅ 3D 縮圖預覽（離屏 Babylon engine）
+- ✅ Accordion UI + 6 格 grid + 女性隱藏鬍子
+- ⬜ Cap 模型修正（需 Blender 重新匯出）
+- ⬜ 動畫系統
+- ⬜ Firebase 資料持久化
 
 **Phase 16-3 (當前):**
 - ✅ 動態商店系統（Firebase）

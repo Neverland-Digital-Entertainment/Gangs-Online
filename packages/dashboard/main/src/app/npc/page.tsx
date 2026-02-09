@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, MapPin, Plus, ArrowRight } from 'lucide-react';
+import { FileText, MapPin, Palette, Plus, ArrowRight } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
 
 export default function NpcManagementPage() {
@@ -18,7 +18,7 @@ export default function NpcManagementPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {/* NPC Templates */}
         <Link href="/npc/templates" className="group">
           <div className="card hover:shadow-lg transition-all duration-200 h-full">
@@ -66,6 +66,28 @@ export default function NpcManagementPage() {
             </div>
           </div>
         </Link>
+
+        {/* NPC Appearances - Coming Soon */}
+        <div className="opacity-50 cursor-not-allowed">
+          <div className="card h-full">
+            <div className="card-body">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                  <Palette className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                </div>
+                <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
+                  {t('nav.comingSoon')}
+                </span>
+              </div>
+              <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">
+                {t('npc.appearances')}
+              </h3>
+              <p className="text-[var(--muted-foreground)] text-sm mb-4">
+                {t('npc.appearances.subtitle')}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Quick Actions */}

@@ -17,6 +17,7 @@ import {
   ShoppingBag,
   FileText,
   UserCheck,
+  Palette,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
@@ -32,6 +33,7 @@ type MenuItem = {
     titleKey: string;
     href: string;
     icon?: React.ComponentType<{ className?: string }>;
+    disabled?: boolean;
   }[];
 };
 
@@ -73,6 +75,12 @@ const menuItems: MenuItem[] = [
         titleKey: 'nav.npcInstances',
         href: '/npc/instances',
         icon: UserCheck,
+      },
+      {
+        titleKey: 'nav.npcAppearances',
+        href: '/npc/appearances',
+        icon: Palette,
+        disabled: true,
       },
     ],
   },
@@ -175,8 +183,22 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                 {isExpanded && item.subItems && (
                   <div className="ml-6 border-l border-[var(--border)]">
                     {item.subItems.map((subItem) => {
-                      const subActive = isActive(subItem.href);
                       const SubIcon = subItem.icon;
+                      if (subItem.disabled) {
+                        return (
+                          <div
+                            key={subItem.href}
+                            className="sidebar-item pl-6 opacity-50 cursor-not-allowed"
+                          >
+                            {SubIcon && <SubIcon className="w-4 h-4" />}
+                            <span className="text-sm">{t(subItem.titleKey)}</span>
+                            <span className="ml-auto text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-1.5 py-0.5 rounded">
+                              {t('nav.comingSoon')}
+                            </span>
+                          </div>
+                        );
+                      }
+                      const subActive = isActive(subItem.href);
                       return (
                         <Link
                           key={subItem.href}
