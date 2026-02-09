@@ -67,15 +67,17 @@ export default function NpcManagementPage() {
           </div>
         </Link>
 
-        {/* NPC Appearances */}
-        <Link href="/npc/appearances" className="group">
-          <div className="card hover:shadow-lg transition-all duration-200 h-full">
+        {/* NPC Appearances - Coming Soon */}
+        <div className="opacity-50 cursor-not-allowed">
+          <div className="card h-full">
             <div className="card-body">
               <div className="flex items-start justify-between mb-4">
                 <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
                   <Palette className="w-8 h-8 text-purple-600 dark:text-purple-400" />
                 </div>
-                <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
+                <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
+                  {t('nav.comingSoon')}
+                </span>
               </div>
               <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">
                 {t('npc.appearances')}
@@ -83,13 +85,9 @@ export default function NpcManagementPage() {
               <p className="text-[var(--muted-foreground)] text-sm mb-4">
                 {t('npc.appearances.subtitle')}
               </p>
-              <div className="flex items-center gap-2 text-sm text-primary font-medium">
-                <span>{t('npc.appearances')}</span>
-                <ArrowRight className="w-4 h-4" />
-              </div>
             </div>
           </div>
-        </Link>
+        </div>
       </div>
 
       {/* Quick Actions */}
