@@ -19,6 +19,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { useI18n } from '@/contexts/i18n-context';
+import { QuestDataProvider } from './QuestDataProvider';
 import StartNode from './nodes/StartNode';
 import DialogueNode from './nodes/DialogueNode';
 import ChoiceNode from './nodes/ChoiceNode';
@@ -52,7 +53,7 @@ function getNextNodeId(): string {
   return `node_${Date.now()}_${nodeIdCounter}`;
 }
 
-export default function QuestFlowEditor({
+function QuestFlowEditorInner({
   initialNodes,
   initialEdges,
   onNodesChange: onNodesExternal,
@@ -110,7 +111,6 @@ export default function QuestFlowEditor({
 
   const onNodesChangeInternal = useCallback((changes: any) => {
     handleNodesChange(changes);
-    // Sync after state update via setTimeout
     setTimeout(() => {
       setNodes((nds) => {
         syncNodes(nds);
@@ -148,6 +148,19 @@ export default function QuestFlowEditor({
     [setEdges, syncEdges]
   );
 
+  const onEdgeClick = useCallback(
+    (_event: React.MouseEvent, edge: Edge) => {
+      if (confirm(t('quest.deleteEdgeConfirm'))) {
+        setEdges((eds) => {
+          const updated = eds.filter((e) => e.id !== edge.id);
+          syncEdges(updated);
+          return updated;
+        });
+      }
+    },
+    [setEdges, syncEdges, t]
+  );
+
   const addNode = useCallback(
     (type: string) => {
       const newNode = {
@@ -174,6 +187,7 @@ export default function QuestFlowEditor({
         onNodesChange={onNodesChangeInternal}
         onEdgesChange={onEdgesChangeInternal}
         onConnect={onConnect}
+        onEdgeClick={onEdgeClick}
         nodeTypes={nodeTypes}
         fitView
         deleteKeyCode={['Backspace', 'Delete']}
@@ -235,10 +249,18 @@ export default function QuestFlowEditor({
   );
 }
 
+export default function QuestFlowEditor(props: QuestFlowEditorProps) {
+  return (
+    <QuestDataProvider>
+      <QuestFlowEditorInner {...props} />
+    </QuestDataProvider>
+  );
+}
+
 function getDefaultDataForType(type: string): any {
   switch (type) {
     case 'start':
-      return { npcTemplateId: '', minLevel: 1, maxLevel: undefined, prerequisiteQuestId: '' };
+      return { npcTemplateId: '', minLevel: 1, maxLevel: undefined, prerequisiteQuestId: '', positionX: 0, positionZ: 0 };
     case 'dialogue':
       return { speakerId: '', expression: '', textZh: '', textEn: '' };
     case 'choice':

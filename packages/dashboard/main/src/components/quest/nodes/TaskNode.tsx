@@ -1,14 +1,17 @@
 'use client';
 
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { Handle, Position, useReactFlow, type NodeProps } from '@xyflow/react';
 import { Target } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
+import { useQuestData } from '../QuestDataProvider';
+import SearchSelect from '../SearchSelect';
 import type { ITaskNodeData } from '@/types/quest';
 
 function TaskNode({ id, data }: NodeProps) {
   const { t } = useI18n();
   const { setNodes } = useReactFlow();
+  const { npcTemplates, items } = useQuestData();
   const nodeData = data as unknown as ITaskNodeData;
 
   const updateData = useCallback((field: string, value: any) => {
@@ -18,6 +21,36 @@ function TaskNode({ id, data }: NodeProps) {
       )
     );
   }, [id, setNodes]);
+
+  const targetOptions = useMemo(() => {
+    const taskType = nodeData.taskType || 'kill';
+    if (taskType === 'collect') {
+      return items.map((item) => ({
+        value: item.id,
+        label: item.name,
+        subtitle: `${item.category} | ${item.id}`,
+      }));
+    }
+    if (taskType === 'kill') {
+      return npcTemplates
+        .filter((tpl) => tpl.type === 'GANGS' || tpl.type === 'CITIZEN')
+        .map((tpl) => ({
+          value: tpl.id,
+          label: tpl.name,
+          subtitle: `${tpl.type} | ${tpl.id}`,
+        }));
+    }
+    if (taskType === 'interact') {
+      return npcTemplates.map((tpl) => ({
+        value: tpl.id,
+        label: tpl.name,
+        subtitle: `${tpl.type} | ${tpl.id}`,
+      }));
+    }
+    return [];
+  }, [nodeData.taskType, npcTemplates, items]);
+
+  const showTargetDropdown = nodeData.taskType !== 'location';
 
   return (
     <div className="bg-white dark:bg-gray-800 border-2 border-orange-500 rounded-xl shadow-lg min-w-[260px]">
@@ -34,7 +67,10 @@ function TaskNode({ id, data }: NodeProps) {
           <select
             className="input text-xs w-full"
             value={nodeData.taskType || 'kill'}
-            onChange={(e) => updateData('taskType', e.target.value)}
+            onChange={(e) => {
+              updateData('taskType', e.target.value);
+              updateData('targetId', '');
+            }}
           >
             <option value="collect">{t('quest.taskType.collect')}</option>
             <option value="kill">{t('quest.taskType.kill')}</option>
@@ -42,18 +78,19 @@ function TaskNode({ id, data }: NodeProps) {
             <option value="location">{t('quest.taskType.location')}</option>
           </select>
         </div>
-        <div>
-          <label className="text-xs text-[var(--muted)] block mb-1">
-            {t('quest.node.targetId')}
-          </label>
-          <input
-            type="text"
-            className="input text-xs w-full"
-            placeholder={t('quest.node.targetIdPlaceholder')}
-            value={nodeData.targetId || ''}
-            onChange={(e) => updateData('targetId', e.target.value)}
-          />
-        </div>
+        {showTargetDropdown && (
+          <div>
+            <label className="text-xs text-[var(--muted)] block mb-1">
+              {t('quest.node.targetId')}
+            </label>
+            <SearchSelect
+              options={targetOptions}
+              value={nodeData.targetId || ''}
+              onChange={(v) => updateData('targetId', v)}
+              placeholder={t('quest.node.targetIdPlaceholder')}
+            />
+          </div>
+        )}
         <div>
           <label className="text-xs text-[var(--muted)] block mb-1">
             {t('quest.node.requiredCount')}

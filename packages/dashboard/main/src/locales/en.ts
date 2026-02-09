@@ -563,6 +563,7 @@ export default {
   'quest.node.rewardItems': 'Reward Items',
   'quest.node.itemId': 'Item ID',
   'quest.node.addRewardItem': 'Add Reward Item',
+  'quest.deleteEdgeConfirm': 'Delete this connection?',
 
   // Validation
   'validation.required': 'Please enter {field}',

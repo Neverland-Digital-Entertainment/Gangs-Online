@@ -1,14 +1,17 @@
 'use client';
 
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { Handle, Position, useReactFlow, type NodeProps } from '@xyflow/react';
 import { Flag, Plus, X } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
+import { useQuestData } from '../QuestDataProvider';
+import SearchSelect from '../SearchSelect';
 import type { IEndNodeData } from '@/types/quest';
 
 function EndNode({ id, data }: NodeProps) {
   const { t } = useI18n();
   const { setNodes } = useReactFlow();
+  const { items } = useQuestData();
   const nodeData = data as unknown as IEndNodeData;
   const rewardItems = nodeData.rewardItems || [];
 
@@ -19,6 +22,13 @@ function EndNode({ id, data }: NodeProps) {
       )
     );
   }, [id, setNodes]);
+
+  const itemOptions = useMemo(() =>
+    items.map((item) => ({
+      value: item.id,
+      label: item.name,
+      subtitle: `${item.category} | ${item.id}`,
+    })), [items]);
 
   const addRewardItem = () => {
     updateData('rewardItems', [...rewardItems, { itemId: '', quantity: 1 }]);
@@ -75,13 +85,14 @@ function EndNode({ id, data }: NodeProps) {
           </label>
           {rewardItems.map((item: any, idx: number) => (
             <div key={idx} className="flex items-center gap-1 mb-1">
-              <input
-                type="text"
-                className="input text-xs flex-1"
-                placeholder={t('quest.node.itemId')}
-                value={item.itemId}
-                onChange={(e) => updateRewardItem(idx, 'itemId', e.target.value)}
-              />
+              <div className="flex-1">
+                <SearchSelect
+                  options={itemOptions}
+                  value={item.itemId}
+                  onChange={(v) => updateRewardItem(idx, 'itemId', v)}
+                  placeholder={t('quest.node.itemId')}
+                />
+              </div>
               <input
                 type="number"
                 className="input text-xs w-16"

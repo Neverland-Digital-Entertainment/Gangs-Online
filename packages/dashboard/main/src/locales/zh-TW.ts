@@ -564,6 +564,7 @@ export default {
   'quest.node.rewardItems': '獎勵道具',
   'quest.node.itemId': '道具 ID',
   'quest.node.addRewardItem': '新增獎勵道具',
+  'quest.deleteEdgeConfirm': '確定要刪除此連線嗎？',
 
   // Validation
   'validation.required': '請輸入{field}',

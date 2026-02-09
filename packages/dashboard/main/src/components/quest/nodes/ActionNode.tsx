@@ -1,14 +1,17 @@
 'use client';
 
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { Handle, Position, useReactFlow, type NodeProps } from '@xyflow/react';
 import { Zap } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
+import { useQuestData } from '../QuestDataProvider';
+import SearchSelect from '../SearchSelect';
 import type { IActionNodeData } from '@/types/quest';
 
 function ActionNode({ id, data }: NodeProps) {
   const { t } = useI18n();
   const { setNodes } = useReactFlow();
+  const { npcTemplates, items } = useQuestData();
   const nodeData = data as unknown as IActionNodeData;
 
   const updateData = useCallback((field: string, value: any) => {
@@ -18,6 +21,27 @@ function ActionNode({ id, data }: NodeProps) {
       )
     );
   }, [id, setNodes]);
+
+  const targetOptions = useMemo(() => {
+    if (nodeData.actionType === 'remove_item') {
+      return items.map((item) => ({
+        value: item.id,
+        label: item.name,
+        subtitle: `${item.category} | ${item.id}`,
+      }));
+    }
+    if (nodeData.actionType === 'spawn_npc') {
+      return npcTemplates.map((tpl) => ({
+        value: tpl.id,
+        label: tpl.name,
+        subtitle: `${tpl.type} | ${tpl.id}`,
+      }));
+    }
+    return [];
+  }, [nodeData.actionType, npcTemplates, items]);
+
+  const showDropdown = nodeData.actionType === 'remove_item' || nodeData.actionType === 'spawn_npc';
+  const showTextInput = nodeData.actionType === 'set_variable';
 
   return (
     <div className="bg-white dark:bg-gray-800 border-2 border-red-500 rounded-xl shadow-lg min-w-[260px]">
@@ -34,7 +58,10 @@ function ActionNode({ id, data }: NodeProps) {
           <select
             className="input text-xs w-full"
             value={nodeData.actionType || 'remove_item'}
-            onChange={(e) => updateData('actionType', e.target.value)}
+            onChange={(e) => {
+              updateData('actionType', e.target.value);
+              updateData('targetId', '');
+            }}
           >
             <option value="remove_item">{t('quest.actionType.removeItem')}</option>
             <option value="remove_money">{t('quest.actionType.removeMoney')}</option>
@@ -42,7 +69,20 @@ function ActionNode({ id, data }: NodeProps) {
             <option value="set_variable">{t('quest.actionType.setVariable')}</option>
           </select>
         </div>
-        {nodeData.actionType !== 'remove_money' && (
+        {showDropdown && (
+          <div>
+            <label className="text-xs text-[var(--muted)] block mb-1">
+              {t('quest.node.targetId')}
+            </label>
+            <SearchSelect
+              options={targetOptions}
+              value={nodeData.targetId || ''}
+              onChange={(v) => updateData('targetId', v)}
+              placeholder={t('quest.node.targetIdPlaceholder')}
+            />
+          </div>
+        )}
+        {showTextInput && (
           <div>
             <label className="text-xs text-[var(--muted)] block mb-1">
               {t('quest.node.targetId')}
