@@ -511,7 +511,144 @@ export interface IPurchaseResponse {
     remainingPersonalLimit?: number;
 }
 
+// ==================== Phase 20: Quest Blueprint System ====================
+
 /**
- * 遊戲版本（0.16.3 - Shop & Economy System）
+ * 任務藍圖節點類型（Phase 20）
  */
-export const GAME_VERSION = "0.16.3";
+export type QuestNodeType =
+    | 'start'           // 開始節點
+    | 'dialogue'        // 對話節點
+    | 'choice'          // 選擇節點
+    | 'task'            // 任務目標節點
+    | 'condition'       // 條件判定節點
+    | 'action'          // 動作執行節點
+    | 'end';            // 結束節點
+
+/**
+ * 任務目標類型（Phase 20）
+ */
+export type QuestTaskType = 'collect' | 'kill' | 'interact' | 'location';
+
+/**
+ * 任務狀態機（Phase 20）
+ */
+export type QuestStatus = 'locked' | 'available' | 'active' | 'completed';
+
+/**
+ * 開始節點數據（Phase 20）
+ */
+export interface IStartNodeData {
+    npcTemplateId: string;       // 掛載的 NPC 模板 ID
+    minLevel?: number;           // 最低等級限制
+    maxLevel?: number;           // 最高等級限制
+    prerequisiteQuestId?: string; // 前置任務 ID（需已完成）
+}
+
+/**
+ * 對話節點數據（Phase 20）
+ */
+export interface IDialogueNodeData {
+    speakerId: string;           // 說話者 NPC ID
+    expression?: string;         // 表情代碼
+    textZh: string;              // 繁體中文文本
+    textEn: string;              // 英文文本
+}
+
+/**
+ * 選擇節點數據（Phase 20）
+ */
+export interface IChoiceNodeData {
+    options: {
+        textZh: string;
+        textEn: string;
+        targetHandleId: string;  // 連接到下一個節點的 handle ID
+    }[];
+}
+
+/**
+ * 任務目標節點數據（Phase 20）
+ */
+export interface ITaskNodeData {
+    taskType: QuestTaskType;
+    targetId: string;            // 道具 ID / 敵人模板 ID / NPC ID
+    requiredCount: number;
+    description?: string;
+    timeLimit?: number;          // 秒數（僅 location 使用）
+    locationX?: number;          // 位置 X（僅 location 使用）
+    locationZ?: number;          // 位置 Z（僅 location 使用）
+    locationRadius?: number;     // 位置半徑（僅 location 使用）
+}
+
+/**
+ * 條件判定節點數據（Phase 20）
+ */
+export interface IConditionNodeData {
+    conditionType: 'money' | 'item' | 'variable';
+    targetId?: string;           // 道具 ID 或變數名稱
+    requiredAmount: number;
+}
+
+/**
+ * 動作執行節點數據（Phase 20）
+ */
+export interface IActionNodeData {
+    actionType: 'remove_item' | 'remove_money' | 'spawn_npc' | 'set_variable';
+    targetId?: string;
+    amount?: number;
+    value?: string;
+}
+
+/**
+ * 結束節點數據（Phase 20）
+ */
+export interface IEndNodeData {
+    rewardXp: number;
+    rewardMoney: number;
+    rewardItems?: {
+        itemId: string;
+        quantity: number;
+    }[];
+}
+
+/**
+ * 任務藍圖節點（Phase 20 - React Flow 節點數據）
+ */
+export interface IQuestBlueprintNode {
+    id: string;
+    type: QuestNodeType;
+    position: { x: number; y: number };
+    data: IStartNodeData | IDialogueNodeData | IChoiceNodeData |
+          ITaskNodeData | IConditionNodeData | IActionNodeData | IEndNodeData;
+}
+
+/**
+ * 任務藍圖邊（Phase 20 - React Flow 邊數據）
+ */
+export interface IQuestBlueprintEdge {
+    id: string;
+    source: string;
+    target: string;
+    sourceHandle?: string;
+    targetHandle?: string;
+    label?: string;
+}
+
+/**
+ * 任務藍圖數據（Phase 20 - Firebase Collection: quest_blueprints）
+ */
+export interface IQuestBlueprint {
+    id: string;
+    name: string;
+    description?: string;
+    nodes: IQuestBlueprintNode[];
+    edges: IQuestBlueprintEdge[];
+    isActive: boolean;
+    createdAt: any;
+    updatedAt: any;
+}
+
+/**
+ * 遊戲版本（0.20.0 - Quest Blueprint System）
+ */
+export const GAME_VERSION = "0.20.0";

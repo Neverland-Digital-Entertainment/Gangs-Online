@@ -88,7 +88,6 @@ const menuItems: MenuItem[] = [
     titleKey: 'nav.quest',
     icon: ScrollText,
     href: '/quest',
-    disabled: true,
   },
   {
     titleKey: 'nav.settings',
@@ -237,7 +236,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
           <ThemeToggle />
         </div>
         <div className="text-xs text-[var(--muted)] text-center">
-          v0.16.3
+          v0.20.0
         </div>
       </div>
     </>
