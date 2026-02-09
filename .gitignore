@@ -9,5 +9,8 @@ packages/*/dist/
 logo.png
 main-bg.png
 
+# Next.js build output
+.next/
+
 # Phase 12: Firebase credentials
 packages/server/src/config/service-account.json
