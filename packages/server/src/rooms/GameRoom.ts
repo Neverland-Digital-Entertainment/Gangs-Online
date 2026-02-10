@@ -647,7 +647,7 @@ export class GameRoom extends Room<GameState> {
             console.log(`📋 [Interact] NPC ${payload.npcId} → templateId: ${npcTemplateId || 'none'} (questNpc: ${!!questNpcTemplateId}, npcService: ${!!npcInstance})`);
 
             if (npcTemplateId) {
-                const availableBpId = this.questBlueprintManager.getAvailableQuestForNPC(npcTemplateId, player);
+                const { blueprintId: availableBpId, reason } = this.questBlueprintManager.getAvailableQuestForNPC(npcTemplateId, player);
                 if (availableBpId) {
                     const bpName = this.questBlueprintManager.getBlueprintName(availableBpId);
                     console.log(`📋 [Interact] Blueprint quest available: ${bpName} (${availableBpId})`);
@@ -657,7 +657,7 @@ export class GameRoom extends Room<GameState> {
                     });
                     return;
                 }
-                console.log(`📋 [Interact] No available blueprint quest for template ${npcTemplateId}`);
+                console.log(`📋 [Interact] No available blueprint quest for template ${npcTemplateId}: ${reason}`);
             }
 
             // 從 NPCService 獲取 NPC 數據（包含對話樹）
@@ -665,7 +665,8 @@ export class GameRoom extends Room<GameState> {
             if (!npcData) {
                 // 藍圖生成的任務 NPC 不在 npcService 中，這是正常的
                 if (questNpcTemplateId) {
-                    client.send("notification", `${npc.name} 目前沒有任務給你。`);
+                    const { reason } = this.questBlueprintManager.getAvailableQuestForNPC(npcTemplateId, player);
+                    client.send("notification", `${npc.name} 目前沒有任務給你。[${reason}]`);
                 } else {
                     console.log(`❌ [Interact] NPC data not found for ${payload.npcId}`);
                 }

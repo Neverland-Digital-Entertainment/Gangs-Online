@@ -173,58 +173,72 @@ export class QuestBlueprintManager {
 
     /**
      * 檢查某個 NPC 是否有可接任務
-     * 返回可接任務的 blueprintId，或 null
+     * 返回 { blueprintId, reason }
      */
-    getAvailableQuestForNPC(npcTemplateId: string, player: Player): string | null {
+    getAvailableQuestForNPC(npcTemplateId: string, player: Player): { blueprintId: string | null; reason: string } {
         const completedIds = this.playerCompleted.get(player.firebaseUid) || [];
         const currentState = this.playerStates.get(player.sessionId);
 
-        console.log(`📋 [QBM] getAvailableQuest: template=${npcTemplateId}, uid=${player.firebaseUid || 'none'}, completed=[${completedIds.join(',')}], hasActiveState=${!!currentState}`);
+        console.log(`📋 [QBM] getAvailableQuest: template=${npcTemplateId}, uid=${player.firebaseUid || 'none'}, session=${player.sessionId}, completed=[${completedIds.join(',')}], hasActiveState=${!!currentState}`);
+
+        let lastReason = `no blueprint matched template "${npcTemplateId}" (total: ${this.blueprints.size})`;
 
         for (const [bpId, bp] of this.blueprints) {
             // 跳過已完成的任務
             if (completedIds.includes(bpId)) {
+                lastReason = `${bpId} already completed`;
                 console.log(`  📋 Skip ${bpId}: already completed`);
                 continue;
             }
 
             // 跳過正在進行的任務
             if (currentState && currentState.blueprintId === bpId) {
+                lastReason = `${bpId} already in progress (node: ${currentState.currentNodeId})`;
                 console.log(`  📋 Skip ${bpId}: already in progress (node: ${currentState.currentNodeId})`);
                 continue;
             }
 
             // 找到 Start 節點
             const startNode = bp.nodes.find((n: IQuestBlueprintNode) => n.type === 'start');
-            if (!startNode) continue;
+            if (!startNode) {
+                lastReason = `${bpId} has no start node`;
+                continue;
+            }
 
             const startData = startNode.data as IStartNodeData;
 
             // 檢查 NPC 模板 ID 是否匹配
-            if (startData.npcTemplateId !== npcTemplateId) continue;
+            if (startData.npcTemplateId !== npcTemplateId) {
+                console.log(`  📋 Skip ${bpId}: template mismatch (blueprint="${startData.npcTemplateId}" vs query="${npcTemplateId}")`);
+                lastReason = `${bpId} template mismatch: "${startData.npcTemplateId}" vs "${npcTemplateId}"`;
+                continue;
+            }
 
             // 檢查等級限制
             if (startData.minLevel && player.level < startData.minLevel) {
-                console.log(`  📋 Skip ${bpId}: level too low (${player.level} < ${startData.minLevel})`);
+                lastReason = `${bpId} level too low (${player.level} < ${startData.minLevel})`;
+                console.log(`  📋 Skip ${bpId}: ${lastReason}`);
                 continue;
             }
             if (startData.maxLevel && player.level > startData.maxLevel) {
-                console.log(`  📋 Skip ${bpId}: level too high (${player.level} > ${startData.maxLevel})`);
+                lastReason = `${bpId} level too high (${player.level} > ${startData.maxLevel})`;
+                console.log(`  📋 Skip ${bpId}: ${lastReason}`);
                 continue;
             }
 
             // 檢查前置任務
             if (startData.prerequisiteQuestId && !completedIds.includes(startData.prerequisiteQuestId)) {
-                console.log(`  📋 Skip ${bpId}: prerequisite ${startData.prerequisiteQuestId} not completed`);
+                lastReason = `${bpId} prerequisite "${startData.prerequisiteQuestId}" not completed`;
+                console.log(`  📋 Skip ${bpId}: ${lastReason}`);
                 continue;
             }
 
             console.log(`  📋 Found available: ${bpId} ("${bp.name}")`);
-            return bpId;
+            return { blueprintId: bpId, reason: "found" };
         }
 
-        console.log(`  📋 No available quest for template ${npcTemplateId}`);
-        return null;
+        console.log(`  📋 No available quest: ${lastReason}`);
+        return { blueprintId: null, reason: lastReason };
     }
 
     /**
