@@ -648,6 +648,76 @@ export interface IQuestBlueprint {
     updatedAt: any;
 }
 
+// ==================== Phase 20: Quest Blueprint Message Types ====================
+
+/**
+ * 藍圖任務對話消息 (Server → Client)
+ */
+export interface IBPQuestDialogue {
+    npcName: string;
+    speaker: string;
+    expression?: string;
+    text: string;
+}
+
+/**
+ * 藍圖任務選擇消息 (Server → Client)
+ */
+export interface IBPQuestChoices {
+    npcName: string;
+    speaker: string;
+    options: { text: string }[];
+}
+
+/**
+ * 藍圖任務目標開始消息 (Server → Client)
+ */
+export interface IBPQuestTaskStart {
+    blueprintId: string;
+    questName: string;
+    taskType: QuestTaskType;
+    targetId: string;
+    description: string;
+    required: number;
+}
+
+/**
+ * 藍圖任務進度更新消息 (Server → Client)
+ */
+export interface IBPQuestTaskProgress {
+    current: number;
+    required: number;
+}
+
+/**
+ * 藍圖任務完成消息 (Server → Client)
+ */
+export interface IBPQuestComplete {
+    questName: string;
+    rewardXp: number;
+    rewardMoney: number;
+    rewardItems?: { itemId: string; quantity: number }[];
+}
+
+/**
+ * 藍圖任務可接消息 (Server → Client)
+ */
+export interface IBPQuestAvailable {
+    blueprintId: string;
+    questName: string;
+}
+
+/**
+ * 玩家藍圖任務運行時狀態 (Server internal, per-player)
+ */
+export interface IBPQuestRuntimeState {
+    blueprintId: string;
+    currentNodeId: string;
+    taskProgress: number;
+    variables: Record<string, string>;
+    completedBlueprintIds: string[];
+}
+
 /**
  * 遊戲版本（0.20.0 - Quest Blueprint System）
  */

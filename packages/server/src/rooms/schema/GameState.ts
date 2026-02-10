@@ -63,6 +63,15 @@ export class Player extends Schema {
     @type("number") evilValue: number = 0; // 罪惡值 (0-3)
     @type("boolean") inPrison: boolean = false; // 是否在監獄中
     @type("number") prisonReleaseTime: number = 0; // 釋放時間戳
+
+    // Blueprint Quest System (Phase 20)
+    @type("string") activeBlueprintId: string = ""; // 當前藍圖任務 ID
+    @type("string") activeBlueprintName: string = ""; // 當前任務名稱
+    @type("string") activeTaskType: string = ""; // 當前任務目標類型 (kill/collect/interact/location)
+    @type("string") activeTaskTarget: string = ""; // 當前目標 ID
+    @type("string") activeTaskDesc: string = ""; // 當前任務描述
+    @type("number") activeTaskCurrent: number = 0; // 當前進度
+    @type("number") activeTaskRequired: number = 0; // 需要數量
 }
 
 /**
