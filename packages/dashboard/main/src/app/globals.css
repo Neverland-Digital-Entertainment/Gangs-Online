@@ -323,4 +323,40 @@
   .dark .theme-toggle:hover {
     background-color: rgb(55 65 81);
   }
+
+}
+
+/* React Flow Dark Mode - outside @layer to override library styles */
+.dark .react-flow__controls {
+  background-color: rgb(31 41 55) !important;
+  border-color: rgb(55 65 81) !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3) !important;
+}
+
+.dark .react-flow__controls-button {
+  background-color: rgb(31 41 55) !important;
+  border-bottom-color: rgb(55 65 81) !important;
+  fill: rgb(209 213 219) !important;
+  color: rgb(209 213 219) !important;
+}
+
+.dark .react-flow__controls-button:hover {
+  background-color: rgb(55 65 81) !important;
+}
+
+.dark .react-flow__controls-button svg {
+  fill: rgb(209 213 219) !important;
+}
+
+.dark .react-flow__minimap {
+  background-color: rgb(31 41 55) !important;
+  border-color: rgb(55 65 81) !important;
+}
+
+.dark .react-flow__attribution {
+  background-color: rgb(31 41 55 / 0.7) !important;
+}
+
+.dark .react-flow__attribution a {
+  color: rgb(156 163 175) !important;
 }

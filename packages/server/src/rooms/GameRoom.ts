@@ -8,6 +8,7 @@ import { LootSystem } from "../systems/LootSystem"; // Phase 8
 import { ShopSystem } from "../systems/ShopSystem"; // Phase 9
 import { NPCManager } from "../systems/NPCManager"; // Phase 9
 import { QuestManager } from "../systems/QuestManager"; // Phase 10
+import { QuestBlueprintManager } from "../systems/QuestBlueprintManager"; // Phase 20
 import { initializeFirebase } from "../services/FirebaseService"; // Phase 12
 import { npcService } from "../services/NPCService"; // Phase 16-2
 import { shopService } from "../services/ShopService"; // Phase 16-3
@@ -28,6 +29,7 @@ export class GameRoom extends Room<GameState> {
     private shopSystem!: ShopSystem; // 商店系統 (Phase 9)
     private npcManager!: NPCManager; // NPC 管理系統 (Phase 9)
     private questManager!: QuestManager; // 任務管理系統 (Phase 10)
+    private questBlueprintManager!: QuestBlueprintManager; // 藍圖任務管理系統 (Phase 20)
     private evilValueSystem!: EvilValueSystem; // 罪惡值系統 (Phase 14)
     private prisonSystem!: PrisonSystem; // 監獄系統 (Phase 14)
 
@@ -62,6 +64,9 @@ export class GameRoom extends Room<GameState> {
         // 初始化任務管理系統 (Phase 10)
         this.questManager = new QuestManager();
         // 任務 NPC 現在從 Firebase 載入，不需要手動生成
+
+        // 初始化藍圖任務管理系統 (Phase 20)
+        this.questBlueprintManager = new QuestBlueprintManager();
 
         // 初始化罪惡值系統 (Phase 14)
         this.evilValueSystem = new EvilValueSystem();
@@ -585,6 +590,31 @@ export class GameRoom extends Room<GameState> {
             }
         });
 
+        // --- PHASE 20: BLUEPRINT QUEST HANDLERS ---
+        this.onMessage("bpQuestAccept", (client, payload: { blueprintId: string }) => {
+            const player = this.state.players.get(client.sessionId);
+            if (!player || player.hp <= 0) return;
+            this.questBlueprintManager.startQuest(client, player, payload.blueprintId);
+        });
+
+        this.onMessage("bpQuestDialogueNext", (client) => {
+            const player = this.state.players.get(client.sessionId);
+            if (!player) return;
+            this.questBlueprintManager.handleDialogueNext(client, player);
+        });
+
+        this.onMessage("bpQuestChoice", (client, payload: { optionIndex: number }) => {
+            const player = this.state.players.get(client.sessionId);
+            if (!player) return;
+            this.questBlueprintManager.handleChoice(client, player, payload.optionIndex);
+        });
+
+        this.onMessage("bpQuestAbandon", (client) => {
+            const player = this.state.players.get(client.sessionId);
+            if (!player) return;
+            this.questBlueprintManager.abandonQuest(client, player);
+        });
+
         // Phase 16-2: NPC 互動（對話）
         this.onMessage("interact", (client, payload: { npcId: string }) => {
             const player = this.state.players.get(client.sessionId);
@@ -615,6 +645,22 @@ export class GameRoom extends Room<GameState> {
                 console.log(`❌ [Interact] Player ${player.name} too far from NPC ${npc.name} (distance: ${distance.toFixed(2)})`);
                 client.send("notification", { text: "太遠了，請靠近一點！" });
                 return;
+            }
+
+            // Phase 20: 檢查是否有藍圖任務可接
+            const npcInstance = npcService.getInstance(payload.npcId);
+            const npcTemplateId = npcInstance?.templateId || "";
+            if (npcTemplateId) {
+                const availableBpId = this.questBlueprintManager.getAvailableQuestForNPC(npcTemplateId, player);
+                if (availableBpId) {
+                    const bpName = this.questBlueprintManager.getBlueprintName(availableBpId);
+                    console.log(`📋 [Interact] Blueprint quest available: ${bpName} (${availableBpId})`);
+                    client.send("bpQuestAvailable", {
+                        blueprintId: availableBpId,
+                        questName: bpName,
+                    });
+                    return;
+                }
             }
 
             // 發送對話數據到客戶端
@@ -690,6 +736,9 @@ export class GameRoom extends Room<GameState> {
                             const playerClient = this.clients.find((c) => c.sessionId === player.sessionId);
                             if (playerClient) {
                                 this.questManager.updateKillProgress(playerClient, player, deadEnemyId);
+                                // Phase 20: 更新藍圖任務進度
+                                const npcInst = npcService.getInstance(deadEnemyId);
+                                this.questBlueprintManager.updateKillProgress(playerClient, player, deadEnemyId, npcInst?.templateId);
                             }
 
                             // 結束戰鬥並移除敵人（修正 bug）
@@ -837,6 +886,9 @@ export class GameRoom extends Room<GameState> {
 
                     // Phase 10: 更新任務進度
                     this.questManager.updateKillProgress(client, attacker, enemyId);
+                    // Phase 20: 更新藍圖任務進度
+                    const npcInstKill = npcService.getInstance(enemyId);
+                    this.questBlueprintManager.updateKillProgress(client, attacker, enemyId, npcInstKill?.templateId);
 
                     // 清除戰鬥狀態並立即移除敵人
                     attacker.inCombatWithEnemy = "";
@@ -983,6 +1035,11 @@ export class GameRoom extends Room<GameState> {
             await purchaseService.initialize();
             console.log("✅ [GameRoom] Purchase Service initialized");
 
+            // Phase 20: 初始化藍圖任務管理系統
+            console.log("📦 [GameRoom] Initializing Quest Blueprint Manager...");
+            await this.questBlueprintManager.initialize();
+            console.log("✅ [GameRoom] Quest Blueprint Manager initialized");
+
             console.log("✅ [GameRoom] All async systems initialized successfully!");
         } catch (error) {
             console.error("❌ [GameRoom] Failed to initialize async systems:", error);
@@ -1030,6 +1087,11 @@ export class GameRoom extends Room<GameState> {
             loaded = await loadPlayer(player, firebaseUid, this.questManager.getQuestDefinitions());
         }
 
+        // Phase 20: 從 persistence 載入已完成的藍圖任務
+        if (firebaseUid && loaded) {
+            await this.loadBlueprintQuestState(player, firebaseUid);
+        }
+
         if (!loaded) {
             // 新玩家：使用客戶端提供的角色名稱
             player.name = characterName || `玩家${client.sessionId.substring(0, 6)}`;
@@ -1063,6 +1125,87 @@ export class GameRoom extends Room<GameState> {
         this.state.players.set(client.sessionId, player);
     }
 
+    /**
+     * Phase 20: 載入藍圖任務狀態
+     */
+    private async loadBlueprintQuestState(player: Player, firebaseUid: string): Promise<void> {
+        const db = (await import("../services/FirebaseService")).getFirestore();
+        if (!db) return;
+
+        try {
+            const doc = await db.collection("players").doc(firebaseUid).get();
+            if (!doc.exists) return;
+
+            const saved = doc.data() as any;
+
+            // 載入已完成的藍圖任務
+            if (saved.completedBlueprintIds && Array.isArray(saved.completedBlueprintIds)) {
+                this.questBlueprintManager.setPlayerCompleted(firebaseUid, saved.completedBlueprintIds);
+            }
+
+            // 載入進行中的藍圖任務
+            if (saved.activeBlueprintQuest && saved.activeBlueprintQuest.blueprintId) {
+                const bpState = saved.activeBlueprintQuest;
+                this.questBlueprintManager.restorePlayerState(player.sessionId, {
+                    blueprintId: bpState.blueprintId,
+                    currentNodeId: bpState.currentNodeId || "",
+                    taskProgress: bpState.taskProgress || 0,
+                    variables: bpState.variables || {},
+                });
+
+                // 恢復 Player schema 字段
+                player.activeBlueprintId = bpState.blueprintId;
+                player.activeBlueprintName = this.questBlueprintManager.getBlueprintName(bpState.blueprintId);
+                player.activeTaskType = bpState.activeTaskType || "";
+                player.activeTaskTarget = bpState.activeTaskTarget || "";
+                player.activeTaskDesc = bpState.activeTaskDesc || "";
+                player.activeTaskCurrent = bpState.taskProgress || 0;
+                player.activeTaskRequired = bpState.activeTaskRequired || 0;
+
+                console.log(`[Phase 20] Restored blueprint quest for ${player.name}: ${player.activeBlueprintName}`);
+            }
+        } catch (error) {
+            console.error("[Phase 20] Failed to load blueprint quest state:", error);
+        }
+    }
+
+    /**
+     * Phase 20: 儲存藍圖任務狀態
+     */
+    private async saveBlueprintQuestState(player: Player, firebaseUid: string): Promise<void> {
+        const db = (await import("../services/FirebaseService")).getFirestore();
+        if (!db) return;
+
+        try {
+            const completedIds = this.questBlueprintManager.getPlayerCompleted(firebaseUid);
+            const activeState = this.questBlueprintManager.getPlayerState(player.sessionId);
+
+            const updateData: any = {
+                completedBlueprintIds: completedIds,
+            };
+
+            if (activeState) {
+                updateData.activeBlueprintQuest = {
+                    blueprintId: activeState.blueprintId,
+                    currentNodeId: activeState.currentNodeId,
+                    taskProgress: activeState.taskProgress,
+                    variables: activeState.variables,
+                    activeTaskType: player.activeTaskType,
+                    activeTaskTarget: player.activeTaskTarget,
+                    activeTaskDesc: player.activeTaskDesc,
+                    activeTaskRequired: player.activeTaskRequired,
+                };
+            } else {
+                updateData.activeBlueprintQuest = null;
+            }
+
+            await db.collection("players").doc(firebaseUid).set(updateData, { merge: true });
+            console.log(`[Phase 20] Saved blueprint quest state for ${player.name}`);
+        } catch (error) {
+            console.error("[Phase 20] Failed to save blueprint quest state:", error);
+        }
+    }
+
     async onLeave(client: Client, consented: boolean) {
         const leavingPlayer = this.state.players.get(client.sessionId);
 
@@ -1077,8 +1220,13 @@ export class GameRoom extends Room<GameState> {
 
             // Phase 12: 儲存玩家資料到 Firebase
             if (leavingPlayer.firebaseUid) {
+                // Phase 20: 儲存藍圖任務狀態
+                await this.saveBlueprintQuestState(leavingPlayer, leavingPlayer.firebaseUid);
                 await savePlayer(leavingPlayer, leavingPlayer.firebaseUid);
             }
+
+            // Phase 20: 清除藍圖任務運行時狀態
+            this.questBlueprintManager.clearPlayerState(client.sessionId);
         }
 
         this.state.players.delete(client.sessionId);

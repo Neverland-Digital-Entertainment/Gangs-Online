@@ -473,6 +473,106 @@ export default {
   'empty.noResults': 'No results found',
   'empty.startCreating': 'Start creating your first item',
 
+  // Quest Blueprint System (Phase 20)
+  'quest.title': 'Quest Management',
+  'quest.subtitle': 'Design and manage quest blueprints with visual node editor',
+  'quest.create': 'Create Quest',
+  'quest.searchPlaceholder': 'Search quest name or description...',
+  'quest.deleteConfirm': 'Are you sure you want to delete this quest',
+  'quest.noBlueprints': 'No quest blueprints created yet',
+  'quest.noMatchingBlueprints': 'No matching quest blueprints found',
+  'quest.createFirst': 'Create your first quest blueprint',
+  'quest.nodeCount': 'Nodes',
+  'quest.edgeCount': 'Connections',
+  'quest.updatedAt': 'Updated',
+  'quest.backToList': 'Back to Quest List',
+  'quest.namePlaceholder': 'Enter quest name...',
+  'quest.descriptionPlaceholder': 'Quest description (optional)',
+  'quest.nameRequired': 'Quest name is required',
+  'quest.saving': 'Saving...',
+  'quest.updateBlueprint': 'Update Quest',
+  'quest.createBlueprint': 'Create Quest',
+  'quest.notFound': 'Quest blueprint not found',
+  'home.questManagement': 'Quest Management',
+  'home.questManagement.desc': 'Design quest flows with visual node editor',
+
+  // Quest Node Types
+  'quest.node.start': 'Start',
+  'quest.node.dialogue': 'Dialogue',
+  'quest.node.choice': 'Choice',
+  'quest.node.task': 'Task',
+  'quest.node.condition': 'Condition',
+  'quest.node.action': 'Action',
+  'quest.node.end': 'End',
+
+  // Start Node
+  'quest.node.npcTemplateId': 'NPC Template ID',
+  'quest.node.npcTemplateIdPlaceholder': 'e.g.: quest_giver_01',
+  'quest.node.minLevel': 'Min Level',
+  'quest.node.maxLevel': 'Max Level',
+  'quest.node.prerequisiteQuestId': 'Prerequisite Quest',
+  'quest.node.prerequisiteQuestIdPlaceholder': 'Quest ID required to complete first',
+
+  // Dialogue Node
+  'quest.node.speakerId': 'Speaker ID',
+  'quest.node.expression': 'Expression',
+  'quest.node.expressionPlaceholder': 'e.g.: happy, angry',
+  'quest.node.textZh': 'Text (zh-TW)',
+  'quest.node.textZhPlaceholder': 'Enter Chinese dialogue text...',
+  'quest.node.textEn': 'Text (EN)',
+  'quest.node.textEnPlaceholder': 'Enter English dialogue text...',
+
+  // Choice Node
+  'quest.node.option': 'Option',
+  'quest.node.optionTextZh': 'Option text (zh-TW)',
+  'quest.node.optionTextEn': 'Option text (EN)',
+  'quest.node.addOption': 'Add Option',
+
+  // Task Node
+  'quest.node.taskType': 'Task Type',
+  'quest.node.targetId': 'Target ID',
+  'quest.node.targetIdPlaceholder': 'Item / Enemy / NPC ID',
+  'quest.node.requiredCount': 'Required Count',
+  'quest.node.radius': 'Radius',
+  'quest.taskType.collect': 'Collect Items',
+  'quest.taskType.kill': 'Kill Enemies',
+  'quest.taskType.interact': 'Talk to NPC',
+  'quest.taskType.location': 'Reach Location',
+
+  // Condition Node
+  'quest.node.conditionType': 'Condition Type',
+  'quest.node.requiredAmount': 'Required Amount',
+  'quest.node.success': 'Success',
+  'quest.node.fail': 'Fail',
+  'quest.conditionType.money': 'Money Check',
+  'quest.conditionType.item': 'Item Check',
+  'quest.conditionType.variable': 'Variable Check',
+
+  // Action Node
+  'quest.node.actionType': 'Action Type',
+  'quest.node.amount': 'Amount',
+  'quest.node.value': 'Value',
+  'quest.actionType.removeItem': 'Remove Item',
+  'quest.actionType.removeMoney': 'Remove Money',
+  'quest.actionType.spawnNpc': 'Spawn NPC',
+  'quest.actionType.setVariable': 'Set Variable',
+
+  // End Node
+  'quest.node.rewardXp': 'Reward XP',
+  'quest.node.rewardMoney': 'Reward HKD',
+  'quest.node.rewardItems': 'Reward Items',
+  'quest.node.itemId': 'Item ID',
+  'quest.node.addRewardItem': 'Add Reward Item',
+  'quest.deleteEdgeConfirm': 'Delete this connection?',
+  'quest.deleteNodeConfirm': 'Delete this node?',
+  'quest.emoji.faces': 'Faces',
+  'quest.emoji.gestures': 'Gestures',
+  'quest.emoji.symbols': 'Symbols',
+  'quest.emoji.objects': 'Objects',
+  'quest.node.variableName': 'Variable Name',
+  'quest.node.variableNamePlaceholder': 'e.g. talked_to_boss',
+  'quest.node.variableHint': 'Custom variable set via Action node (set_variable)',
+
   // Validation
   'validation.required': 'Please enter {field}',
   'validation.mustBePositive': '{field} must be greater than 0',

@@ -13,6 +13,7 @@ import { ChatSystem } from "./systems/ChatSystem";
 import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
 import { DialogueSystem } from "./ui/DialogueSystem"; // Phase 16-2: 對話系統
+import { QuestBlueprintUI } from "./ui/QuestBlueprintUI"; // Phase 20: 藍圖任務 UI
 // Phase 9.1: InventorySystem UI 已移除，金錢改為在 HUD 顯示
 // Phase 10.1: ShopSystem 已整合到 HUDManager 的 Popup 系統
 import { HUDManager } from "./systems/HUDManager"; // Phase 9.1
@@ -139,6 +140,9 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
     // === Phase 16-2: 初始化對話系統 ===
     const dialogueSystem = new DialogueSystem();
 
+    // Phase 20: 藍圖任務 UI（在連接後初始化）
+    let questBlueprintUI: QuestBlueprintUI | null = null;
+
     let mySessionId: string | null = null;
     let lootManager: LootManager | null = null; // Phase 8
     // Phase 10.1: shopSystem 已整合到 hudManager
@@ -200,6 +204,9 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
         // Phase 15: 暫時隱藏 HUD（測試模式）
         hudManager.setVisible(false);
 
+        // Phase 20: 初始化藍圖任務 UI
+        questBlueprintUI = new QuestBlueprintUI(room);
+
         // Phase 16-3: 連接對話系統和商店系統
         dialogueSystem.setOnOpenShop((npcId, shopId, npcName) => {
             console.log(`🏪 [Dialogue->Shop] Opening shop: ${shopId} for NPC: ${npcId}`);
@@ -250,6 +257,19 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     );
                 }
             }
+        });
+
+        // Phase 16-2: 處理伺服器發送的對話消息
+        room.onMessage("dialogue", (data: { npcId: string; npcName: string; dialogueTree: any }) => {
+            console.log(`💬 [Server Dialogue] Opening dialogue with ${data.npcName}`);
+            // 如果本地對話系統已經打開，忽略
+            if (dialogueSystem.isActive()) return;
+            // 如果藍圖任務 UI 正在顯示，忽略
+            if (questBlueprintUI && questBlueprintUI.isActive()) return;
+
+            const npcData = (room.state as any).enemies.get(data.npcId);
+            const linkedShopId = npcData?.linkedShopId || "";
+            dialogueSystem.show(data.npcId, data.npcName, data.dialogueTree, linkedShopId);
         });
 
         // === Phase 13: 被踢出（帳號在其他地方登入）===
@@ -781,6 +801,11 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
             if (target.type === 'npc' && target.id && hudManager) {
                 console.log("👔 Clicked NPC:", target.id);
 
+                // Phase 20: 如果藍圖任務 UI 正在顯示，忽略點擊
+                if (questBlueprintUI && questBlueprintUI.isActive()) {
+                    return;
+                }
+
                 // Phase 16-2: 從 room.state 獲取完整 NPC 數據
                 const npcData = (room.state as any).enemies.get(target.id);
                 if (!npcData) {
@@ -796,6 +821,10 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                     hudManager.showShopPopup();
                     return;
                 }
+
+                // Phase 20: 發送 interact 到伺服器以檢查藍圖任務
+                // 伺服器會回應 bpQuestAvailable（如果有任務）或 dialogue（如果有對話樹）
+                room.send("interact", { npcId: target.id });
 
                 // Phase 16-2: 新的對話系統 - 檢查是否有對話樹
                 console.log(`💬 [NPC 診斷] npcData.dialogueTreeJson: ${npcData.dialogueTreeJson?.substring(0, 200)}...`);

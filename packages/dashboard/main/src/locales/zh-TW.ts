@@ -474,6 +474,106 @@ export default {
   'empty.noResults': '沒有符合的結果',
   'empty.startCreating': '開始建立您的第一個項目',
 
+  // 任務藍圖系統 (Phase 20)
+  'quest.title': '任務管理',
+  'quest.subtitle': '使用視覺化節點編輯器設計和管理任務藍圖',
+  'quest.create': '新增任務',
+  'quest.searchPlaceholder': '搜尋任務名稱或描述...',
+  'quest.deleteConfirm': '確定要刪除此任務',
+  'quest.noBlueprints': '尚未建立任何任務藍圖',
+  'quest.noMatchingBlueprints': '沒有符合條件的任務藍圖',
+  'quest.createFirst': '建立第一個任務藍圖',
+  'quest.nodeCount': '節點數',
+  'quest.edgeCount': '連線數',
+  'quest.updatedAt': '更新時間',
+  'quest.backToList': '返回任務列表',
+  'quest.namePlaceholder': '輸入任務名稱...',
+  'quest.descriptionPlaceholder': '任務描述（選填）',
+  'quest.nameRequired': '請輸入任務名稱',
+  'quest.saving': '儲存中...',
+  'quest.updateBlueprint': '更新任務',
+  'quest.createBlueprint': '建立任務',
+  'quest.notFound': '找不到指定的任務藍圖',
+  'home.questManagement': '任務管理',
+  'home.questManagement.desc': '使用視覺化節點編輯器設計任務流程',
+
+  // 任務節點類型
+  'quest.node.start': '開始',
+  'quest.node.dialogue': '對話',
+  'quest.node.choice': '選擇',
+  'quest.node.task': '目標',
+  'quest.node.condition': '條件',
+  'quest.node.action': '動作',
+  'quest.node.end': '結束',
+
+  // 開始節點
+  'quest.node.npcTemplateId': 'NPC 模板 ID',
+  'quest.node.npcTemplateIdPlaceholder': '例如：quest_giver_01',
+  'quest.node.minLevel': '最低等級',
+  'quest.node.maxLevel': '最高等級',
+  'quest.node.prerequisiteQuestId': '前置任務',
+  'quest.node.prerequisiteQuestIdPlaceholder': '需先完成的任務 ID',
+
+  // 對話節點
+  'quest.node.speakerId': '說話者 ID',
+  'quest.node.expression': '表情',
+  'quest.node.expressionPlaceholder': '例如：happy, angry',
+  'quest.node.textZh': '文本（繁中）',
+  'quest.node.textZhPlaceholder': '輸入繁體中文對話文本...',
+  'quest.node.textEn': '文本（英文）',
+  'quest.node.textEnPlaceholder': '輸入英文對話文本...',
+
+  // 選擇節點
+  'quest.node.option': '選項',
+  'quest.node.optionTextZh': '選項文字（繁中）',
+  'quest.node.optionTextEn': '選項文字（英文）',
+  'quest.node.addOption': '新增選項',
+
+  // 任務目標節點
+  'quest.node.taskType': '目標類型',
+  'quest.node.targetId': '目標 ID',
+  'quest.node.targetIdPlaceholder': '道具 / 敵人 / NPC ID',
+  'quest.node.requiredCount': '所需數量',
+  'quest.node.radius': '半徑',
+  'quest.taskType.collect': '收集道具',
+  'quest.taskType.kill': '擊殺敵人',
+  'quest.taskType.interact': '與 NPC 對話',
+  'quest.taskType.location': '抵達位置',
+
+  // 條件判定節點
+  'quest.node.conditionType': '條件類型',
+  'quest.node.requiredAmount': '所需數量',
+  'quest.node.success': '成功',
+  'quest.node.fail': '失敗',
+  'quest.conditionType.money': '金錢檢查',
+  'quest.conditionType.item': '道具檢查',
+  'quest.conditionType.variable': '變數檢查',
+
+  // 動作執行節點
+  'quest.node.actionType': '動作類型',
+  'quest.node.amount': '數量',
+  'quest.node.value': '值',
+  'quest.actionType.removeItem': '扣除道具',
+  'quest.actionType.removeMoney': '扣除金錢',
+  'quest.actionType.spawnNpc': '生成 NPC',
+  'quest.actionType.setVariable': '設定變數',
+
+  // 結束節點
+  'quest.node.rewardXp': '獎勵經驗值',
+  'quest.node.rewardMoney': '獎勵 HKD',
+  'quest.node.rewardItems': '獎勵道具',
+  'quest.node.itemId': '道具 ID',
+  'quest.node.addRewardItem': '新增獎勵道具',
+  'quest.deleteEdgeConfirm': '確定要刪除此連線嗎？',
+  'quest.deleteNodeConfirm': '確定要刪除此節點嗎？',
+  'quest.emoji.faces': '表情',
+  'quest.emoji.gestures': '手勢',
+  'quest.emoji.symbols': '符號',
+  'quest.emoji.objects': '物件',
+  'quest.node.variableName': '變數名稱',
+  'quest.node.variableNamePlaceholder': '例如 talked_to_boss',
+  'quest.node.variableHint': '透過動作節點 (set_variable) 設定的自訂變數',
+
   // Validation
   'validation.required': '請輸入{field}',
   'validation.mustBePositive': '{field}必須大於 0',
