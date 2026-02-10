@@ -132,11 +132,19 @@ export class QuestBlueprintUI {
             this.showQuestComplete(data);
         });
 
+        // 死路（選擇/條件後沒有後續節點）
+        this.room.onMessage("bpQuestDeadEnd", () => {
+            console.log("📋 [BPUI] Dead end - closing dialogue");
+            this.hideContainer();
+            this.onInteractionEnd?.();
+        });
+
         // 任務放棄
         this.room.onMessage("bpQuestAbandoned", () => {
             console.log("❌ [BPUI] Quest abandoned");
             this.hideContainer();
             this.hideTaskTracker();
+            this.onInteractionEnd?.();
         });
     }
 

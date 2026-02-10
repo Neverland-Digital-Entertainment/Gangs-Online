@@ -824,6 +824,12 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
                 // Phase 20: 發送 interact 到伺服器以檢查藍圖任務
                 // 伺服器會回應 bpQuestAvailable（如果有任務）或 dialogue（如果有對話樹）
+                // 對藍圖任務 NPC (quest_npc_*) 只靠伺服器回應，不走本地 UI
+                if (target.id.startsWith("quest_npc_")) {
+                    room.send("interact", { npcId: target.id });
+                    return;
+                }
+
                 room.send("interact", { npcId: target.id });
 
                 // Phase 16-2: 新的對話系統 - 檢查是否有對話樹

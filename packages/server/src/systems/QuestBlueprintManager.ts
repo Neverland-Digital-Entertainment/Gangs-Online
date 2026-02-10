@@ -291,6 +291,8 @@ export class QuestBlueprintManager {
 
         if (!edge) {
             console.log(`📋 [QBM] Dead end: no edge from node ${fromNodeId} (handle: ${sourceHandle || 'default'})`);
+            // 死路：關閉 UI，任務保持活躍但對話結束
+            client.send("bpQuestDeadEnd", {});
             return;
         }
 
