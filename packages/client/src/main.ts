@@ -827,12 +827,9 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 room.send("interact", { npcId: target.id });
 
                 // Phase 16-2: 新的對話系統 - 檢查是否有對話樹
-                console.log(`💬 [NPC 診斷] npcData.dialogueTreeJson: ${npcData.dialogueTreeJson?.substring(0, 200)}...`);
-                console.log(`💬 [NPC 診斷] npcData.linkedShopId: ${npcData.linkedShopId}`);
                 if (npcData.dialogueTreeJson && npcData.dialogueTreeJson !== "") {
                     try {
                         const dialogueTree = JSON.parse(npcData.dialogueTreeJson);
-                        console.log("💬 Opening dialogue with:", npcData.name);
                         // Phase 16-3: 傳遞 linkedShopId 以支援對話中的 open_shop 動作
                         dialogueSystem.show(target.id, npcData.name, dialogueTree, npcData.linkedShopId);
                         return;

@@ -631,25 +631,21 @@ export class GameRoom extends Room<GameState> {
             const dz = player.z - npc.z;
             const distance = Math.sqrt(dx * dx + dz * dz);
 
-            // 從 NPCService 獲取 NPC 數據（包含對話樹）
-            const npcData = npcService.getNPC(payload.npcId);
-            if (!npcData) {
-                console.log(`❌ [Interact] NPC data not found for ${payload.npcId}`);
-                return;
-            }
-
             // TODO: 使用 npcData.interactionRadius，現在先用預設值
-            const interactionRadius = 5.0;
+            const interactionRadius = 15.0;
 
             if (distance > interactionRadius) {
-                console.log(`❌ [Interact] Player ${player.name} too far from NPC ${npc.name} (distance: ${distance.toFixed(2)})`);
                 client.send("notification", { text: "太遠了，請靠近一點！" });
                 return;
             }
 
             // Phase 20: 檢查是否有藍圖任務可接
+            // 先查找 NPC 模板 ID：優先從藍圖生成的任務 NPC 映射表查找，再從 npcService 查找
+            const questNpcTemplateId = this.questBlueprintManager.getQuestNPCTemplateId(payload.npcId);
             const npcInstance = npcService.getInstance(payload.npcId);
-            const npcTemplateId = npcInstance?.templateId || "";
+            const npcTemplateId = questNpcTemplateId || npcInstance?.templateId || "";
+            console.log(`📋 [Interact] NPC ${payload.npcId} → templateId: ${npcTemplateId || 'none'} (questNpc: ${!!questNpcTemplateId}, npcService: ${!!npcInstance})`);
+
             if (npcTemplateId) {
                 const availableBpId = this.questBlueprintManager.getAvailableQuestForNPC(npcTemplateId, player);
                 if (availableBpId) {
@@ -661,6 +657,19 @@ export class GameRoom extends Room<GameState> {
                     });
                     return;
                 }
+                console.log(`📋 [Interact] No available blueprint quest for template ${npcTemplateId}`);
+            }
+
+            // 從 NPCService 獲取 NPC 數據（包含對話樹）
+            const npcData = npcService.getNPC(payload.npcId);
+            if (!npcData) {
+                // 藍圖生成的任務 NPC 不在 npcService 中，這是正常的
+                if (questNpcTemplateId) {
+                    client.send("notification", { text: `${npc.name} 目前沒有任務給你。` });
+                } else {
+                    console.log(`❌ [Interact] NPC data not found for ${payload.npcId}`);
+                }
+                return;
             }
 
             // 發送對話數據到客戶端
@@ -1038,6 +1047,8 @@ export class GameRoom extends Room<GameState> {
             // Phase 20: 初始化藍圖任務管理系統
             console.log("📦 [GameRoom] Initializing Quest Blueprint Manager...");
             await this.questBlueprintManager.initialize();
+            // 根據藍圖 Start 節點的位置生成任務 NPC
+            this.questBlueprintManager.spawnQuestNPCs(this.npcManager);
             console.log("✅ [GameRoom] Quest Blueprint Manager initialized");
 
             console.log("✅ [GameRoom] All async systems initialized successfully!");
