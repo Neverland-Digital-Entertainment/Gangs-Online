@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useMemo } from 'react';
 import { Handle, Position, useReactFlow, type NodeProps } from '@xyflow/react';
-import { Zap } from 'lucide-react';
+import { Zap, X } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
 import { useQuestData } from '../QuestDataProvider';
 import SearchSelect from '../SearchSelect';
@@ -21,6 +21,12 @@ function ActionNode({ id, data }: NodeProps) {
       )
     );
   }, [id, setNodes]);
+
+  const deleteNode = useCallback(() => {
+    if (confirm(t('quest.deleteNodeConfirm'))) {
+      setNodes((nds) => nds.filter((n) => n.id !== id));
+    }
+  }, [id, setNodes, t]);
 
   const targetOptions = useMemo(() => {
     if (nodeData.actionType === 'remove_item') {
@@ -48,7 +54,10 @@ function ActionNode({ id, data }: NodeProps) {
       <Handle type="target" position={Position.Top} className="!bg-red-500 !w-3 !h-3" />
       <div className="bg-red-500 text-white px-3 py-2 rounded-t-lg flex items-center gap-2">
         <Zap className="w-4 h-4" />
-        <span className="text-sm font-semibold">{t('quest.node.action')}</span>
+        <span className="text-sm font-semibold flex-1">{t('quest.node.action')}</span>
+        <button onClick={deleteNode} className="p-0.5 hover:bg-red-600 rounded">
+          <X className="w-3.5 h-3.5" />
+        </button>
       </div>
       <div className="p-3 space-y-2">
         <div>

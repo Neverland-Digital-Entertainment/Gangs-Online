@@ -564,6 +564,14 @@ export default {
   'quest.node.itemId': 'Item ID',
   'quest.node.addRewardItem': 'Add Reward Item',
   'quest.deleteEdgeConfirm': 'Delete this connection?',
+  'quest.deleteNodeConfirm': 'Delete this node?',
+  'quest.emoji.faces': 'Faces',
+  'quest.emoji.gestures': 'Gestures',
+  'quest.emoji.symbols': 'Symbols',
+  'quest.emoji.objects': 'Objects',
+  'quest.node.variableName': 'Variable Name',
+  'quest.node.variableNamePlaceholder': 'e.g. talked_to_boss',
+  'quest.node.variableHint': 'Custom variable set via Action node (set_variable)',
 
   // Validation
   'validation.required': 'Please enter {field}',

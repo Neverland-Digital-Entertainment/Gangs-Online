@@ -565,6 +565,14 @@ export default {
   'quest.node.itemId': '道具 ID',
   'quest.node.addRewardItem': '新增獎勵道具',
   'quest.deleteEdgeConfirm': '確定要刪除此連線嗎？',
+  'quest.deleteNodeConfirm': '確定要刪除此節點嗎？',
+  'quest.emoji.faces': '表情',
+  'quest.emoji.gestures': '手勢',
+  'quest.emoji.symbols': '符號',
+  'quest.emoji.objects': '物件',
+  'quest.node.variableName': '變數名稱',
+  'quest.node.variableNamePlaceholder': '例如 talked_to_boss',
+  'quest.node.variableHint': '透過動作節點 (set_variable) 設定的自訂變數',
 
   // Validation
   'validation.required': '請輸入{field}',

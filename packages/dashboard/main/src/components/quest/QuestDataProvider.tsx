@@ -3,6 +3,7 @@
 import { useState, useEffect, createContext, useContext, type ReactNode } from 'react';
 import { NpcTemplateService } from '@/lib/npc/template-service';
 import { ItemService } from '@/lib/item/service';
+import { QuestBlueprintService } from '@/lib/quest/quest-service';
 import type { NpcTemplate } from '@/types/npc';
 
 interface ItemOption {
@@ -11,29 +12,38 @@ interface ItemOption {
   category: string;
 }
 
+interface QuestOption {
+  id: string;
+  name: string;
+}
+
 interface QuestDataContextValue {
   npcTemplates: NpcTemplate[];
   items: ItemOption[];
+  quests: QuestOption[];
   loading: boolean;
 }
 
 const QuestDataContext = createContext<QuestDataContextValue>({
   npcTemplates: [],
   items: [],
+  quests: [],
   loading: true,
 });
 
 export function QuestDataProvider({ children }: { children: ReactNode }) {
   const [npcTemplates, setNpcTemplates] = useState<NpcTemplate[]>([]);
   const [items, setItems] = useState<ItemOption[]>([]);
+  const [quests, setQuests] = useState<QuestOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [templates, allItems] = await Promise.all([
+        const [templates, allItems, allQuests] = await Promise.all([
           NpcTemplateService.getInstance().getAllTemplates(),
           ItemService.getInstance().getItems(),
+          QuestBlueprintService.getInstance().getAllBlueprints(),
         ]);
         setNpcTemplates(templates);
         setItems(
@@ -41,6 +51,12 @@ export function QuestDataProvider({ children }: { children: ReactNode }) {
             id: item.id,
             name: item.name,
             category: item.category || '',
+          }))
+        );
+        setQuests(
+          allQuests.map((q) => ({
+            id: q.id,
+            name: q.name,
           }))
         );
       } catch (err) {
@@ -53,7 +69,7 @@ export function QuestDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <QuestDataContext.Provider value={{ npcTemplates, items, loading }}>
+    <QuestDataContext.Provider value={{ npcTemplates, items, quests, loading }}>
       {children}
     </QuestDataContext.Provider>
   );

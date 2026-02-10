@@ -36,6 +36,12 @@ function ChoiceNode({ id, data }: NodeProps) {
     );
   }, [id, setNodes]);
 
+  const deleteNode = useCallback(() => {
+    if (confirm(t('quest.deleteNodeConfirm'))) {
+      setNodes((nds) => nds.filter((n) => n.id !== id));
+    }
+  }, [id, setNodes, t]);
+
   const addOption = () => {
     const idx = options.length;
     updateOptions([...options, { textZh: '', textEn: '', targetHandleId: `option_${idx}` }]);
@@ -57,7 +63,10 @@ function ChoiceNode({ id, data }: NodeProps) {
       <Handle type="target" position={Position.Top} className="!bg-purple-500 !w-3 !h-3" />
       <div className="bg-purple-500 text-white px-3 py-2 rounded-t-lg flex items-center gap-2">
         <ListOrdered className="w-4 h-4" />
-        <span className="text-sm font-semibold">{t('quest.node.choice')}</span>
+        <span className="text-sm font-semibold flex-1">{t('quest.node.choice')}</span>
+        <button onClick={deleteNode} className="p-0.5 hover:bg-purple-600 rounded">
+          <X className="w-3.5 h-3.5" />
+        </button>
       </div>
       <div className="p-3 space-y-2">
         {options.map((opt: any, idx: number) => (
