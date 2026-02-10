@@ -635,7 +635,7 @@ export class GameRoom extends Room<GameState> {
             const interactionRadius = 15.0;
 
             if (distance > interactionRadius) {
-                client.send("notification", { text: "太遠了，請靠近一點！" });
+                client.send("notification", "太遠了，請靠近一點！");
                 return;
             }
 
@@ -665,7 +665,7 @@ export class GameRoom extends Room<GameState> {
             if (!npcData) {
                 // 藍圖生成的任務 NPC 不在 npcService 中，這是正常的
                 if (questNpcTemplateId) {
-                    client.send("notification", { text: `${npc.name} 目前沒有任務給你。` });
+                    client.send("notification", `${npc.name} 目前沒有任務給你。`);
                 } else {
                     console.log(`❌ [Interact] NPC data not found for ${payload.npcId}`);
                 }
@@ -683,10 +683,10 @@ export class GameRoom extends Room<GameState> {
             } else if (npcData.dialogue) {
                 // 向後兼容：簡單對話文本
                 console.log(`💬 [Interact] Player ${player.name} talks to ${npc.name}: ${npcData.dialogue}`);
-                client.send("notification", { text: `${npc.name}: ${npcData.dialogue}` });
+                client.send("notification", `${npc.name}: ${npcData.dialogue}`);
             } else {
                 console.log(`❌ [Interact] NPC ${npc.name} has no dialogue`);
-                client.send("notification", { text: `${npc.name} 沒有什麼想說的...` });
+                client.send("notification", `${npc.name} 沒有什麼想說的...`);
             }
         });
 

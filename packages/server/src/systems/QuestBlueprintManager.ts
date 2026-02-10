@@ -179,12 +179,20 @@ export class QuestBlueprintManager {
         const completedIds = this.playerCompleted.get(player.firebaseUid) || [];
         const currentState = this.playerStates.get(player.sessionId);
 
+        console.log(`📋 [QBM] getAvailableQuest: template=${npcTemplateId}, uid=${player.firebaseUid || 'none'}, completed=[${completedIds.join(',')}], hasActiveState=${!!currentState}`);
+
         for (const [bpId, bp] of this.blueprints) {
             // 跳過已完成的任務
-            if (completedIds.includes(bpId)) continue;
+            if (completedIds.includes(bpId)) {
+                console.log(`  📋 Skip ${bpId}: already completed`);
+                continue;
+            }
 
             // 跳過正在進行的任務
-            if (currentState && currentState.blueprintId === bpId) continue;
+            if (currentState && currentState.blueprintId === bpId) {
+                console.log(`  📋 Skip ${bpId}: already in progress (node: ${currentState.currentNodeId})`);
+                continue;
+            }
 
             // 找到 Start 節點
             const startNode = bp.nodes.find((n: IQuestBlueprintNode) => n.type === 'start');
@@ -196,15 +204,26 @@ export class QuestBlueprintManager {
             if (startData.npcTemplateId !== npcTemplateId) continue;
 
             // 檢查等級限制
-            if (startData.minLevel && player.level < startData.minLevel) continue;
-            if (startData.maxLevel && player.level > startData.maxLevel) continue;
+            if (startData.minLevel && player.level < startData.minLevel) {
+                console.log(`  📋 Skip ${bpId}: level too low (${player.level} < ${startData.minLevel})`);
+                continue;
+            }
+            if (startData.maxLevel && player.level > startData.maxLevel) {
+                console.log(`  📋 Skip ${bpId}: level too high (${player.level} > ${startData.maxLevel})`);
+                continue;
+            }
 
             // 檢查前置任務
-            if (startData.prerequisiteQuestId && !completedIds.includes(startData.prerequisiteQuestId)) continue;
+            if (startData.prerequisiteQuestId && !completedIds.includes(startData.prerequisiteQuestId)) {
+                console.log(`  📋 Skip ${bpId}: prerequisite ${startData.prerequisiteQuestId} not completed`);
+                continue;
+            }
 
+            console.log(`  📋 Found available: ${bpId} ("${bp.name}")`);
             return bpId;
         }
 
+        console.log(`  📋 No available quest for template ${npcTemplateId}`);
         return null;
     }
 
@@ -291,7 +310,16 @@ export class QuestBlueprintManager {
 
         if (!edge) {
             console.log(`📋 [QBM] Dead end: no edge from node ${fromNodeId} (handle: ${sourceHandle || 'default'})`);
-            // 死路：關閉 UI，任務保持活躍但對話結束
+            // 死路：清除任務狀態，讓玩家可以重新接任務
+            this.playerStates.delete(player.sessionId);
+            // 清除 Player schema 上的任務欄位
+            player.activeBlueprintId = "";
+            player.activeBlueprintName = "";
+            player.activeTaskType = "";
+            player.activeTaskTarget = "";
+            player.activeTaskDesc = "";
+            player.activeTaskCurrent = 0;
+            player.activeTaskRequired = 0;
             client.send("bpQuestDeadEnd", {});
             return;
         }
