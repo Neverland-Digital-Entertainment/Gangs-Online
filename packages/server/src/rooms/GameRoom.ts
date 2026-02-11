@@ -1167,23 +1167,40 @@ export class GameRoom extends Room<GameState> {
             // 載入進行中的藍圖任務
             if (saved.activeBlueprintQuest && saved.activeBlueprintQuest.blueprintId) {
                 const bpState = saved.activeBlueprintQuest;
-                this.questBlueprintManager.restorePlayerState(player.sessionId, {
-                    blueprintId: bpState.blueprintId,
-                    currentNodeId: bpState.currentNodeId || "",
-                    taskProgress: bpState.taskProgress || 0,
-                    variables: bpState.variables || {},
-                });
 
-                // 恢復 Player schema 字段
-                player.activeBlueprintId = bpState.blueprintId;
-                player.activeBlueprintName = this.questBlueprintManager.getBlueprintName(bpState.blueprintId);
-                player.activeTaskType = bpState.activeTaskType || "";
-                player.activeTaskTarget = bpState.activeTaskTarget || "";
-                player.activeTaskDesc = bpState.activeTaskDesc || "";
-                player.activeTaskCurrent = bpState.taskProgress || 0;
-                player.activeTaskRequired = bpState.activeTaskRequired || 0;
+                // 驗證：只恢復 task 節點（kill/collect 等有進度的任務）
+                // 對話/選擇/條件等節點無法有意義地恢復（客戶端 UI 已丟失）
+                const canRestore = this.questBlueprintManager.canRestoreState(
+                    bpState.blueprintId,
+                    bpState.currentNodeId || ""
+                );
 
-                console.log(`[Phase 20] Restored blueprint quest for ${player.name}: ${player.activeBlueprintName}`);
+                if (canRestore) {
+                    this.questBlueprintManager.restorePlayerState(player.sessionId, {
+                        blueprintId: bpState.blueprintId,
+                        currentNodeId: bpState.currentNodeId || "",
+                        taskProgress: bpState.taskProgress || 0,
+                        variables: bpState.variables || {},
+                    });
+
+                    // 恢復 Player schema 字段
+                    player.activeBlueprintId = bpState.blueprintId;
+                    player.activeBlueprintName = this.questBlueprintManager.getBlueprintName(bpState.blueprintId);
+                    player.activeTaskType = bpState.activeTaskType || "";
+                    player.activeTaskTarget = bpState.activeTaskTarget || "";
+                    player.activeTaskDesc = bpState.activeTaskDesc || "";
+                    player.activeTaskCurrent = bpState.taskProgress || 0;
+                    player.activeTaskRequired = bpState.activeTaskRequired || 0;
+
+                    console.log(`[Phase 20] Restored blueprint quest for ${player.name}: ${player.activeBlueprintName} (node: ${bpState.currentNodeId})`);
+                } else {
+                    console.log(`[Phase 20] Discarded stale blueprint quest state for ${player.name}: bp=${bpState.blueprintId}, node=${bpState.currentNodeId} (not a task node, cannot restore)`);
+                    // 清除 Firebase 中的過期狀態
+                    db.collection("players").doc(firebaseUid).set(
+                        { activeBlueprintQuest: null },
+                        { merge: true }
+                    ).catch((e: any) => console.error("[Phase 20] Failed to clear stale quest state:", e));
+                }
             }
         } catch (error) {
             console.error("[Phase 20] Failed to load blueprint quest state:", error);

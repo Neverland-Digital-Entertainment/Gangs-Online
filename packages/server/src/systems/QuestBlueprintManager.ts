@@ -172,6 +172,35 @@ export class QuestBlueprintManager {
     }
 
     /**
+     * 檢查是否可以恢復已保存的任務狀態
+     * 只有 task 節點（有進度追蹤）才能有意義地恢復
+     * 對話、選擇、條件等節點的 UI 狀態在斷線後已丟失，無法恢復
+     */
+    canRestoreState(blueprintId: string, currentNodeId: string): boolean {
+        const blueprint = this.blueprints.get(blueprintId);
+        if (!blueprint) {
+            console.log(`[QBM] canRestore: blueprint ${blueprintId} not found`);
+            return false;
+        }
+
+        if (!currentNodeId) {
+            console.log(`[QBM] canRestore: no currentNodeId`);
+            return false;
+        }
+
+        const node = blueprint.nodes.find((n: IQuestBlueprintNode) => n.id === currentNodeId);
+        if (!node) {
+            console.log(`[QBM] canRestore: node ${currentNodeId} not found in blueprint`);
+            return false;
+        }
+
+        // 只有 task 節點可以恢復（有進度追蹤的任務）
+        const canRestore = node.type === 'task';
+        console.log(`[QBM] canRestore: node ${currentNodeId} is type "${node.type}" → ${canRestore ? 'YES' : 'NO'}`);
+        return canRestore;
+    }
+
+    /**
      * 檢查某個 NPC 是否有可接任務
      * 返回 { blueprintId, reason }
      */
