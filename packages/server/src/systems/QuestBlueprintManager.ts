@@ -18,6 +18,7 @@ import {
 } from "@gangs-online/shared";
 import { getFirestore } from "../services/FirebaseService";
 import { npcService } from "../services/NPCService";
+import { shopService } from "../services/ShopService";
 
 /**
  * 每位玩家的藍圖任務運行時狀態
@@ -575,14 +576,19 @@ export class QuestBlueprintManager {
             player.money += data.rewardMoney;
         }
 
+        // 解析獎勵道具名稱
+        const resolvedItems: { itemId: string; itemName: string; quantity: number }[] = [];
         if (data.rewardItems && data.rewardItems.length > 0) {
             data.rewardItems.forEach((reward: any) => {
+                const itemData = shopService.getItem(reward.itemId);
+                const itemName = itemData?.name || reward.itemId;
+                resolvedItems.push({ itemId: reward.itemId, itemName, quantity: reward.quantity });
                 for (let i = 0; i < reward.quantity; i++) {
                     const item = new Item();
                     item.id = reward.itemId;
-                    item.name = reward.itemId;
-                    item.type = "consumable";
-                    item.value = 0;
+                    item.name = itemName;
+                    item.type = itemData?.category as any || "consumable";
+                    item.value = itemData?.price || 0;
                     player.inventory.push(item);
                 }
             });
@@ -595,13 +601,13 @@ export class QuestBlueprintManager {
             this.playerCompleted.set(player.firebaseUid, completedIds);
         }
 
-        console.log(`🎉 [QBM] ${player.name} completed: ${questName} (+${data.rewardXp}XP, +$${data.rewardMoney})`);
+        console.log(`🎉 [QBM] ${player.name} completed: ${questName} (+${data.rewardXp}XP, +$${data.rewardMoney}, items: ${resolvedItems.map(i => `${i.itemName}x${i.quantity}`).join(', ')})`);
 
         client.send("bpQuestComplete", {
             questName,
             rewardXp: data.rewardXp,
             rewardMoney: data.rewardMoney,
-            rewardItems: data.rewardItems,
+            rewardItems: resolvedItems,
         });
 
         client.send("notification", `任務完成！${questName} (+$${data.rewardMoney}, +${data.rewardXp}XP)`);

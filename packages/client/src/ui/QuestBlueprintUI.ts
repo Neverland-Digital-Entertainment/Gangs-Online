@@ -420,7 +420,7 @@ export class QuestBlueprintUI {
         if (data.rewardXp > 0) rewardText += `⭐ ${data.rewardXp} XP  `;
         if (data.rewardItems && data.rewardItems.length > 0) {
             data.rewardItems.forEach((item: any) => {
-                rewardText += `📦 ${item.itemId} x${item.quantity}  `;
+                rewardText += `📦 ${item.itemName || item.itemId} x${item.quantity}  `;
             });
         }
 
