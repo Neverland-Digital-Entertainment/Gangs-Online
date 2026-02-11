@@ -617,12 +617,17 @@ export class GameRoom extends Room<GameState> {
 
         // Phase 16-2: NPC 互動（對話）
         this.onMessage("interact", (client, payload: { npcId: string }) => {
+          try {
             const player = this.state.players.get(client.sessionId);
-            if (!player) return;
+            if (!player) {
+                console.log(`❌ [Interact] Player not found for session ${client.sessionId}`);
+                return;
+            }
 
             const npc = this.state.enemies.get(payload.npcId);
             if (!npc || npc.type !== "npc") {
-                console.log(`❌ [Interact] NPC ${payload.npcId} not found or not an NPC`);
+                console.log(`❌ [Interact] NPC ${payload.npcId} not found or not an NPC (found: ${!!npc}, type: ${npc?.type})`);
+                client.send("notification", `[DEBUG] NPC not found or type mismatch: id=${payload.npcId}, found=${!!npc}, type=${npc?.type}`);
                 return;
             }
 
@@ -689,6 +694,10 @@ export class GameRoom extends Room<GameState> {
                 console.log(`❌ [Interact] NPC ${npc.name} has no dialogue`);
                 client.send("notification", `${npc.name} 沒有什麼想說的...`);
             }
+          } catch (error: any) {
+            console.error(`❌ [Interact] Error:`, error);
+            client.send("notification", `[ERROR] ${error?.message || error}`);
+          }
         });
 
         // Auto-Combat Loop (runs every ATTACK_INTERVAL) - 0.7.1: 添加 PvE 支援
