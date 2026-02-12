@@ -543,6 +543,8 @@ export interface IStartNodeData {
     minLevel?: number;           // 最低等級限制
     maxLevel?: number;           // 最高等級限制
     prerequisiteQuestId?: string; // 前置任務 ID（需已完成）
+    positionX?: number;          // 任務 NPC 生成位置 X
+    positionZ?: number;          // 任務 NPC 生成位置 Z
 }
 
 /**

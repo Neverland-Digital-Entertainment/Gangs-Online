@@ -1,7 +1,7 @@
 # Gangs Online - 項目架構指南
 
-> **最後更新：** 2026-02-09
-> **當前版本：** 0.16.3 - Shop & Economy System Complete
+> **最後更新：** 2026-02-12
+> **當前版本：** 0.20.0 - Quest Blueprint System
 > **版本號位置：** `packages/shared/src/index.ts` - 所有端統一使用此版本號
 > **目的：** 提供項目架構概覽，減少新對話中的重複代碼探索，節省 token 使用
 >
@@ -9,50 +9,108 @@
 
 ---
 
-## 📝 最新更新 (2026-02-09)
+## 📝 最新更新 (2026-02-12)
 
-### Phase 19 - NPC 造型管理系統（開發中，標記為「即將推出」）
+### Phase 20 - 任務藍圖系統（Quest Blueprint System）
 
-Dashboard 新增 NPC 造型管理頁面，使用 Babylon.js 3D 引擎在瀏覽器內即時預覽和編輯角色外觀。目前仍在開發中，Sidebar 已標記為「即將推出」，但頁面可通過 `/npc/appearances` 直接訪問進行測試。
+完整的任務設計和執行系統，包括 Dashboard 視覺節點編輯器、Server 藍圖執行引擎、Client 任務 UI。
 
 #### 已完成功能
-- **3D 角色預覽器**：使用 Babylon.js 7 的 `ArcRotateCamera` 實現 360° 旋轉查看
-- **性別切換**：支援男性/女性身體模型載入（`body/male.glb`, `body/female.glb`）
-- **裝備插槽系統**：6 個獨立插槽（hair, beard, head, top, bottom, shoe），支援獨立載入/卸載
-- **性別專屬髮型**：男性（`hair/male/`）和女性（`hair/female/`）使用不同髮型資料夾
-- **骨骼綁定**：有骨骼的裝備（髮型、鬍子）會綁定到身體骨骼（`mesh.skeleton = bodySkeletonRef`）
-- **共享 TransformNode**：身體和所有裝備的 root 都 parent 到同一個 `characterRoot` 節點，確保位置對齊
-- **髮色/鬍色修改**：即時修改 material 的 `albedoColor`/`diffuseColor`，材質先 clone 避免共用問題
-- **性別感知 UI**：女性隱藏鬍子區塊，切換性別自動清除性別專屬裝備
-- **3D 縮圖預覽**：使用離屏 Babylon engine 生成 128x128 縮圖，漸進式更新
-- **Accordion UI**：6 欄位分類摺疊面板，選中項目顯示在 header，6 格/行的縮圖 grid
-- **顏色選擇器**：髮型和鬍子區域有 `<input type="color">` 調色盤（選中配件後顯示）
 
-#### 關鍵技術
-- **Babylon.js SSR 安全**：使用 `dynamic()` + `{ ssr: false }` 載入 CharacterViewer
-- **GLB 座標系統**：GLB `__root__` 節點有右手→左手座標轉換，不能手動旋轉模型，改用 camera alpha 調整視角
-- **GLB 內建紋理**：GLB 自帶紋理和 UV mapping，不需要也不應該外部覆蓋 texture
-- **共享資源**：`public/characters` → `../../../shared/characters` 符號連結，client 和 dashboard 共用
-- **Shader 編譯**：縮圖生成必須 `await scene.whenReadyAsync()` 等待 shader 編譯完成，否則渲染空白
-- **Bounding Box**：使用 `getHierarchyBoundingVectors(true)` 取得完整層級的邊界，過濾無頂點的 TransformNode
+**Dashboard - 視覺節點編輯器：**
+- **React Flow 編輯器**：拖拽式節點圖形編輯，7 種節點類型
+- **節點類型**：Start（開始）、Dialogue（對話）、Choice（選擇）、Task（任務目標）、Condition（條件）、Action（動作）、End（結束）
+- **Start 節點**：NPC 模板 dropdown、前置任務 dropdown（從 DB 讀取）、等級限制、NPC 位置座標
+- **Dialogue 節點**：NPC 說話者 dropdown、表情 emoji 完整選擇器、中英文文本
+- **Choice 節點**：多選項分支、每個選項獨立出口 handle
+- **Task 節點**：kill/collect/interact/location 四種目標類型、目標 ID、數量
+- **Condition 節點**：金錢/等級/道具/變數檢查、pass/fail 雙出口
+- **Action 節點**：give_money/take_money/give_item/take_item/set_variable
+- **End 節點**：XP/金錢/道具獎勵配置
+- **編輯器功能**：暗色主題 CSS、邊緣刪除、節點 X 刪除按鈕、SearchSelect dropdown 組件
+- **Firebase CRUD**：`quest_blueprints` collection，含 isActive 開關
+- **QuestDataProvider**：Context 提供 NPC/道具/任務資料給編輯器 dropdown
 
-#### 已知問題
-- **Cap 模型偏移**：`head/cap.glb` 頂點在 Z~-16 位置，且無 material，需要在 Blender 重新匯出（歸零原點、加上材質、綁定骨骼）
-- **縮圖渲染**：部分骨骼綁定的配件縮圖可能仍有顯示問題（bounding box 受骨骼影響）
-- **無骨骼裝備對齊**：服裝（top, bottom, shoe）無骨骼，依靠 TransformNode 父子關係對齊
+**Server - 藍圖執行引擎：**
+- **QuestBlueprintManager**（`systems/QuestBlueprintManager.ts`，~720 lines）
+  - 從 Firebase 載入啟用的任務藍圖
+  - `spawnQuestNPCs(npcManager)`：從 Start 節點的 positionX/positionZ 生成任務 NPC
+  - `getAvailableQuestForNPC()`：檢查任務可用性（等級、前置、已完成、進行中），返回 `{ blueprintId, reason }` 含診斷資訊
+  - `startQuest()` / `advanceFromNode()` / `processNode()`：節點圖遍歷引擎
+  - 節點處理器：handleDialogueNode、handleChoiceNode、handleTaskNode、handleConditionNode、handleActionNode、handleEndNode
+  - `updateKillProgress()` / `updateCollectProgress()`：任務進度追蹤
+  - 獎勵道具名稱解析：透過 `shopService.getItem()` 查詢道具名稱
+  - Dead-end 處理：無出邊時清除玩家狀態並發送 `bpQuestDeadEnd`
+  - `canRestoreState()`：僅恢復 task 節點狀態（對話/選擇節點無法恢復）
+- **NPC 生成**：`NPCManager.spawnQuestNPC()` 建立 quest type NPC，HP 9999、attack 0
+- **GameRoom 整合**：
+  - 4 個新 message handler：`bpQuestAccept`、`bpQuestDialogueNext`、`bpQuestChoice`、`bpQuestAbandon`
+  - interact handler 優先檢查藍圖任務，含 try-catch 和診斷通知
+  - `loadBlueprintQuestState()` / `saveBlueprintQuestState()`：Firebase 持久化（含狀態驗證）
+- **Player Schema 擴展**：7 個新字段（activeBlueprintId/Name、activeTaskType/Target/Desc/Current/Required）
+
+**Client - 任務 UI：**
+- **QuestBlueprintUI**（`ui/QuestBlueprintUI.ts`，~450 lines）
+  - `showQuestAccept()`：接受/拒絕對話框
+  - `showDialogue()`：NPC 對話，「繼續 ▶」按鈕
+  - `showChoices()`：選項按鈕
+  - `showTaskTracker()`：右上角 HUD 進度條
+  - `showQuestComplete()`：獎勵顯示（道具名稱而非 ID）
+  - Dead-end handler：自動關閉 UI
+- **NPC 點擊處理**：`quest_npc_*` 前綴的 NPC 只走 server 路徑，跳過本地 UI
+
+**Quest NPC ID 規範**：`quest_npc_${blueprintId}` — 區分常規 NPC
+
+**關鍵資料流：**
+```
+Dashboard 設計藍圖 → Firebase quest_blueprints
+  ↓
+Server 啟動 → QuestBlueprintManager.initialize() → 載入藍圖
+  ↓
+spawnQuestNPCs() → NPCManager.spawnQuestNPC() → state.enemies
+  ↓
+Client 點擊 NPC → room.send("interact") → Server 檢查可用任務
+  ↓
+bpQuestAvailable → Client 顯示接受 UI → bpQuestAccept → 開始走節點圖
+  ↓
+Dialogue/Choice/Task/Condition/Action/End → 各節點處理器
+  ↓
+End 節點 → 發放獎勵 → 記錄完成 → bpQuestComplete
+```
+
+#### 已修復的問題
+- **NPC 不可見**：Start 節點缺少 positionX/positionZ、QBM 未生成 NPC
+- **重複任務 UI**：quest NPC 同時觸發舊 UI 和新 UI → 早期 return
+- **Dead-end 凍結**：選擇/條件後無出邊 → 發送 bpQuestDeadEnd + 清除狀態
+- **NPC 點擊無反應**：notification 格式 `{text:...}` → 改為純字串
+- **任務卡死循環**：Dead-end 未清除 playerStates → 每次重連恢復卡住的狀態
+- **持久化狀態污染**：loadBlueprintQuestState 恢復了對話節點狀態 → canRestoreState 只恢復 task 節點
+- **獎勵顯示 ID**：item.name 用了 itemId → shopService.getItem() 解析名稱
 
 #### 涉及的文件
-- `app/npc/appearances/page.tsx` - 造型管理頁面（Accordion UI、性別切換、顏色選擇器）
-- `components/npc/CharacterViewer.tsx` - 3D 角色預覽器（Babylon.js scene、裝備管理、骨骼綁定、顏色應用）
-- `lib/character-thumbnails.ts` - 離屏 3D 縮圖生成器
-- `components/layout/Sidebar.tsx` - 側邊欄新增造型管理入口（disabled, 即將推出）
-- `app/npc/page.tsx` - NPC 管理頁新增造型管理卡片（coming soon）
-- `locales/en.ts` / `locales/zh-TW.ts` - 新增 `npc.appearances.*` 相關翻譯 keys
+```
+packages/shared/src/
+└── index.ts                                    # Phase 20 types: IBPQuest*, IStartNodeData 等
 
-#### 未來開發
-- Phase 19.3: 動畫系統
-- Phase 19.4: 更多顏色自訂（膚色等）
-- Phase 19.5: UI 完善 + Firebase 資料持久化
+packages/server/src/
+├── systems/QuestBlueprintManager.ts            # 【新】藍圖執行引擎（~720 lines）
+├── systems/NPCManager.ts                       # spawnQuestNPC() 方法
+├── rooms/GameRoom.ts                           # interact handler, message handlers, persistence
+└── rooms/schema/GameState.ts                   # Player schema 7 個新字段
+
+packages/client/src/
+├── ui/QuestBlueprintUI.ts                      # 【新】任務 UI（~450 lines）
+└── main.ts                                     # quest_npc_* 點擊處理、message handlers
+
+packages/dashboard/main/src/
+├── app/quest/page.tsx                          # 任務藍圖列表頁
+├── app/quest/edit/page.tsx                     # 視覺節點編輯器頁
+├── components/quest/nodes/*.tsx                # 7 種節點組件
+├── components/quest/QuestBlueprintEditor.tsx   # React Flow 編輯器
+├── components/quest/QuestDataProvider.tsx       # 資料 Context
+├── components/quest/SearchSelect.tsx            # 搜尋式 dropdown
+└── lib/quest/quest-service.ts                  # Firebase CRUD
+```
 
 ---
 
@@ -168,7 +226,9 @@ Gangs-Online/
 - `IShopItem` - 商店商品配置（庫存、限購、價格倍率）
 - `IPurchaseRequest` / `IPurchaseResponse` - 購買請求/回應接口
 - `GAME_CONSTANTS` - 遊戲常數（攻擊範圍、移動速度等）
-- `GAME_VERSION` - **當前遊戲版本號（0.16.3）- 統一定義在此，所有端共用**
+- `GAME_VERSION` - **當前遊戲版本號（0.20.0）- 統一定義在此，所有端共用**
+- Phase 20 任務藍圖類型：`IQuestBlueprint`, `IQuestBlueprintNode`, `IQuestBlueprintEdge`, `IStartNodeData`, `IDialogueNodeData`, `IChoiceNodeData`, `ITaskNodeData`, `IConditionNodeData`, `IActionNodeData`, `IEndNodeData`, `QuestNodeType`
+- Phase 20 訊息類型：`IBPQuestDialogue`, `IBPQuestChoices`, `IBPQuestTaskStart`, `IBPQuestTaskProgress`, `IBPQuestComplete`, `IBPQuestAvailable`, `IBPQuestRuntimeState`
 
 **注意事項：**
 - `modelId` 字段為**可選** (`string | undefined`)
@@ -209,9 +269,15 @@ Gangs-Online/
   - 從 NPCService 載入數據並生成 NPC
   - 將 NPC 添加到 room.state.enemies MapSchema
   - 處理 dialogueTree 序列化（轉為 JSON 字符串）
+  - `spawnQuestNPC(id, x, z, name)` - 生成任務 NPC（type="npc", npcType="quest", HP 9999）
   - **關鍵邏輯：**
     - `npc.modelId = (data.modelId && data.modelId !== "undefined") ? data.modelId : ""`
     - `npc.linkedShopId = data.linkedShopId || ""` - 設定關聯商店 ID 到 Enemy schema
+- `systems/QuestBlueprintManager.ts` - **任務藍圖執行引擎**（Phase 20）
+  - 從 Firebase `quest_blueprints` 載入啟用的任務藍圖
+  - 生成任務 NPC、檢查任務可用性、執行節點圖遍歷
+  - 追蹤玩家進度、處理獎勵發放、管理完成記錄
+  - 詳見 Phase 20 更新區段
 
 **重要數據流：**
 ```
@@ -277,6 +343,13 @@ Client receives NPC data (含 linkedShopId)
   - `purchaseItem(itemId, quantity)` - 發送購買請求
   - 處理 "shopData" 和 "purchaseResult" 消息
   - 顯示商品、庫存、價格、營業時間
+- `ui/QuestBlueprintUI.ts` - **任務藍圖 UI**（Phase 20）
+  - `showQuestAccept()` - 任務接受/拒絕
+  - `showDialogue()` - NPC 對話
+  - `showChoices()` - 選項按鈕
+  - `showTaskTracker()` - HUD 進度追蹤
+  - `showQuestComplete()` - 完成獎勵展示
+  - 處理 `bpQuestAvailable`, `bpQuestDialogue`, `bpQuestChoices`, `bpQuestTaskStart`, `bpQuestTaskProgress`, `bpQuestComplete`, `bpQuestDeadEnd` 等訊息
 - `systems/HUDManager.ts` - 主 HUD（血條、金錢、經驗值等）
   - Phase 16.3: 新增 `showShopPopupV2()` 商店提示
 - `systems/UISystem.ts` - 3D 世界中的 UI（名牌、血條）
@@ -335,6 +408,8 @@ scene.onPointerDown = (evt, pickResult) => {
 - `app/npc/instances/page.tsx` - NPC 實例列表
 - `app/item/page.tsx` - 道具管理
 - `app/npc/appearances/page.tsx` - NPC 造型管理（Phase 19，即將推出）
+- `app/quest/page.tsx` - 任務藍圖列表（Phase 20）
+- `app/quest/edit/page.tsx` - 任務藍圖視覺節點編輯器（Phase 20）
 - `app/shop/page.tsx` - 商店列表（Phase 16.3）
 - `app/shop/edit/page.tsx` - 商店編輯/新增（Phase 16.3）
 
@@ -580,21 +655,28 @@ scene.onPointerDown = (evt, pickResult) => {
 
 ### ✅ 已完成功能
 
+**Phase 20 (當前):**
+- ✅ 任務藍圖系統 - Dashboard 視覺節點編輯器（React Flow，7 種節點）
+- ✅ Server 藍圖執行引擎（QuestBlueprintManager，節點圖遍歷）
+- ✅ Client 任務 UI（QuestBlueprintUI，對話/選擇/進度/獎勵）
+- ✅ 任務 NPC 自動生成（從 Start 節點位置）
+- ✅ 任務持久化（Firebase 儲存/恢復，含狀態驗證）
+- ✅ Dead-end 處理（清除狀態、關閉 UI）
+- ✅ 獎勵道具名稱解析（shopService 查詢）
+- ✅ 診斷系統（client-visible debug reason、try-catch）
+
 **Phase 19 (開發中 - 即將推出):**
 - 🚧 NPC 造型管理系統（Babylon.js 3D 角色預覽）
 - ✅ 3D 角色預覽器（ArcRotateCamera、燈光、地板）
 - ✅ 性別切換（男/女身體模型）
 - ✅ 6 個裝備插槽（hair, beard, head, top, bottom, shoe）
-- ✅ 性別專屬髮型路徑（`hair/male/`, `hair/female/`）
 - ✅ 骨骼綁定 + 共享 TransformNode 對齊
 - ✅ 髮色/鬍色即時修改（Color Picker）
 - ✅ 3D 縮圖預覽（離屏 Babylon engine）
-- ✅ Accordion UI + 6 格 grid + 女性隱藏鬍子
-- ⬜ Cap 模型修正（需 Blender 重新匯出）
 - ⬜ 動畫系統
 - ⬜ Firebase 資料持久化
 
-**Phase 16-3 (當前):**
+**Phase 16-3:**
 - ✅ 動態商店系統（Firebase）
 - ✅ 商店 CRUD（Dashboard 管理界面）
 - ✅ 商店配置（營業時間、庫存、價格倍率）
@@ -634,19 +716,20 @@ scene.onPointerDown = (evt, pickResult) => {
 ### 🚧 待辦事項
 
 **高優先級：**
-- [ ] 對話系統動作執行（open_shop, accept_quest）
-- [ ] NPC 商店整合到對話系統
-- [ ] 背包系統整合（購買後添加到背包）
+- [ ] 任務藍圖 Task 節點完整測試（kill/collect/interact/location）
+- [ ] 任務 NPC 自定義模型（使用 NPC 模板的 modelId）
 - [ ] 商店庫存重置機制（每日重置）
+- [ ] 背包系統 UI 整合
 
 **中優先級：**
+- [ ] NPC 造型系統完善（Phase 19 繼續）
 - [ ] 自定義模型上傳功能
 - [ ] NPC 移動模式（WANDERING, PATROLLING）
 - [ ] NPC AI 行為系統
 
 **低優先級：**
-- [ ] 更多對話動作類型
-- [ ] 對話條件和變量系統
+- [ ] 任務藍圖變數系統完善
+- [ ] 多語言任務文本（目前只有中文）
 - [ ] NPC 表情和動畫
 
 ---

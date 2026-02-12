@@ -617,12 +617,17 @@ export class GameRoom extends Room<GameState> {
 
         // Phase 16-2: NPC 互動（對話）
         this.onMessage("interact", (client, payload: { npcId: string }) => {
+          try {
             const player = this.state.players.get(client.sessionId);
-            if (!player) return;
+            if (!player) {
+                console.log(`❌ [Interact] Player not found for session ${client.sessionId}`);
+                return;
+            }
 
             const npc = this.state.enemies.get(payload.npcId);
             if (!npc || npc.type !== "npc") {
-                console.log(`❌ [Interact] NPC ${payload.npcId} not found or not an NPC`);
+                console.log(`❌ [Interact] NPC ${payload.npcId} not found or not an NPC (found: ${!!npc}, type: ${npc?.type})`);
+                client.send("notification", `[DEBUG] NPC not found or type mismatch: id=${payload.npcId}, found=${!!npc}, type=${npc?.type}`);
                 return;
             }
 
@@ -631,27 +636,23 @@ export class GameRoom extends Room<GameState> {
             const dz = player.z - npc.z;
             const distance = Math.sqrt(dx * dx + dz * dz);
 
-            // 從 NPCService 獲取 NPC 數據（包含對話樹）
-            const npcData = npcService.getNPC(payload.npcId);
-            if (!npcData) {
-                console.log(`❌ [Interact] NPC data not found for ${payload.npcId}`);
-                return;
-            }
-
             // TODO: 使用 npcData.interactionRadius，現在先用預設值
-            const interactionRadius = 5.0;
+            const interactionRadius = 15.0;
 
             if (distance > interactionRadius) {
-                console.log(`❌ [Interact] Player ${player.name} too far from NPC ${npc.name} (distance: ${distance.toFixed(2)})`);
-                client.send("notification", { text: "太遠了，請靠近一點！" });
+                client.send("notification", "太遠了，請靠近一點！");
                 return;
             }
 
             // Phase 20: 檢查是否有藍圖任務可接
+            // 先查找 NPC 模板 ID：優先從藍圖生成的任務 NPC 映射表查找，再從 npcService 查找
+            const questNpcTemplateId = this.questBlueprintManager.getQuestNPCTemplateId(payload.npcId);
             const npcInstance = npcService.getInstance(payload.npcId);
-            const npcTemplateId = npcInstance?.templateId || "";
+            const npcTemplateId = questNpcTemplateId || npcInstance?.templateId || "";
+            console.log(`📋 [Interact] NPC ${payload.npcId} → templateId: ${npcTemplateId || 'none'} (questNpc: ${!!questNpcTemplateId}, npcService: ${!!npcInstance})`);
+
             if (npcTemplateId) {
-                const availableBpId = this.questBlueprintManager.getAvailableQuestForNPC(npcTemplateId, player);
+                const { blueprintId: availableBpId, reason } = this.questBlueprintManager.getAvailableQuestForNPC(npcTemplateId, player);
                 if (availableBpId) {
                     const bpName = this.questBlueprintManager.getBlueprintName(availableBpId);
                     console.log(`📋 [Interact] Blueprint quest available: ${bpName} (${availableBpId})`);
@@ -661,6 +662,20 @@ export class GameRoom extends Room<GameState> {
                     });
                     return;
                 }
+                console.log(`📋 [Interact] No available blueprint quest for template ${npcTemplateId}: ${reason}`);
+            }
+
+            // 從 NPCService 獲取 NPC 數據（包含對話樹）
+            const npcData = npcService.getNPC(payload.npcId);
+            if (!npcData) {
+                // 藍圖生成的任務 NPC 不在 npcService 中，這是正常的
+                if (questNpcTemplateId) {
+                    const { reason } = this.questBlueprintManager.getAvailableQuestForNPC(npcTemplateId, player);
+                    client.send("notification", `${npc.name} 目前沒有任務給你。[${reason}]`);
+                } else {
+                    console.log(`❌ [Interact] NPC data not found for ${payload.npcId}`);
+                }
+                return;
             }
 
             // 發送對話數據到客戶端
@@ -674,11 +689,15 @@ export class GameRoom extends Room<GameState> {
             } else if (npcData.dialogue) {
                 // 向後兼容：簡單對話文本
                 console.log(`💬 [Interact] Player ${player.name} talks to ${npc.name}: ${npcData.dialogue}`);
-                client.send("notification", { text: `${npc.name}: ${npcData.dialogue}` });
+                client.send("notification", `${npc.name}: ${npcData.dialogue}`);
             } else {
                 console.log(`❌ [Interact] NPC ${npc.name} has no dialogue`);
-                client.send("notification", { text: `${npc.name} 沒有什麼想說的...` });
+                client.send("notification", `${npc.name} 沒有什麼想說的...`);
             }
+          } catch (error: any) {
+            console.error(`❌ [Interact] Error:`, error);
+            client.send("notification", `[ERROR] ${error?.message || error}`);
+          }
         });
 
         // Auto-Combat Loop (runs every ATTACK_INTERVAL) - 0.7.1: 添加 PvE 支援
@@ -1038,6 +1057,8 @@ export class GameRoom extends Room<GameState> {
             // Phase 20: 初始化藍圖任務管理系統
             console.log("📦 [GameRoom] Initializing Quest Blueprint Manager...");
             await this.questBlueprintManager.initialize();
+            // 根據藍圖 Start 節點的位置生成任務 NPC
+            this.questBlueprintManager.spawnQuestNPCs(this.npcManager);
             console.log("✅ [GameRoom] Quest Blueprint Manager initialized");
 
             console.log("✅ [GameRoom] All async systems initialized successfully!");
@@ -1146,23 +1167,40 @@ export class GameRoom extends Room<GameState> {
             // 載入進行中的藍圖任務
             if (saved.activeBlueprintQuest && saved.activeBlueprintQuest.blueprintId) {
                 const bpState = saved.activeBlueprintQuest;
-                this.questBlueprintManager.restorePlayerState(player.sessionId, {
-                    blueprintId: bpState.blueprintId,
-                    currentNodeId: bpState.currentNodeId || "",
-                    taskProgress: bpState.taskProgress || 0,
-                    variables: bpState.variables || {},
-                });
 
-                // 恢復 Player schema 字段
-                player.activeBlueprintId = bpState.blueprintId;
-                player.activeBlueprintName = this.questBlueprintManager.getBlueprintName(bpState.blueprintId);
-                player.activeTaskType = bpState.activeTaskType || "";
-                player.activeTaskTarget = bpState.activeTaskTarget || "";
-                player.activeTaskDesc = bpState.activeTaskDesc || "";
-                player.activeTaskCurrent = bpState.taskProgress || 0;
-                player.activeTaskRequired = bpState.activeTaskRequired || 0;
+                // 驗證：只恢復 task 節點（kill/collect 等有進度的任務）
+                // 對話/選擇/條件等節點無法有意義地恢復（客戶端 UI 已丟失）
+                const canRestore = this.questBlueprintManager.canRestoreState(
+                    bpState.blueprintId,
+                    bpState.currentNodeId || ""
+                );
 
-                console.log(`[Phase 20] Restored blueprint quest for ${player.name}: ${player.activeBlueprintName}`);
+                if (canRestore) {
+                    this.questBlueprintManager.restorePlayerState(player.sessionId, {
+                        blueprintId: bpState.blueprintId,
+                        currentNodeId: bpState.currentNodeId || "",
+                        taskProgress: bpState.taskProgress || 0,
+                        variables: bpState.variables || {},
+                    });
+
+                    // 恢復 Player schema 字段
+                    player.activeBlueprintId = bpState.blueprintId;
+                    player.activeBlueprintName = this.questBlueprintManager.getBlueprintName(bpState.blueprintId);
+                    player.activeTaskType = bpState.activeTaskType || "";
+                    player.activeTaskTarget = bpState.activeTaskTarget || "";
+                    player.activeTaskDesc = bpState.activeTaskDesc || "";
+                    player.activeTaskCurrent = bpState.taskProgress || 0;
+                    player.activeTaskRequired = bpState.activeTaskRequired || 0;
+
+                    console.log(`[Phase 20] Restored blueprint quest for ${player.name}: ${player.activeBlueprintName} (node: ${bpState.currentNodeId})`);
+                } else {
+                    console.log(`[Phase 20] Discarded stale blueprint quest state for ${player.name}: bp=${bpState.blueprintId}, node=${bpState.currentNodeId} (not a task node, cannot restore)`);
+                    // 清除 Firebase 中的過期狀態
+                    db.collection("players").doc(firebaseUid).set(
+                        { activeBlueprintQuest: null },
+                        { merge: true }
+                    ).catch((e: any) => console.error("[Phase 20] Failed to clear stale quest state:", e));
+                }
             }
         } catch (error) {
             console.error("[Phase 20] Failed to load blueprint quest state:", error);
