@@ -47,6 +47,50 @@ function getEquipmentPath(slot: EquipmentSlot, gender: Gender): string {
   return `/characters/${folder}/`;
 }
 
+/** How far (radians) to swing each arm down from the T-pose toward the body. */
+const ARM_REST_ANGLE = 1.15;
+
+/**
+ * Swing the character's arms down from the authored T-pose into a relaxed
+ * A-pose. Each upper-arm bone is rotated about the world Z axis through its own
+ * shoulder pivot, so the whole arm chain swings in the frontal plane without
+ * moving forward or back. The rotation direction is verified per-arm by
+ * checking that the hand actually drops, so it stays correct regardless of the
+ * engine's handedness convention.
+ */
+function poseArmsToRest(BABYLON: any, meshes: any[], skeleton: any): void {
+  if (!skeleton) return;
+  const mesh = meshes.find((m) => m.skeleton) ?? meshes[0];
+  const axis = new BABYLON.Vector3(0, 0, 1);
+  const computeAbsolute = () => {
+    (skeleton.computeAbsoluteMatrices ?? skeleton.computeAbsoluteTransforms)?.call(skeleton, true);
+  };
+
+  const arms: { upper: string; hand: string; sign: number }[] = [
+    { upper: 'upperarm_l', hand: 'hand_l', sign: 1 },
+    { upper: 'upperarm_r', hand: 'hand_r', sign: -1 },
+  ];
+
+  for (const { upper, hand, sign } of arms) {
+    const bone = skeleton.bones.find((b: any) => b.name === upper);
+    if (!bone) continue;
+    const tip = skeleton.bones.find((b: any) => b.name === hand);
+
+    const beforeY = tip ? tip.getAbsolutePosition(mesh).y : null;
+    bone.rotate(axis, sign * ARM_REST_ANGLE, BABYLON.Space.WORLD, mesh);
+
+    // If the hand rose instead of dropped, the world axis pointed the other way
+    // for this rig — reverse to land on the same downward A-pose.
+    if (tip && beforeY !== null) {
+      computeAbsolute();
+      if (tip.getAbsolutePosition(mesh).y > beforeY) {
+        bone.rotate(axis, -2 * sign * ARM_REST_ANGLE, BABYLON.Space.WORLD, mesh);
+      }
+    }
+  }
+  computeAbsolute();
+}
+
 export default function CharacterViewer({ gender, equipment, colors }: CharacterViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<any>(null);
@@ -148,6 +192,11 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
     // Store body skeleton for equipment binding
     if (result.skeletons.length > 0) {
       bodySkeletonRef.current = result.skeletons[0];
+      // The body GLB is authored in a wide T-pose (arms straight out). Clothing
+      // is modelled for a natural rest pose, so on the raw T-pose the character
+      // looks too wide and the garments appear mismatched. Swing the arms down
+      // into an A-pose so the silhouette and clothing read correctly.
+      poseArmsToRest(BABYLON, result.meshes, result.skeletons[0]);
     }
 
     // Compute model bounds for camera framing (only visible meshes)
