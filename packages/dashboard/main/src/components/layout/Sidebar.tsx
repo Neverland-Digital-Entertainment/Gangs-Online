@@ -80,7 +80,6 @@ const menuItems: MenuItem[] = [
         titleKey: 'nav.npcAppearances',
         href: '/npc/appearances',
         icon: Palette,
-        disabled: true,
       },
     ],
   },
