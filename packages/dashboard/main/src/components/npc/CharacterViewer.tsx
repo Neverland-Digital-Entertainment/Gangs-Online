@@ -52,43 +52,47 @@ const ARM_REST_ANGLE = 1.15;
 
 /**
  * Swing the character's arms down from the authored T-pose into a relaxed
- * A-pose. Each upper-arm bone is rotated about the world Z axis through its own
- * shoulder pivot, so the whole arm chain swings in the frontal plane without
- * moving forward or back. The rotation direction is verified per-arm by
- * checking that the hand actually drops, so it stays correct regardless of the
- * engine's handedness convention.
+ * A-pose.
+ *
+ * The body GLB is imported with a skeleton whose bones are each linked to a
+ * scene TransformNode (`bone._linkedTransformNode`). The skeleton re-syncs from
+ * those nodes every frame, so rotating the bones directly gets overwritten —
+ * the nodes are the source of truth and must be rotated instead.
+ *
+ * The rotation is done in each node's LOCAL space (about the shoulder joint),
+ * not world space: the glTF loader converts handedness with a mirrored
+ * `__root__` scale of (1, 1, -1), and that negative scale breaks world-space
+ * `rotateAround`. A local rotation about the arm's Z axis swings it cleanly in
+ * the frontal plane. The direction is verified per-arm by checking that the
+ * hand actually drops, so it stays correct regardless of the rig's mirroring.
  */
-function poseArmsToRest(BABYLON: any, meshes: any[], skeleton: any): void {
-  if (!skeleton) return;
-  const mesh = meshes.find((m) => m.skeleton) ?? meshes[0];
+function poseArmsToRest(BABYLON: any, transformNodes: any[]): void {
   const axis = new BABYLON.Vector3(0, 0, 1);
-  const computeAbsolute = () => {
-    (skeleton.computeAbsoluteMatrices ?? skeleton.computeAbsoluteTransforms)?.call(skeleton, true);
-  };
+  const byName = (name: string) => transformNodes.find((n) => n.name === name);
 
-  const arms: { upper: string; hand: string; sign: number }[] = [
-    { upper: 'upperarm_l', hand: 'hand_l', sign: 1 },
-    { upper: 'upperarm_r', hand: 'hand_r', sign: -1 },
+  const arms: { upper: string; hand: string }[] = [
+    { upper: 'upperarm_l', hand: 'hand_l' },
+    { upper: 'upperarm_r', hand: 'hand_r' },
   ];
 
-  for (const { upper, hand, sign } of arms) {
-    const bone = skeleton.bones.find((b: any) => b.name === upper);
-    if (!bone) continue;
-    const tip = skeleton.bones.find((b: any) => b.name === hand);
+  for (const { upper, hand } of arms) {
+    const node = byName(upper);
+    if (!node) continue;
+    const tip = byName(hand);
+    const tipY = () => {
+      tip.computeWorldMatrix(true);
+      return tip.getAbsolutePosition().y;
+    };
 
-    const beforeY = tip ? tip.getAbsolutePosition(mesh).y : null;
-    bone.rotate(axis, sign * ARM_REST_ANGLE, BABYLON.Space.WORLD, mesh);
+    const beforeY = tip ? tipY() : null;
+    node.rotate(axis, -ARM_REST_ANGLE, BABYLON.Space.LOCAL);
 
-    // If the hand rose instead of dropped, the world axis pointed the other way
-    // for this rig — reverse to land on the same downward A-pose.
-    if (tip && beforeY !== null) {
-      computeAbsolute();
-      if (tip.getAbsolutePosition(mesh).y > beforeY) {
-        bone.rotate(axis, -2 * sign * ARM_REST_ANGLE, BABYLON.Space.WORLD, mesh);
-      }
+    // If the hand rose instead of dropped, this arm mirrors the other — reverse
+    // to land on the same downward A-pose.
+    if (tip && beforeY !== null && tipY() > beforeY) {
+      node.rotate(axis, 2 * ARM_REST_ANGLE, BABYLON.Space.LOCAL);
     }
   }
-  computeAbsolute();
 }
 
 export default function CharacterViewer({ gender, equipment, colors }: CharacterViewerProps) {
@@ -196,7 +200,7 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
       // is modelled for a natural rest pose, so on the raw T-pose the character
       // looks too wide and the garments appear mismatched. Swing the arms down
       // into an A-pose so the silhouette and clothing read correctly.
-      poseArmsToRest(BABYLON, result.meshes, result.skeletons[0]);
+      poseArmsToRest(BABYLON, result.transformNodes);
     }
 
     // Compute model bounds for camera framing (only visible meshes)
