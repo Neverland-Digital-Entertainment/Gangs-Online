@@ -406,6 +406,7 @@ export default {
   'npc.appearances.beard.beard': '鬍子',
   'npc.appearances.head.cap': '棒球帽',
   'npc.appearances.top.shirt01': '襯衫',
+  'npc.appearances.top.shirt01Rigged': '襯衫（綁骨版）',
   'npc.appearances.bottom.pants01': '長褲',
   'npc.appearances.shoe.shoe01': '鞋子',
   'npc.appearances.loadingModel': '載入 3D 模型中...',

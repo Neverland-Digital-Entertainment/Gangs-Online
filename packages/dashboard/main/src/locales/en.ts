@@ -405,6 +405,7 @@ export default {
   'npc.appearances.beard.beard': 'Beard',
   'npc.appearances.head.cap': 'Cap',
   'npc.appearances.top.shirt01': 'Shirt',
+  'npc.appearances.top.shirt01Rigged': 'Shirt (rigged)',
   'npc.appearances.bottom.pants01': 'Pants',
   'npc.appearances.shoe.shoe01': 'Shoes',
   'npc.appearances.loadingModel': 'Loading 3D model...',
