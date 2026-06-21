@@ -1,27 +1,27 @@
 'use client';
 
 /**
- * MapEditor3D — Babylon.js 3D 地圖編輯器（Map Editor P1 + P2）
+ * MapEditor3D — Babylon.js 3D 地圖編輯器（Map Editor P1 + P2 + P4）
  *
- * 職責：
- *  1. 從同源 /maps fetch 並渲染底圖 GLB chunk
- *  2. 依名稱前綴分類 mesh（B=大廈、I=props、T=地形）
- *  3. 射線點選大廈/props → 高亮 + 透過 onSelect 回傳物件資訊
- *  4. GizmoManager 移動 / 旋轉 / 縮放選中物件，拖曳時即時回報 transform
- *  5. 依傳入的 overrides 套用既有編輯（transform 套用、delete 隱藏），
- *     沒有 override 的物件則還原成原始 transform
+ *  P1：載入底圖 GLB、分類 mesh、點選高亮 + 回報資訊
+ *  P2：GizmoManager 移動/旋轉/縮放、依 overrides 調和（transform/delete）
+ *  P4：replace（替換成資產）、add（新增資產到地圖）
+ *      - 資產 GLB 由 buildingAssetService.loadGlbObjectUrl 從 Firestore 重組載入
+ *      - 資產內容掛在「容器 TransformNode」下，並 parent 到底圖 __root__，
+ *        與既有大廈共用座標空間（沿用 local transform）
  *
- * 資料寫入由父層負責（Firestore）；本元件不直接碰 Firestore。
- * 僅能在瀏覽器執行，請以 next/dynamic ssr:false 載入。
+ * 資料寫入由父層負責；僅能在瀏覽器執行（next/dynamic ssr:false）。
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import { MAP_BASE_URL } from '@/lib/map/map-loader';
+import { buildingAssetService } from '@/lib/map/asset-service';
 import {
   buildObjectKey,
   classifyMeshName,
+  type BuildingAsset,
   type GizmoMode,
   type MapObjectInfo,
   type MapOverride,
@@ -34,48 +34,49 @@ interface MapEditor3DProps {
   selectedKey: string | null;
   gizmoMode: GizmoMode;
   overrides: MapOverride[];
+  assets: BuildingAsset[];
   onSelect: (obj: MapObjectInfo | null) => void;
   onTransformChange: (key: string, transform: Transform) => void;
   onLoadingChange?: (loading: boolean) => void;
   onError?: (message: string | null) => void;
 }
 
-function readTransform(mesh: BABYLON.AbstractMesh): Transform {
-  const q = mesh.rotationQuaternion ?? BABYLON.Quaternion.Identity();
+interface InstanceRec {
+  container: BABYLON.TransformNode;
+  meshes: BABYLON.AbstractMesh[];
+  assetId: string;
+}
+
+function readTransform(node: BABYLON.TransformNode): Transform {
+  const q = node.rotationQuaternion ?? BABYLON.Quaternion.Identity();
   const e = q.toEulerAngles();
   return {
-    position: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
+    position: { x: node.position.x, y: node.position.y, z: node.position.z },
     rotation: { x: e.x, y: e.y, z: e.z },
-    scale: { x: mesh.scaling.x, y: mesh.scaling.y, z: mesh.scaling.z },
+    scale: { x: node.scaling.x, y: node.scaling.y, z: node.scaling.z },
   };
 }
 
-function applyTransform(mesh: BABYLON.AbstractMesh, t: Transform): void {
-  mesh.position.set(t.position.x, t.position.y, t.position.z);
-  if (!mesh.rotationQuaternion) mesh.rotationQuaternion = BABYLON.Quaternion.Identity();
+function applyTransform(node: BABYLON.TransformNode, t: Transform): void {
+  node.position.set(t.position.x, t.position.y, t.position.z);
+  if (!node.rotationQuaternion) node.rotationQuaternion = BABYLON.Quaternion.Identity();
   BABYLON.Quaternion.FromEulerAnglesToRef(
     t.rotation.x,
     t.rotation.y,
     t.rotation.z,
-    mesh.rotationQuaternion
+    node.rotationQuaternion
   );
-  mesh.scaling.set(t.scale.x, t.scale.y, t.scale.z);
+  node.scaling.set(t.scale.x, t.scale.y, t.scale.z);
 }
 
 function transformsEqual(a: Transform | null, b: Transform | null): boolean {
   if (!a || !b) return a === b;
   const eps = 1e-5;
-  const close = (x: number, y: number) => Math.abs(x - y) < eps;
+  const c = (x: number, y: number) => Math.abs(x - y) < eps;
   return (
-    close(a.position.x, b.position.x) &&
-    close(a.position.y, b.position.y) &&
-    close(a.position.z, b.position.z) &&
-    close(a.rotation.x, b.rotation.x) &&
-    close(a.rotation.y, b.rotation.y) &&
-    close(a.rotation.z, b.rotation.z) &&
-    close(a.scale.x, b.scale.x) &&
-    close(a.scale.y, b.scale.y) &&
-    close(a.scale.z, b.scale.z)
+    c(a.position.x, b.position.x) && c(a.position.y, b.position.y) && c(a.position.z, b.position.z) &&
+    c(a.rotation.x, b.rotation.x) && c(a.rotation.y, b.rotation.y) && c(a.rotation.z, b.rotation.z) &&
+    c(a.scale.x, b.scale.x) && c(a.scale.y, b.scale.y) && c(a.scale.z, b.scale.z)
   );
 }
 
@@ -85,6 +86,7 @@ export default function MapEditor3D({
   selectedKey,
   gizmoMode,
   overrides,
+  assets,
   onSelect,
   onTransformChange,
   onLoadingChange,
@@ -95,34 +97,43 @@ export default function MapEditor3D({
   const sceneRef = useRef<BABYLON.Scene | null>(null);
   const highlightRef = useRef<BABYLON.HighlightLayer | null>(null);
   const gizmoRef = useRef<BABYLON.GizmoManager | null>(null);
+  const chunkRootRef = useRef<BABYLON.TransformNode | null>(null);
 
   const meshByKeyRef = useRef<Map<string, BABYLON.AbstractMesh>>(new Map());
   const originalByKeyRef = useRef<Map<string, Transform>>(new Map());
-  const selectedMeshRef = useRef<BABYLON.Mesh | null>(null);
+  const instanceByKeyRef = useRef<Map<string, InstanceRec>>(new Map());
+  const loadingKeysRef = useRef<Set<string>>(new Set());
+  const highlightedRef = useRef<BABYLON.Mesh[]>([]);
 
-  // gizmo 拖曳狀態
   const draggingRef = useRef(false);
   const attachedKeyRef = useRef<string | null>(null);
   const lastEmitRef = useRef<Transform | null>(null);
 
-  // 觸發 reconcile：每次載入完成後遞增
-  const loadedVersionRef = useRef(0);
+  const [instancesVersion, setInstancesVersion] = useState(0);
 
-  // 用 ref 保存最新 callback，避免重建場景 / 重新載入
   const onSelectRef = useRef(onSelect);
   const onTransformRef = useRef(onTransformChange);
   const onLoadingRef = useRef(onLoadingChange);
   const onErrorRef = useRef(onError);
+  const overridesRef = useRef(overrides);
+  const assetsRef = useRef(assets);
   onSelectRef.current = onSelect;
   onTransformRef.current = onTransformChange;
   onLoadingRef.current = onLoadingChange;
   onErrorRef.current = onError;
+  overridesRef.current = overrides;
+  assetsRef.current = assets;
+
+  function nodeForKey(key: string | null): BABYLON.TransformNode | null {
+    if (!key) return null;
+    return instanceByKeyRef.current.get(key)?.container ?? meshByKeyRef.current.get(key) ?? null;
+  }
 
   function emitTransform() {
     const key = attachedKeyRef.current;
-    const mesh = key ? meshByKeyRef.current.get(key) : null;
-    if (!key || !mesh) return;
-    const t = readTransform(mesh);
+    const node = nodeForKey(key);
+    if (!key || !node) return;
+    const t = readTransform(node);
     if (transformsEqual(t, lastEmitRef.current)) return;
     lastEmitRef.current = t;
     onTransformRef.current(key, t);
@@ -141,12 +152,7 @@ export default function MapEditor3D({
     scene.clearColor = new BABYLON.Color4(0.07, 0.09, 0.12, 1);
 
     const camera = new BABYLON.ArcRotateCamera(
-      'editorCamera',
-      -Math.PI / 2,
-      Math.PI / 3,
-      200,
-      BABYLON.Vector3.Zero(),
-      scene
+      'editorCamera', -Math.PI / 2, Math.PI / 3, 200, BABYLON.Vector3.Zero(), scene
     );
     camera.attachControl(canvas, true);
     camera.wheelPrecision = 0.5;
@@ -155,17 +161,9 @@ export default function MapEditor3D({
     camera.panningSensibility = 10;
     camera.allowUpsideDown = false;
 
-    const hemi = new BABYLON.HemisphericLight(
-      'hemi',
-      new BABYLON.Vector3(0.3, 1, 0.4),
-      scene
-    );
+    const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0.3, 1, 0.4), scene);
     hemi.intensity = 1.1;
-    const dir = new BABYLON.DirectionalLight(
-      'dir',
-      new BABYLON.Vector3(-0.5, -1, -0.5),
-      scene
-    );
+    const dir = new BABYLON.DirectionalLight('dir', new BABYLON.Vector3(-0.5, -1, -0.5), scene);
     dir.intensity = 0.6;
 
     highlightRef.current = new BABYLON.HighlightLayer('hl', scene);
@@ -184,23 +182,20 @@ export default function MapEditor3D({
     const onResize = () => engine.resize();
     window.addEventListener('resize', onResize);
 
-    // 拖曳時即時回報 transform
     scene.onBeforeRenderObservable.add(() => {
       if (draggingRef.current) emitTransform();
     });
 
-    // 點選（POINTERTAP：避免拖曳旋轉時誤選）
     scene.onPointerObservable.add((pi) => {
       if (pi.type !== BABYLON.PointerEventTypes.POINTERTAP) return;
       if (draggingRef.current) return;
       const picked = pi.pickInfo?.pickedMesh as BABYLON.AbstractMesh | undefined;
       const base = picked
-        ? ((picked.metadata as Record<string, unknown> | undefined)
-            ?.mapObject as MapObjectInfo | undefined)
+        ? ((picked.metadata as Record<string, unknown> | undefined)?.mapObject as MapObjectInfo | undefined)
         : undefined;
-      if (base && picked) {
-        // 回報「目前」transform（可能已被 override 改過）
-        onSelectRef.current({ ...base, ...readTransform(picked) });
+      if (base) {
+        const node = nodeForKey(base.key);
+        onSelectRef.current(node ? { ...base, ...readTransform(node) } : base);
       } else {
         onSelectRef.current(null);
       }
@@ -215,9 +210,10 @@ export default function MapEditor3D({
       sceneRef.current = null;
       highlightRef.current = null;
       gizmoRef.current = null;
+      chunkRootRef.current = null;
       meshByKeyRef.current.clear();
       originalByKeyRef.current.clear();
-      selectedMeshRef.current = null;
+      instanceByKeyRef.current.clear();
     };
   }, []);
 
@@ -227,11 +223,17 @@ export default function MapEditor3D({
     if (!scene || !chunkFile) return;
     let cancelled = false;
 
+    // 清理舊資料
     meshByKeyRef.current.clear();
     originalByKeyRef.current.clear();
-    selectedMeshRef.current = null;
+    for (const [, rec] of instanceByKeyRef.current) {
+      rec.meshes.forEach((m) => m.dispose());
+      rec.container.dispose();
+    }
+    instanceByKeyRef.current.clear();
+    highlightedRef.current = [];
     highlightRef.current?.removeAllMeshes();
-    gizmoRef.current?.attachToMesh(null);
+    gizmoRef.current?.attachToNode(null);
     scene.meshes
       .filter((m) => (m.metadata as Record<string, unknown> | undefined)?.imported)
       .slice()
@@ -243,6 +245,9 @@ export default function MapEditor3D({
     BABYLON.SceneLoader.ImportMeshAsync('', `${MAP_BASE_URL}/`, chunkFile, scene)
       .then((result) => {
         if (cancelled) return;
+
+        chunkRootRef.current =
+          (result.meshes.find((m) => m.name === '__root__') as BABYLON.TransformNode) ?? null;
 
         let min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
         let max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
@@ -261,11 +266,8 @@ export default function MapEditor3D({
           mesh.isPickable = selectable;
 
           if (selectable) {
-            // 確保有 rotationQuaternion，gizmo 旋轉與讀取才一致
             if (!mesh.rotationQuaternion) {
-              mesh.rotationQuaternion = BABYLON.Quaternion.FromEulerVector(
-                mesh.rotation
-              );
+              mesh.rotationQuaternion = BABYLON.Quaternion.FromEulerVector(mesh.rotation);
             }
             const key = buildObjectKey(chunkId, mesh.name);
             const original = readTransform(mesh);
@@ -293,30 +295,24 @@ export default function MapEditor3D({
           cam.maxZ = radius * 20;
         }
 
-        loadedVersionRef.current += 1;
         reconcile();
+        void reconcileInstances();
         onLoadingRef.current?.(false);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         console.error('[MapEditor3D] failed to load chunk', err);
-        onErrorRef.current?.(
-          err instanceof Error ? err.message : 'Failed to load map'
-        );
+        onErrorRef.current?.(err instanceof Error ? err.message : 'Failed to load map');
         onLoadingRef.current?.(false);
       });
 
     return () => {
       cancelled = true;
     };
-    // reconcile 透過 ref 取得 overrides，毋須列入相依
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chunkFile, chunkId]);
 
-  // ---- 依 overrides 調和場景 ----
-  const overridesRef = useRef(overrides);
-  overridesRef.current = overrides;
-
+  // ---- 既有 mesh 的調和（delete / replace 隱藏、transform 套用、否則還原） ----
   function reconcile() {
     if (meshByKeyRef.current.size === 0) return;
     const activeByKey = new Map<string, MapOverride>();
@@ -326,7 +322,7 @@ export default function MapEditor3D({
 
     for (const [key, mesh] of meshByKeyRef.current) {
       const ov = activeByKey.get(key);
-      if (ov?.action === 'delete') {
+      if (ov?.action === 'delete' || ov?.action === 'replace') {
         mesh.setEnabled(false);
       } else if (ov?.action === 'transform' && ov.transform) {
         mesh.setEnabled(true);
@@ -337,21 +333,125 @@ export default function MapEditor3D({
         if (orig) applyTransform(mesh, orig);
       }
     }
+  }
 
-    // 若選中物件被隱藏，卸下 gizmo 與高亮
-    const sel = selectedMeshRef.current;
-    if (sel && !sel.isEnabled()) {
-      gizmoRef.current?.attachToMesh(null);
-      highlightRef.current?.removeMesh(sel);
+  // ---- replace / add 資產實例的調和（async） ----
+  function defaultTransformFor(key: string, ov: MapOverride): Transform {
+    if (ov.action === 'replace') {
+      const orig = originalByKeyRef.current.get(key);
+      if (orig) return orig;
+    }
+    // add：放到目前鏡頭焦點（轉成底圖 __root__ 的 local 座標）
+    const scene = sceneRef.current!;
+    const cam = scene.activeCamera as BABYLON.ArcRotateCamera;
+    let pos = cam.target.clone();
+    if (chunkRootRef.current) {
+      pos = BABYLON.Vector3.TransformCoordinates(
+        pos,
+        BABYLON.Matrix.Invert(chunkRootRef.current.getWorldMatrix())
+      );
+    }
+    const s = assetsRef.current.find((a) => a.id === ov.assetId)?.defaultScale || 1;
+    return {
+      position: { x: pos.x, y: pos.y, z: pos.z },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: { x: s, y: s, z: s },
+    };
+  }
+
+  function disposeInstance(key: string) {
+    const rec = instanceByKeyRef.current.get(key);
+    if (!rec) return;
+    rec.meshes.forEach((m) => m.dispose());
+    rec.container.dispose();
+    instanceByKeyRef.current.delete(key);
+  }
+
+  async function reconcileInstances() {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    const desired = new Map<string, MapOverride>();
+    for (const o of overridesRef.current) {
+      if (o.isActive && (o.action === 'replace' || o.action === 'add') && o.assetId) {
+        desired.set(o.targetBuildingKey, o);
+      }
+    }
+
+    // 移除不再需要 / 資產已變更的實例
+    for (const [key, rec] of [...instanceByKeyRef.current]) {
+      const o = desired.get(key);
+      if (!o || o.assetId !== rec.assetId) disposeInstance(key);
+    }
+
+    // 載入 / 更新
+    for (const [key, ov] of desired) {
+      const assetId = ov.assetId;
+      if (!assetId) continue;
+      const existing = instanceByKeyRef.current.get(key);
+      if (existing && existing.assetId === assetId) {
+        applyTransform(existing.container, ov.transform ?? defaultTransformFor(key, ov));
+        continue;
+      }
+      if (loadingKeysRef.current.has(key)) continue;
+      loadingKeysRef.current.add(key);
+
+      let url: string | null = null;
+      try {
+        url = await buildingAssetService.loadGlbObjectUrl(assetId);
+        if (!sceneRef.current) break;
+        const result = await BABYLON.SceneLoader.ImportMeshAsync('', '', url, scene, undefined, '.glb');
+        if (!sceneRef.current) break;
+
+        const container = new BABYLON.TransformNode(`inst_${key}`, scene);
+        container.rotationQuaternion = BABYLON.Quaternion.Identity();
+        if (chunkRootRef.current) container.parent = chunkRootRef.current;
+
+        const info: MapObjectInfo = {
+          meshName: ov.action === 'add' ? key : key.split(':').slice(1).join(':') || key,
+          chunkId,
+          type: 'building',
+          key,
+          position: { x: 0, y: 0, z: 0 },
+          rotation: { x: 0, y: 0, z: 0 },
+          scale: { x: 1, y: 1, z: 1 },
+          boundingSize: { x: 0, y: 0, z: 0 },
+        };
+
+        const assetRoot = result.meshes.find((m) => m.name === '__root__');
+        for (const m of result.meshes) {
+          m.metadata = { ...(m.metadata as object), imported: true, instanceKey: key };
+          if (m.name === '__root__') continue;
+          m.isPickable = true;
+          m.metadata = { ...(m.metadata as object), mapObject: info };
+          // 將資產內容直接掛到 container（捨棄資產自身 __root__，避免重複座標轉換）
+          if (m.parent === assetRoot) m.parent = container;
+        }
+        if (assetRoot) assetRoot.dispose();
+
+        applyTransform(container, ov.transform ?? defaultTransformFor(key, ov));
+        instanceByKeyRef.current.set(key, {
+          container,
+          meshes: result.meshes.filter((m) => m.name !== '__root__'),
+          assetId,
+        });
+        setInstancesVersion((v) => v + 1);
+      } catch (err) {
+        console.error('[MapEditor3D] failed to load asset instance', key, err);
+      } finally {
+        if (url) URL.revokeObjectURL(url);
+        loadingKeysRef.current.delete(key);
+      }
     }
   }
 
   useEffect(() => {
     reconcile();
+    void reconcileInstances();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overrides]);
 
-  // ---- 選取 + gizmo 模式 ----
+  // ---- 選取 + gizmo 模式 + 高亮 ----
   useEffect(() => {
     const gizmo = gizmoRef.current;
     const hl = highlightRef.current;
@@ -361,7 +461,6 @@ export default function MapEditor3D({
     gizmo.rotationGizmoEnabled = gizmoMode === 'rotate';
     gizmo.scaleGizmoEnabled = gizmoMode === 'scale';
 
-    // 為剛建立的 gizmo 掛上拖曳事件（用旗標避免重複掛）
     const hook = (
       g:
         | {
@@ -386,24 +485,31 @@ export default function MapEditor3D({
     hook(gizmo.gizmos.rotationGizmo as never);
     hook(gizmo.gizmos.scaleGizmo as never);
 
-    // 高亮
-    if (selectedMeshRef.current) {
-      hl.removeMesh(selectedMeshRef.current);
-      selectedMeshRef.current = null;
-    }
-    const mesh = selectedKey ? meshByKeyRef.current.get(selectedKey) ?? null : null;
-    const visible = !!mesh && mesh.isEnabled();
-    if (mesh instanceof BABYLON.Mesh && visible) {
-      hl.addMesh(mesh, BABYLON.Color3.Yellow());
-      selectedMeshRef.current = mesh;
+    // 清除舊高亮
+    for (const m of highlightedRef.current) hl.removeMesh(m);
+    highlightedRef.current = [];
+
+    const node = nodeForKey(selectedKey);
+    const inst = selectedKey ? instanceByKeyRef.current.get(selectedKey) : undefined;
+    const visible = !!node && (node as BABYLON.AbstractMesh).isEnabled?.() !== false;
+
+    if (selectedKey) {
+      const meshes = inst
+        ? inst.meshes.filter((m): m is BABYLON.Mesh => m instanceof BABYLON.Mesh)
+        : node instanceof BABYLON.Mesh && visible
+        ? [node]
+        : [];
+      for (const m of meshes) {
+        hl.addMesh(m, BABYLON.Color3.Yellow());
+        highlightedRef.current.push(m);
+      }
     }
 
-    // 掛 gizmo
     attachedKeyRef.current = selectedKey;
     lastEmitRef.current = null;
-    gizmo.attachToMesh(visible && gizmoMode !== 'none' ? mesh : null);
+    gizmo.attachToNode(node && gizmoMode !== 'none' ? node : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedKey, gizmoMode, overrides]);
+  }, [selectedKey, gizmoMode, overrides, instancesVersion]);
 
   return (
     <canvas

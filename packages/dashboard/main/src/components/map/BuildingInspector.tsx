@@ -18,6 +18,7 @@ import {
   Undo2,
   Loader2,
   AlertCircle,
+  Replace,
 } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
 import type {
@@ -40,6 +41,7 @@ interface BuildingInspectorProps {
   onSave: () => void;
   onRemove: () => void;
   onReset: () => void;
+  onRequestReplace: () => void;
 }
 
 function vec(v: { x: number; y: number; z: number }, digits = 2): string {
@@ -59,6 +61,7 @@ export default function BuildingInspector({
   onSave,
   onRemove,
   onReset,
+  onRequestReplace,
 }: BuildingInspectorProps) {
   const { t } = useI18n();
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -80,15 +83,28 @@ export default function BuildingInspector({
   }
 
   const removed = overrideAction === 'delete';
-  const status: 'original' | 'modified' | 'removed' = removed
-    ? 'removed'
-    : overrideAction === 'transform'
-    ? 'modified'
-    : 'original';
+  const isReplace = overrideAction === 'replace';
+  const isAdd = overrideAction === 'add';
+  const isInstance = isReplace || isAdd;
+
+  const status: 'original' | 'modified' | 'removed' | 'replaced' | 'added' =
+    removed
+      ? 'removed'
+      : isAdd
+      ? 'added'
+      : isReplace
+      ? 'replaced'
+      : overrideAction === 'transform'
+      ? 'modified'
+      : 'original';
 
   const statusClass =
     status === 'removed'
       ? 'bg-red-500 text-white'
+      : status === 'added'
+      ? 'bg-blue-500 text-white'
+      : status === 'replaced'
+      ? 'bg-purple-500 text-white'
       : status === 'modified'
       ? 'bg-amber-500 text-white'
       : 'bg-gray-500 text-white';
@@ -234,7 +250,23 @@ export default function BuildingInspector({
             </button>
           )}
 
-          {(overrideAction === 'transform' || removed) && (
+          {/* 替換 / 更換資產 */}
+          {!removed && (
+            <button
+              type="button"
+              onClick={onRequestReplace}
+              disabled={saving}
+              className="btn btn-outline w-full"
+            >
+              <Replace className="w-4 h-4 mr-2" />
+              {isInstance
+                ? t('map.editor.changeAsset')
+                : t('map.editor.replace')}
+            </button>
+          )}
+
+          {/* 還原 / 復原 */}
+          {(overrideAction === 'transform' || isReplace || removed) && (
             <button
               type="button"
               onClick={onReset}
@@ -246,7 +278,22 @@ export default function BuildingInspector({
             </button>
           )}
 
+          {/* 新增的建築：直接刪除 */}
+          {isAdd && (
+            <button
+              type="button"
+              onClick={onReset}
+              disabled={saving}
+              className="btn btn-light w-full text-red-500"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {t('map.editor.deleteBuilding')}
+            </button>
+          )}
+
+          {/* 既有建築：移走 */}
           {!removed &&
+            !isInstance &&
             (confirmRemove ? (
               <div className="flex gap-2">
                 <button

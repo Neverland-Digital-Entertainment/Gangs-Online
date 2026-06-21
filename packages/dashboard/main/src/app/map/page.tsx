@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { AlertCircle, Info, Loader2, Map as MapIcon } from 'lucide-react';
+import { AlertCircle, Info, Loader2, Map as MapIcon, Plus } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
 import { loadMapManifest } from '@/lib/map/map-loader';
 import { mapOverrideService } from '@/lib/map/override-service';
+import { buildingAssetService } from '@/lib/map/asset-service';
 import type {
+  BuildingAsset,
   GizmoMode,
   MapManifest,
   MapObjectInfo,
@@ -14,6 +16,7 @@ import type {
   Transform,
 } from '@/types/map';
 import BuildingInspector from '@/components/map/BuildingInspector';
+import AssetPicker from '@/components/map/AssetPicker';
 
 // Babylon 只能在瀏覽器執行
 const MapEditor3D = dynamic(() => import('@/components/map/MapEditor3D'), {
@@ -32,6 +35,8 @@ export default function MapEditorPage() {
   const [draftTransform, setDraftTransform] = useState<Transform | null>(null);
 
   const [overrides, setOverrides] = useState<MapOverride[]>([]);
+  const [assets, setAssets] = useState<BuildingAsset[]>([]);
+  const [picker, setPicker] = useState<'replace' | 'add' | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -40,6 +45,10 @@ export default function MapEditorPage() {
 
   useEffect(() => {
     loadManifest();
+    buildingAssetService
+      .getAll()
+      .then(setAssets)
+      .catch((err) => console.error('載入建築資產失敗:', err));
   }, []);
 
   async function loadManifest() {
@@ -139,12 +148,18 @@ export default function MapEditorPage() {
         rotation: selected.rotation,
         scale: selected.scale,
       };
+    // 替換/新增的物件保留其 action，僅更新 transform
+    const action =
+      selectedOverride?.action === 'replace' ||
+      selectedOverride?.action === 'add'
+        ? selectedOverride.action
+        : 'transform';
     try {
       setSaving(true);
       setSaveError(null);
       if (selectedOverride) {
         await mapOverrideService.update(selectedOverride.id, {
-          action: 'transform',
+          action,
           transform,
           isActive: true,
         });
@@ -161,6 +176,74 @@ export default function MapEditorPage() {
       setDraftTransform(null);
     } catch (err) {
       console.error('儲存地圖編輯失敗:', err);
+      setSaveError(t('map.editor.saveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // 替換選中物件 / 更換資產
+  async function handlePickAsset(assetId: string) {
+    setPicker(null);
+    if (picker === 'add') {
+      await handleAdd(assetId);
+      return;
+    }
+    if (!selected) return;
+    const transform = draftTransform ??
+      selectedOverride?.transform ?? {
+        position: selected.position,
+        rotation: selected.rotation,
+        scale: selected.scale,
+      };
+    // 既有 add 物件換資產時保留 add；否則為 replace
+    const action = selectedOverride?.action === 'add' ? 'add' : 'replace';
+    try {
+      setSaving(true);
+      setSaveError(null);
+      if (selectedOverride) {
+        await mapOverrideService.update(selectedOverride.id, {
+          action,
+          assetId,
+          transform,
+          isActive: true,
+        });
+      } else {
+        await mapOverrideService.create({
+          mapName,
+          chunkId,
+          targetBuildingKey: selected.key,
+          action: 'replace',
+          assetId,
+          transform,
+        });
+      }
+      await loadOverrides(chunkId);
+      setDraftTransform(null);
+    } catch (err) {
+      console.error('替換建築失敗:', err);
+      setSaveError(t('map.editor.saveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // 從資產庫新增一棟建築到地圖
+  async function handleAdd(assetId: string) {
+    try {
+      setSaving(true);
+      setSaveError(null);
+      const key = `add:${crypto.randomUUID()}`;
+      await mapOverrideService.create({
+        mapName,
+        chunkId,
+        targetBuildingKey: key,
+        action: 'add',
+        assetId,
+      });
+      await loadOverrides(chunkId);
+    } catch (err) {
+      console.error('新增建築失敗:', err);
       setSaveError(t('map.editor.saveFailed'));
     } finally {
       setSaving(false);
@@ -227,20 +310,30 @@ export default function MapEditorPage() {
         </div>
 
         {manifest && (
-          <div>
-            <label className="label">{t('map.editor.selectChunk')}</label>
-            <select
-              className="input min-w-[220px]"
-              value={chunkId}
-              onChange={(e) => changeChunk(e.target.value)}
+          <div className="flex items-end gap-3">
+            <div>
+              <label className="label">{t('map.editor.selectChunk')}</label>
+              <select
+                className="input min-w-[200px]"
+                value={chunkId}
+                onChange={(e) => changeChunk(e.target.value)}
+              >
+                {manifest.chunks.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.id}
+                    {c.description ? ` — ${c.description}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={() => setPicker('add')}
+              disabled={saving}
             >
-              {manifest.chunks.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.id}
-                  {c.description ? ` — ${c.description}` : ''}
-                </option>
-              ))}
-            </select>
+              <Plus className="w-4 h-4 mr-2" />
+              {t('map.editor.addBuilding')}
+            </button>
           </div>
         )}
       </div>
@@ -291,6 +384,7 @@ export default function MapEditorPage() {
                     selectedKey={selected?.key ?? null}
                     gizmoMode={gizmoMode}
                     overrides={overrides}
+                    assets={assets}
                     onSelect={handleSelect}
                     onTransformChange={handleTransformChange}
                     onLoadingChange={setViewerLoading}
@@ -342,9 +436,23 @@ export default function MapEditorPage() {
               onSave={handleSave}
               onRemove={handleRemove}
               onReset={handleReset}
+              onRequestReplace={() => setPicker('replace')}
             />
           </div>
         )
+      )}
+
+      {picker && (
+        <AssetPicker
+          assets={assets}
+          title={
+            picker === 'add'
+              ? t('map.editor.addBuilding')
+              : t('map.editor.replace')
+          }
+          onPick={handlePickAsset}
+          onClose={() => setPicker(null)}
+        />
       )}
     </div>
   );

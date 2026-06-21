@@ -15,7 +15,7 @@
 | **P1** | 後台 3D 檢視器：載底圖 → 渲染 → 射線點選大廈/props → 高亮 + Inspector 顯示 | ✅ 已完成 |
 | **P2** | 操作既有：移走 / 移動 / 旋轉 / 縮放 + GizmoManager + 寫 `map_overrides` | ✅ 已完成 |
 | **P3** | 資產庫：後台選檔上載 GLB 到 Storage + 縮圖 + `building_assets` CRUD | ✅ 已完成 |
-| **P4** | 替換 / 新增：從資產庫挑模型放到地圖 | ⬜ 未開始 |
+| **P4** | 替換 / 新增：從資產庫挑模型放到地圖 | ✅ 已完成 |
 | **P5** | 客戶端 `MapOverrideSystem`：讀取並套用全部 override（含碰撞/遮擋修補） | ⬜ 未開始 |
 | **P6** | 收尾：還原/停用 override、權限、編輯器內最終效果預覽 | ⬜ 未開始 |
 
@@ -227,6 +227,21 @@ Firestore: map_overrides          Firestore: building_assets
   - 上載大小上限 10MB（`MAX_ASSET_BYTES`），超過前端擋下
   - `BuildingAsset` 型別：移除 `glbUrl/storagePath/thumbnailPath`，新增 `mimeType/chunkCount`
   - 已通過 `tsc --noEmit` 與 `next build`。**完全免付費、用現有 Firestore 即可。**
+
+- **2026-06-21** — P4 完成。替換 / 新增：
+  - `MapEditor3D`：用 `loadGlbObjectUrl` 從 Firestore 載入資產 GLB，掛在容器
+    TransformNode 下並 parent 到底圖 `__root__`（與既有大廈共用 local 座標）；
+    依 overrides 調和 replace（隱藏原 mesh + 顯示資產）與 add（新增資產實例），
+    可點選、gizmo 移動/旋轉/縮放、即時回報 transform
+  - `AssetPicker.tsx`：從資產庫挑模型（縮圖網格）
+  - `BuildingInspector`：新增「替換成資產／更換資產」、replaced/added 狀態、
+    新增物件的「刪除此建築」
+  - `app/map/page.tsx`：載入 assets、「新增建築」按鈕、replace/add 寫入 `map_overrides`，
+    儲存時保留 replace/add 的 action
+  - 中英文語系新增 `map.status.replaced/added`、`map.editor.replace/changeAsset/addBuilding/deleteBuilding`
+  - 已通過 `tsc --noEmit` 與 `next build`。
+  - **待瀏覽器實測**：替換/新增的初始擺放位置與朝向可能需用 gizmo 微調（座標/朝向
+    在編輯器與客戶端會一致）；縮圖空白仍為已知小問題。
 
 ### 地圖來源（同源 /maps）
 後台預設以同源 `/maps` 供應底圖，免第二個 server、無 CORS：
