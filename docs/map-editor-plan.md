@@ -213,6 +213,12 @@ Firestore: map_overrides          Firestore: building_assets
   - 已通過 `tsc --noEmit` 與 `next build`。
   - **待真實 Firebase 實測**：上載需 Storage 規則允許寫入 `building-assets/`、`building-thumbnails/`。
 
+- **2026-06-21** — P3 修正。上載卡在 "Uploading..." 幾分鐘的問題：
+  - 改為「先上傳 GLB 成功才寫完整 doc」（避免 Storage 失敗留下半成品 doc）
+  - Storage 操作加逾時 + 縮短 `maxUploadRetryTime`（~20s 內就失敗並顯示真正錯誤）
+  - 縮圖改為非阻斷（GLB 上傳完資產即建立，縮圖另外嘗試）
+  - 上載錯誤訊息會附帶實際原因，方便診斷（多半是 Storage bucket 設定或安全規則）
+
 ### 地圖來源（同源 /maps）
 後台預設以同源 `/maps` 供應底圖，免第二個 server、無 CORS：
 - `scripts/copy-maps.mjs` 會在 `npm run dev` / `npm run build` 前（`predev`/`prebuild`）

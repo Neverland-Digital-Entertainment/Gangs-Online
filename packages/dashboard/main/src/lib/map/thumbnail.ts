@@ -27,14 +27,12 @@ export async function generateGlbThumbnail(
   let url: string | null = null;
   try {
     url = URL.createObjectURL(file);
-    const result = await BABYLON.SceneLoader.ImportMeshAsync(
-      '',
-      '',
-      url,
-      scene,
-      undefined,
-      '.glb'
-    );
+    const result = await Promise.race([
+      BABYLON.SceneLoader.ImportMeshAsync('', '', url, scene, undefined, '.glb'),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('thumbnail import timeout')), 20000)
+      ),
+    ]);
 
     let min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
     let max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);

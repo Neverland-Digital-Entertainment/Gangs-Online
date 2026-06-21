@@ -101,9 +101,7 @@ export default function BuildingAssetsPage() {
       setUploading(true);
       setUploadError(null);
 
-      setUploadStatus(t('map.assets.generatingThumb'));
-      const thumb = await generateGlbThumbnail(file);
-
+      // 1) 先上傳 GLB 並建立資產（成功後資產即可用）
       setUploadStatus(t('map.assets.uploading'));
       const input: BuildingAssetInput = {
         name: name.trim() || file.name.replace(/\.glb$/i, ''),
@@ -111,14 +109,24 @@ export default function BuildingAssetsPage() {
         defaultScale: Number(defaultScale) || 1,
         tags: parseTags(tags),
       };
-      await buildingAssetService.create(input, file, thumb);
+      const id = await buildingAssetService.create(input, file);
+
+      // 2) 產生並掛上縮圖（非必要，失敗不影響資產）
+      try {
+        setUploadStatus(t('map.assets.generatingThumb'));
+        const thumb = await generateGlbThumbnail(file);
+        if (thumb) await buildingAssetService.attachThumbnail(id, thumb);
+      } catch (thumbErr) {
+        console.error('產生/上傳縮圖失敗（資產已建立）:', thumbErr);
+      }
 
       resetUploadForm();
       setShowUpload(false);
       await loadAssets();
     } catch (err) {
       console.error('上載建築資產失敗:', err);
-      setUploadError(t('map.assets.uploadFailed'));
+      const detail = err instanceof Error ? `（${err.message}）` : '';
+      setUploadError(`${t('map.assets.uploadFailed')}${detail}`);
     } finally {
       setUploading(false);
       setUploadStatus('');

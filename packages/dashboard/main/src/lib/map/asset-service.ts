@@ -9,7 +9,7 @@
 import {
   collection,
   doc,
-  addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   getDocs,
@@ -30,6 +30,19 @@ import type { BuildingAsset, BuildingAssetInput } from '@/types/map';
 const COLLECTION_NAME = 'building_assets';
 const GLB_PATH = 'building-assets';
 const THUMB_PATH = 'building-thumbnails';
+
+/** 讓 Storage 操作不要無限重試/卡死，逾時即丟錯讓上層處理 */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`${label} timed out after ${ms / 1000}s`)),
+        ms
+      )
+    ),
+  ]);
+}
 
 function removeUndefinedFields<T extends Record<string, unknown>>(
   obj: T
@@ -83,46 +96,69 @@ export class BuildingAssetService {
   }
 
   /**
-   * 上載一個建築資產：先建 metadata 取得 id，再上傳 GLB（與縮圖），最後回填網址。
+   * 上載一個建築資產：先把 GLB 上傳到 Storage（成功後）才寫入完整 Firestore doc，
+   * 避免 Storage 失敗時留下半成品。縮圖另外由 attachThumbnail 處理（非必要）。
    */
-  async create(
-    input: BuildingAssetInput,
-    glbFile: File,
-    thumbnail: Blob | null
-  ): Promise<string> {
+  async create(input: BuildingAssetInput, glbFile: File): Promise<string> {
     const { db, storage } = getFirebaseServices();
-    const now = Timestamp.now();
+    // 縮短重試時間，避免上傳失敗時卡好幾分鐘
+    storage.maxUploadRetryTime = 20000;
+    storage.maxOperationRetryTime = 20000;
 
-    const docRef = await addDoc(
-      collection(db, COLLECTION_NAME),
-      removeUndefinedFields({ ...input, createdAt: now, updatedAt: now })
-    );
+    const docRef = doc(collection(db, COLLECTION_NAME)); // 先取得 id（不寫入）
     const id = docRef.id;
-
     const storagePath = `${GLB_PATH}/${id}.glb`;
     const glbRef = ref(storage, storagePath);
-    await uploadBytes(glbRef, glbFile, {
-      contentType: 'model/gltf-binary',
-    });
-    const glbUrl = await getDownloadURL(glbRef);
 
-    const patch: Record<string, unknown> = {
-      glbUrl,
-      storagePath,
-      fileSize: glbFile.size,
-      updatedAt: Timestamp.now(),
-    };
+    await withTimeout(
+      uploadBytes(glbRef, glbFile, { contentType: 'model/gltf-binary' }),
+      60000,
+      'GLB upload'
+    );
+    const glbUrl = await withTimeout(
+      getDownloadURL(glbRef),
+      20000,
+      'Get GLB URL'
+    );
 
-    if (thumbnail) {
-      const thumbnailPath = `${THUMB_PATH}/${id}.png`;
-      const thumbRef = ref(storage, thumbnailPath);
-      await uploadBytes(thumbRef, thumbnail, { contentType: 'image/png' });
-      patch.thumbnailUrl = await getDownloadURL(thumbRef);
-      patch.thumbnailPath = thumbnailPath;
-    }
-
-    await updateDoc(doc(db, COLLECTION_NAME, id), patch);
+    const now = Timestamp.now();
+    await setDoc(
+      docRef,
+      removeUndefinedFields({
+        ...input,
+        glbUrl,
+        storagePath,
+        fileSize: glbFile.size,
+        createdAt: now,
+        updatedAt: now,
+      })
+    );
     return id;
+  }
+
+  /** 為既有資產上傳並掛上縮圖（失敗不影響資產本身） */
+  async attachThumbnail(id: string, thumbnail: Blob): Promise<void> {
+    const { db, storage } = getFirebaseServices();
+    storage.maxUploadRetryTime = 20000;
+    storage.maxOperationRetryTime = 20000;
+
+    const thumbnailPath = `${THUMB_PATH}/${id}.png`;
+    const thumbRef = ref(storage, thumbnailPath);
+    await withTimeout(
+      uploadBytes(thumbRef, thumbnail, { contentType: 'image/png' }),
+      30000,
+      'Thumbnail upload'
+    );
+    const thumbnailUrl = await withTimeout(
+      getDownloadURL(thumbRef),
+      20000,
+      'Get thumbnail URL'
+    );
+    await updateDoc(doc(db, COLLECTION_NAME, id), {
+      thumbnailUrl,
+      thumbnailPath,
+      updatedAt: Timestamp.now(),
+    });
   }
 
   async update(id: string, patch: Partial<BuildingAssetInput>): Promise<void> {
