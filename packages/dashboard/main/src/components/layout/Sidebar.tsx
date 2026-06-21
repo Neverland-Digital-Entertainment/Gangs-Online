@@ -19,6 +19,7 @@ import {
   UserCheck,
   Palette,
   Map as MapIcon,
+  Building2,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
@@ -35,6 +36,7 @@ type MenuItem = {
     href: string;
     icon?: React.ComponentType<{ className?: string }>;
     disabled?: boolean;
+    exact?: boolean;
   }[];
 };
 
@@ -94,6 +96,19 @@ const menuItems: MenuItem[] = [
     titleKey: 'nav.map',
     icon: MapIcon,
     href: '/map',
+    subItems: [
+      {
+        titleKey: 'nav.mapEditor',
+        href: '/map',
+        icon: MapIcon,
+        exact: true,
+      },
+      {
+        titleKey: 'nav.mapAssets',
+        href: '/map/assets',
+        icon: Building2,
+      },
+    ],
   },
   {
     titleKey: 'nav.settings',
@@ -117,6 +132,10 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
     // Expand NPC menu if on NPC pages
     if (pathname.startsWith('/npc')) {
       setExpandedItems((prev) => prev.includes('/npc') ? prev : [...prev, '/npc']);
+    }
+    // Expand Map menu if on map pages
+    if (pathname.startsWith('/map')) {
+      setExpandedItems((prev) => prev.includes('/map') ? prev : [...prev, '/map']);
     }
   }, [pathname]);
 
@@ -203,7 +222,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                           </div>
                         );
                       }
-                      const subActive = isActive(subItem.href);
+                      const subActive = isActive(subItem.href, subItem.exact);
                       return (
                         <Link
                           key={subItem.href}

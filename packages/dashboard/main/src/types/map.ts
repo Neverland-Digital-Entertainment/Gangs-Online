@@ -93,13 +93,26 @@ export interface MapOverrideInput {
 export interface BuildingAsset {
   id: string;
   name: string;
-  /** Firebase Storage 路徑，如 building-assets/xxx.glb */
-  glbPath: string;
+  /** 下載網址（給編輯器 / 客戶端載入） */
+  glbUrl: string;
+  /** Firebase Storage 路徑（刪除用），如 building-assets/xxx.glb */
+  storagePath: string;
   thumbnailUrl?: string;
+  thumbnailPath?: string;
   category?: string;
   defaultScale?: number;
   tags?: string[];
+  fileSize?: number;
   createdAt: Date;
+  updatedAt: Date;
+}
+
+/** 建立 / 更新 building_assets 的可編輯欄位 */
+export interface BuildingAssetInput {
+  name: string;
+  category?: string;
+  defaultScale?: number;
+  tags?: string[];
 }
 
 /** 依 mesh 名稱首字母分類（與客戶端 ChunkLoaderSystem 規則一致） */

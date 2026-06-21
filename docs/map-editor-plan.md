@@ -14,7 +14,7 @@
 | **P0** | 驗證：mesh 命名唯一性、GLB 格式、Storage 就緒 | ✅ 已完成 |
 | **P1** | 後台 3D 檢視器：載底圖 → 渲染 → 射線點選大廈/props → 高亮 + Inspector 顯示 | ✅ 已完成 |
 | **P2** | 操作既有：移走 / 移動 / 旋轉 / 縮放 + GizmoManager + 寫 `map_overrides` | ✅ 已完成 |
-| **P3** | 資產庫：後台選檔上載 GLB 到 Storage + 縮圖 + `building_assets` CRUD | ⬜ 未開始 |
+| **P3** | 資產庫：後台選檔上載 GLB 到 Storage + 縮圖 + `building_assets` CRUD | ✅ 已完成 |
 | **P4** | 替換 / 新增：從資產庫挑模型放到地圖 | ⬜ 未開始 |
 | **P5** | 客戶端 `MapOverrideSystem`：讀取並套用全部 override（含碰撞/遮擋修補） | ⬜ 未開始 |
 | **P6** | 收尾：還原/停用 override、權限、編輯器內最終效果預覽 | ⬜ 未開始 |
@@ -201,6 +201,17 @@ Firestore: map_overrides          Firestore: building_assets
   - 中英文語系新增 `map.editor.*` / `map.status.*`
   - 已通過 `tsc --noEmit` 與 `next build`（含 /map 路由）。
   - **資料寫入待你以真實 Firebase 環境實測**（需 Firestore 規則允許後台寫入 `map_overrides`）。
+
+- **2026-06-21** — P3 完成。建築資產庫（上載 + 縮圖 + CRUD）：
+  - `src/lib/map/asset-service.ts`：`building_assets` Firestore + Storage CRUD
+    （GLB 存 `building-assets/`、縮圖存 `building-thumbnails/`）
+  - `src/lib/map/thumbnail.ts`：離屏 Babylon 渲染自動產生 GLB 縮圖（動態 import，SSR 安全）
+  - `src/app/map/assets/page.tsx`：選檔上載（檔名/分類/縮放/標籤）、縮圖網格、編輯、刪除
+  - 側欄改為「地圖管理」群組（地圖編輯器 + 建築資產）
+  - `BuildingAsset` 型別調整為 `glbUrl` + `storagePath`，新增 `BuildingAssetInput`
+  - 中英文語系新增 `nav.mapEditor/mapAssets`、`map.assets.*`
+  - 已通過 `tsc --noEmit` 與 `next build`。
+  - **待真實 Firebase 實測**：上載需 Storage 規則允許寫入 `building-assets/`、`building-thumbnails/`。
 
 ### 地圖來源（同源 /maps）
 後台預設以同源 `/maps` 供應底圖，免第二個 server、無 CORS：
