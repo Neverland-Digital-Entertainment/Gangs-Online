@@ -12,7 +12,7 @@
 | 階段 | 內容 | 狀態 |
 |---|---|---|
 | **P0** | 驗證：mesh 命名唯一性、GLB 格式、Storage 就緒 | ✅ 已完成 |
-| **P1** | 後台 3D 檢視器：載底圖 → 渲染 → 射線點選大廈/props → 高亮 + Inspector 顯示 | ⬜ 未開始 |
+| **P1** | 後台 3D 檢視器：載底圖 → 渲染 → 射線點選大廈/props → 高亮 + Inspector 顯示 | ✅ 已完成 |
 | **P2** | 操作既有：移走 / 移動 / 旋轉 / 縮放 + GizmoManager + 寫 `map_overrides` | ⬜ 未開始 |
 | **P3** | 資產庫：後台選檔上載 GLB 到 Storage + 縮圖 + `building_assets` CRUD | ⬜ 未開始 |
 | **P4** | 替換 / 新增：從資產庫挑模型放到地圖 | ⬜ 未開始 |
@@ -184,3 +184,15 @@ Firestore: map_overrides          Firestore: building_assets
 ## 進度紀錄
 
 - **2026-06-19** — P0 完成。驗證主地圖 mesh 命名唯一、GLB 無 Draco、Firebase Storage 就緒；確立完整設計決定並建立本計劃文件。
+- **2026-06-21** — P1 完成。後台新增 `/map` 地圖編輯器頁面（側欄已掛入口）：
+  - `src/types/map.ts`：型別 + `classifyMeshName` / `buildObjectKey`
+  - `src/lib/map/map-loader.ts`：從 `NEXT_PUBLIC_MAP_BASE_URL` 載入 manifest 與 GLB
+  - `src/components/map/MapEditor3D.tsx`：Babylon 3D 場景，載入 chunk、依名稱分類、射線點選 + 黃色高亮
+  - `src/components/map/BuildingInspector.tsx`：右側面板顯示選中物件（名稱/類型/區塊/key/位置/旋轉/縮放/尺寸）
+  - 中英文語系與 `.env.example` 已更新。
+  - 已通過 `tsc --noEmit`。**瀏覽器實機驗證待辦**：需先把 `NEXT_PUBLIC_MAP_BASE_URL` 指向有在執行的地圖來源（本地預設 `http://localhost:5173/maps`，即 client `npm run dev:client`）。
+
+### 本地測試方式
+1. 啟動地圖來源：在 repo 根目錄執行 `npm run dev:client`（Vite, port 5173，提供 `/maps/*`）。
+2. 啟動後台：`cd packages/dashboard/main && npm run dev`（port 3001），設定好 `.env.local`（Firebase 變數 + 可選的 `NEXT_PUBLIC_MAP_BASE_URL`）。
+3. 開 `http://localhost:3001/map`，選擇 chunk（預設 `11-NW-19D`），點擊大廈/props 檢視資訊。

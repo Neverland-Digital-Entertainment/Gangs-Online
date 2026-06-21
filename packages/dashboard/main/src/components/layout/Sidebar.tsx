@@ -18,6 +18,7 @@ import {
   FileText,
   UserCheck,
   Palette,
+  Map as MapIcon,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
@@ -88,6 +89,11 @@ const menuItems: MenuItem[] = [
     titleKey: 'nav.quest',
     icon: ScrollText,
     href: '/quest',
+  },
+  {
+    titleKey: 'nav.map',
+    icon: MapIcon,
+    href: '/map',
   },
   {
     titleKey: 'nav.settings',
