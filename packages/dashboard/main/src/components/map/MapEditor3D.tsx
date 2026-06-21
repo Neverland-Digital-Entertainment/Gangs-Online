@@ -35,8 +35,10 @@ interface MapEditor3DProps {
   gizmoMode: GizmoMode;
   overrides: MapOverride[];
   assets: BuildingAsset[];
+  focusNonce: number;
   onSelect: (obj: MapObjectInfo | null) => void;
   onTransformChange: (key: string, transform: Transform) => void;
+  onObjectsChange?: (objects: MapObjectInfo[]) => void;
   onLoadingChange?: (loading: boolean) => void;
   onError?: (message: string | null) => void;
 }
@@ -87,8 +89,10 @@ export default function MapEditor3D({
   gizmoMode,
   overrides,
   assets,
+  focusNonce,
   onSelect,
   onTransformChange,
+  onObjectsChange,
   onLoadingChange,
   onError,
 }: MapEditor3DProps) {
@@ -102,6 +106,7 @@ export default function MapEditor3D({
   const meshByKeyRef = useRef<Map<string, BABYLON.AbstractMesh>>(new Map());
   const originalByKeyRef = useRef<Map<string, Transform>>(new Map());
   const instanceByKeyRef = useRef<Map<string, InstanceRec>>(new Map());
+  const objectsRef = useRef<Map<string, MapObjectInfo>>(new Map());
   const loadingKeysRef = useRef<Set<string>>(new Set());
   const highlightedRef = useRef<BABYLON.Mesh[]>([]);
 
@@ -113,12 +118,14 @@ export default function MapEditor3D({
 
   const onSelectRef = useRef(onSelect);
   const onTransformRef = useRef(onTransformChange);
+  const onObjectsRef = useRef(onObjectsChange);
   const onLoadingRef = useRef(onLoadingChange);
   const onErrorRef = useRef(onError);
   const overridesRef = useRef(overrides);
   const assetsRef = useRef(assets);
   onSelectRef.current = onSelect;
   onTransformRef.current = onTransformChange;
+  onObjectsRef.current = onObjectsChange;
   onLoadingRef.current = onLoadingChange;
   onErrorRef.current = onError;
   overridesRef.current = overrides;
@@ -127,6 +134,10 @@ export default function MapEditor3D({
   function nodeForKey(key: string | null): BABYLON.TransformNode | null {
     if (!key) return null;
     return instanceByKeyRef.current.get(key)?.container ?? meshByKeyRef.current.get(key) ?? null;
+  }
+
+  function emitObjects() {
+    onObjectsRef.current?.(Array.from(objectsRef.current.values()));
   }
 
   function emitTransform() {
@@ -226,6 +237,7 @@ export default function MapEditor3D({
     // 清理舊資料
     meshByKeyRef.current.clear();
     originalByKeyRef.current.clear();
+    objectsRef.current.clear();
     for (const [, rec] of instanceByKeyRef.current) {
       rec.meshes.forEach((m) => m.dispose());
       rec.container.dispose();
@@ -283,8 +295,10 @@ export default function MapEditor3D({
             mesh.metadata = { ...(mesh.metadata as object), mapObject: base };
             meshByKeyRef.current.set(key, mesh);
             originalByKeyRef.current.set(key, original);
+            objectsRef.current.set(key, base);
           }
         }
+        emitObjects();
 
         if (Number.isFinite(min.x)) {
           const center = BABYLON.Vector3.Center(min, max);
@@ -365,6 +379,7 @@ export default function MapEditor3D({
     rec.meshes.forEach((m) => m.dispose());
     rec.container.dispose();
     instanceByKeyRef.current.delete(key);
+    objectsRef.current.delete(key);
   }
 
   async function reconcileInstances() {
@@ -391,6 +406,8 @@ export default function MapEditor3D({
       const existing = instanceByKeyRef.current.get(key);
       if (existing && existing.assetId === assetId) {
         applyTransform(existing.container, ov.transform ?? defaultTransformFor(key, ov));
+        const prev = objectsRef.current.get(key);
+        if (prev) objectsRef.current.set(key, { ...prev, ...readTransform(existing.container) });
         continue;
       }
       if (loadingKeysRef.current.has(key)) continue;
@@ -435,6 +452,7 @@ export default function MapEditor3D({
           meshes: result.meshes.filter((m) => m.name !== '__root__'),
           assetId,
         });
+        objectsRef.current.set(key, { ...info, ...readTransform(container) });
         setInstancesVersion((v) => v + 1);
       } catch (err) {
         console.error('[MapEditor3D] failed to load asset instance', key, err);
@@ -443,6 +461,8 @@ export default function MapEditor3D({
         loadingKeysRef.current.delete(key);
       }
     }
+
+    emitObjects();
   }
 
   useEffect(() => {
@@ -510,6 +530,20 @@ export default function MapEditor3D({
     gizmo.attachToNode(node && gizmoMode !== 'none' ? node : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedKey, gizmoMode, overrides, instancesVersion]);
+
+  // ---- 鏡頭聚焦到選取的物件（由列表觸發） ----
+  useEffect(() => {
+    if (focusNonce <= 0) return;
+    const scene = sceneRef.current;
+    const node = nodeForKey(selectedKey);
+    if (!scene || !node) return;
+    node.computeWorldMatrix(true);
+    const pos = node.getAbsolutePosition().clone();
+    const cam = scene.activeCamera as BABYLON.ArcRotateCamera;
+    cam.setTarget(pos);
+    cam.radius = 150;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusNonce]);
 
   return (
     <canvas

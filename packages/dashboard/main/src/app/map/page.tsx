@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { AlertCircle, Info, Loader2, Map as MapIcon, Plus } from 'lucide-react';
+import {
+  AlertCircle,
+  Info,
+  ListTree,
+  Loader2,
+  Map as MapIcon,
+  Plus,
+} from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
 import { loadMapManifest } from '@/lib/map/map-loader';
 import { mapOverrideService } from '@/lib/map/override-service';
@@ -33,6 +40,8 @@ export default function MapEditorPage() {
   const [selected, setSelected] = useState<MapObjectInfo | null>(null);
   const [gizmoMode, setGizmoMode] = useState<GizmoMode>('move');
   const [draftTransform, setDraftTransform] = useState<Transform | null>(null);
+  const [objects, setObjects] = useState<MapObjectInfo[]>([]);
+  const [focusNonce, setFocusNonce] = useState(0);
 
   const [overrides, setOverrides] = useState<MapOverride[]>([]);
   const [assets, setAssets] = useState<BuildingAsset[]>([]);
@@ -96,6 +105,23 @@ export default function MapEditorPage() {
     [overrides, selected]
   );
 
+  const assetsById = useMemo(() => {
+    const map: Record<string, BuildingAsset> = {};
+    for (const a of assets) map[a.id] = a;
+    return map;
+  }, [assets]);
+
+  // 有 add/replace override 但場景裡找不到對應實例 → 載入失敗（診斷用）
+  const missingInstances = useMemo(() => {
+    const keys = new Set(objects.map((o) => o.key));
+    return overrides.filter(
+      (o) =>
+        o.isActive &&
+        (o.action === 'add' || o.action === 'replace') &&
+        !keys.has(o.targetBuildingKey)
+    );
+  }, [overrides, objects]);
+
   // 是否有未儲存變更
   const dirty = useMemo(() => {
     if (!selected || !draftTransform) return false;
@@ -133,11 +159,23 @@ export default function MapEditorPage() {
     if (selectedKeyRef.current === key) setDraftTransform(tr);
   }, []);
 
+  const handleObjectsChange = useCallback((objs: MapObjectInfo[]) => {
+    setObjects(objs);
+  }, []);
+
+  function selectFromList(obj: MapObjectInfo) {
+    setSelected(obj);
+    setDraftTransform(null);
+    setSaveError(null);
+    setFocusNonce((n) => n + 1);
+  }
+
   function changeChunk(id: string) {
     setChunkId(id);
     setSelected(null);
     setDraftTransform(null);
     setSaveError(null);
+    setObjects([]);
   }
 
   async function handleSave() {
@@ -373,6 +411,7 @@ export default function MapEditorPage() {
         </div>
       ) : (
         manifest && (
+          <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
             {/* 3D 檢視器 */}
             <div className="card overflow-hidden">
@@ -385,8 +424,10 @@ export default function MapEditorPage() {
                     gizmoMode={gizmoMode}
                     overrides={overrides}
                     assets={assets}
+                    focusNonce={focusNonce}
                     onSelect={handleSelect}
                     onTransformChange={handleTransformChange}
+                    onObjectsChange={handleObjectsChange}
                     onLoadingChange={setViewerLoading}
                     onError={setViewerError}
                   />
@@ -438,6 +479,93 @@ export default function MapEditorPage() {
               onReset={handleReset}
               onRequestReplace={() => setPicker('replace')}
             />
+          </div>
+
+          {/* 物件列表 */}
+          <div className="card">
+            <div className="card-body">
+              <div className="flex items-center gap-2 mb-3">
+                <ListTree className="w-5 h-5 text-[var(--muted-foreground)]" />
+                <h2 className="text-lg font-semibold text-[var(--foreground)]">
+                  {t('map.list.title')}
+                </h2>
+                <span className="text-sm text-[var(--muted-foreground)]">
+                  ({objects.length})
+                </span>
+              </div>
+
+              {missingInstances.length > 0 && (
+                <div className="card bg-amber-50 dark:bg-amber-900/20 mb-3">
+                  <div className="card-body py-2 text-sm text-amber-700 dark:text-amber-300">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium">{t('map.list.loadFailed')}</p>
+                        <ul className="list-disc list-inside">
+                          {missingInstances.map((o) => (
+                            <li key={o.id}>
+                              {(o.assetId && assetsById[o.assetId]?.name) ||
+                                o.targetBuildingKey}{' '}
+                              ({t(`map.status.${o.action === 'add' ? 'added' : 'replaced'}`)})
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {objects.length === 0 ? (
+                <p className="text-sm text-[var(--muted-foreground)] py-4 text-center">
+                  {t('map.list.empty')}
+                </p>
+              ) : (
+                <div className="max-h-[320px] overflow-y-auto divide-y divide-[var(--border)]">
+                  {objects.map((o) => {
+                    const ov = overrides.find(
+                      (x) => x.targetBuildingKey === o.key && x.isActive
+                    );
+                    const status = ov
+                      ? ov.action === 'delete'
+                        ? 'removed'
+                        : ov.action === 'add'
+                        ? 'added'
+                        : ov.action === 'replace'
+                        ? 'replaced'
+                        : 'modified'
+                      : 'original';
+                    const displayName =
+                      ov && (ov.action === 'add' || ov.action === 'replace') && ov.assetId
+                        ? assetsById[ov.assetId]?.name ?? o.meshName
+                        : o.meshName;
+                    return (
+                      <button
+                        key={o.key}
+                        type="button"
+                        onClick={() => selectFromList(o)}
+                        className={`w-full flex items-center justify-between gap-3 px-2 py-2 text-left hover:bg-[var(--sidebar-hover)] ${
+                          selected?.key === o.key ? 'bg-[var(--sidebar-hover)]' : ''
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm text-[var(--foreground)] truncate">
+                            {displayName}
+                          </span>
+                          <span className="badge badge-gray text-xs flex-shrink-0">
+                            {t(`map.objectType.${o.type}`)}
+                          </span>
+                        </span>
+                        <span className="text-xs text-[var(--muted-foreground)] flex-shrink-0">
+                          {t(`map.status.${status}`)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
           </div>
         )
       )}
