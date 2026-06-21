@@ -219,6 +219,15 @@ Firestore: map_overrides          Firestore: building_assets
   - 縮圖改為非阻斷（GLB 上傳完資產即建立，縮圖另外嘗試）
   - 上載錯誤訊息會附帶實際原因，方便診斷（多半是 Storage bucket 設定或安全規則）
 
+- **2026-06-21** — P3 改儲存後端（免費方案無 Firebase Storage）。改為 **Firestore-only**：
+  - GLB 以 base64 分塊存子集合 `building_assets/{id}/chunks/{index}`（每塊 <1MB）
+  - 縮圖改 JPEG，以 data URL 存在 `building_assets` 文件
+  - `asset-service` 移除所有 Storage 呼叫，改用 `writeBatch` 寫入；新增
+    `loadGlbObjectUrl(id)` 供 P4/P5 重組成 object URL 載入
+  - 上載大小上限 10MB（`MAX_ASSET_BYTES`），超過前端擋下
+  - `BuildingAsset` 型別：移除 `glbUrl/storagePath/thumbnailPath`，新增 `mimeType/chunkCount`
+  - 已通過 `tsc --noEmit` 與 `next build`。**完全免付費、用現有 Firestore 即可。**
+
 ### 地圖來源（同源 /maps）
 後台預設以同源 `/maps` 供應底圖，免第二個 server、無 CORS：
 - `scripts/copy-maps.mjs` 會在 `npm run dev` / `npm run build` 前（`predev`/`prebuild`）

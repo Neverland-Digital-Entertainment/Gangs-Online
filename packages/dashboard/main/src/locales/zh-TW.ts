@@ -640,6 +640,7 @@ export default {
   'map.assets.uploadFailed': '上載失敗，請稍後再試。',
   'map.assets.loadFailed': '載入建築資產失敗',
   'map.assets.invalidFile': '請選擇 .glb 檔案',
+  'map.assets.tooLarge': '檔案太大（免費方案上限 10MB），請用較小的模型。',
 
   // Validation
   'validation.required': '請輸入{field}',

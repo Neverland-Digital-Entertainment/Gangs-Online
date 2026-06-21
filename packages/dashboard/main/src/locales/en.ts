@@ -639,6 +639,7 @@ export default {
   'map.assets.uploadFailed': 'Upload failed, please try again.',
   'map.assets.loadFailed': 'Failed to load building assets',
   'map.assets.invalidFile': 'Please select a .glb file',
+  'map.assets.tooLarge': 'File too large (10MB limit on the free plan); use a smaller model.',
 
   // Validation
   'validation.required': 'Please enter {field}',

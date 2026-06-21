@@ -77,8 +77,9 @@ export async function generateGlbThumbnail(
     // 渲染幾幀讓材質/貼圖就緒
     for (let i = 0; i < 4; i++) scene.render();
 
+    // 用 JPEG 壓縮，縮圖以 data URL 存進 Firestore 文件，須夠小
     const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob((b) => resolve(b), 'image/png')
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.82)
     );
     return blob;
   } catch (err) {

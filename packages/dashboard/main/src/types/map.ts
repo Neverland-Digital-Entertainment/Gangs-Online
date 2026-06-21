@@ -89,20 +89,26 @@ export interface MapOverrideInput {
   isActive?: boolean;
 }
 
-/** Firestore：building_assets 集合 */
+/**
+ * Firestore：building_assets 集合
+ *
+ * 因免費方案無 Firebase Storage，GLB 以 base64 分塊存在子集合
+ * building_assets/{id}/chunks/{index}；縮圖以 data URL 存在本文件。
+ */
 export interface BuildingAsset {
   id: string;
   name: string;
-  /** 下載網址（給編輯器 / 客戶端載入） */
-  glbUrl: string;
-  /** Firebase Storage 路徑（刪除用），如 building-assets/xxx.glb */
-  storagePath: string;
+  /** 縮圖 data URL（base64，直接存文件） */
   thumbnailUrl?: string;
-  thumbnailPath?: string;
   category?: string;
   defaultScale?: number;
   tags?: string[];
+  /** 原始 GLB 位元組大小 */
   fileSize?: number;
+  /** GLB MIME，預設 model/gltf-binary */
+  mimeType?: string;
+  /** base64 分塊數量（存於 chunks 子集合） */
+  chunkCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }

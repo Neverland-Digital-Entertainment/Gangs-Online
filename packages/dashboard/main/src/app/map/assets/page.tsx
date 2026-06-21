@@ -13,7 +13,10 @@ import {
   ImageOff,
 } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
-import { buildingAssetService } from '@/lib/map/asset-service';
+import {
+  buildingAssetService,
+  MAX_ASSET_BYTES,
+} from '@/lib/map/asset-service';
 import { generateGlbThumbnail } from '@/lib/map/thumbnail';
 import type { BuildingAsset, BuildingAssetInput } from '@/types/map';
 
@@ -74,6 +77,11 @@ export default function BuildingAssetsPage() {
     setUploadError(null);
     if (f && !f.name.toLowerCase().endsWith('.glb')) {
       setUploadError(t('map.assets.invalidFile'));
+      setFile(null);
+      return;
+    }
+    if (f && f.size > MAX_ASSET_BYTES) {
+      setUploadError(t('map.assets.tooLarge'));
       setFile(null);
       return;
     }
