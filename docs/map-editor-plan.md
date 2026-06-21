@@ -192,7 +192,14 @@ Firestore: map_overrides          Firestore: building_assets
   - 中英文語系與 `.env.example` 已更新。
   - 已通過 `tsc --noEmit`。**瀏覽器實機驗證待辦**：需先把 `NEXT_PUBLIC_MAP_BASE_URL` 指向有在執行的地圖來源（本地預設 `http://localhost:5173/maps`，即 client `npm run dev:client`）。
 
+### 地圖來源（同源 /maps）
+後台預設以同源 `/maps` 供應底圖，免第二個 server、無 CORS：
+- `scripts/copy-maps.mjs` 會在 `npm run dev` / `npm run build` 前（`predev`/`prebuild`）
+  自動把 `packages/client/public/maps` 複製到 `packages/dashboard/main/public/maps`
+  （該資料夾已 gitignore，不進版控、不佔 Firebase 額度）。
+- 若要改從外部來源載入，設定 `NEXT_PUBLIC_MAP_BASE_URL`（該來源需允許本後台 origin 的 CORS）。
+
 ### 本地測試方式
-1. 啟動地圖來源：在 repo 根目錄執行 `npm run dev:client`（Vite, port 5173，提供 `/maps/*`）。
-2. 啟動後台：`cd packages/dashboard/main && npm run dev`（port 3001），設定好 `.env.local`（Firebase 變數 + 可選的 `NEXT_PUBLIC_MAP_BASE_URL`）。
-3. 開 `http://localhost:3001/map`，選擇 chunk（預設 `11-NW-19D`），點擊大廈/props 檢視資訊。
+1. `cd packages/dashboard/main && npm run dev`（port 3001；predev 會自動複製地圖）。
+   設定好 `.env.local`（Firebase 變數即可，`NEXT_PUBLIC_MAP_BASE_URL` 可不設）。
+2. 開 `http://localhost:3001/map`，選擇 chunk（預設 `11-NW-19D`），點擊大廈/props 檢視資訊。
