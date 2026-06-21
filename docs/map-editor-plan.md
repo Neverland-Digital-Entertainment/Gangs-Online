@@ -13,7 +13,7 @@
 |---|---|---|
 | **P0** | 驗證：mesh 命名唯一性、GLB 格式、Storage 就緒 | ✅ 已完成 |
 | **P1** | 後台 3D 檢視器：載底圖 → 渲染 → 射線點選大廈/props → 高亮 + Inspector 顯示 | ✅ 已完成 |
-| **P2** | 操作既有：移走 / 移動 / 旋轉 / 縮放 + GizmoManager + 寫 `map_overrides` | ⬜ 未開始 |
+| **P2** | 操作既有：移走 / 移動 / 旋轉 / 縮放 + GizmoManager + 寫 `map_overrides` | ✅ 已完成 |
 | **P3** | 資產庫：後台選檔上載 GLB 到 Storage + 縮圖 + `building_assets` CRUD | ⬜ 未開始 |
 | **P4** | 替換 / 新增：從資產庫挑模型放到地圖 | ⬜ 未開始 |
 | **P5** | 客戶端 `MapOverrideSystem`：讀取並套用全部 override（含碰撞/遮擋修補） | ⬜ 未開始 |
@@ -191,6 +191,16 @@ Firestore: map_overrides          Firestore: building_assets
   - `src/components/map/BuildingInspector.tsx`：右側面板顯示選中物件（名稱/類型/區塊/key/位置/旋轉/縮放/尺寸）
   - 中英文語系與 `.env.example` 已更新。
   - 已通過 `tsc --noEmit`。**瀏覽器實機驗證待辦**：需先把 `NEXT_PUBLIC_MAP_BASE_URL` 指向有在執行的地圖來源（本地預設 `http://localhost:5173/maps`，即 client `npm run dev:client`）。
+
+- **2026-06-21** — P2 完成。既有物件編輯（移動/旋轉/縮放/移走）+ Firestore：
+  - `src/lib/map/override-service.ts`：`map_overrides` 的 Firestore CRUD（仿 instance-service）
+  - `MapEditor3D.tsx`：整合 `GizmoManager`（移動/旋轉/縮放）、拖曳即時回報 transform、
+    依 `overrides` 調和場景（transform 套用、delete 隱藏、無 override 還原原始）
+  - `BuildingInspector.tsx`：操作模式切換、即時 transform、儲存/移走/還原、狀態徽章
+  - `app/map/page.tsx`：載入該 chunk 的 overrides、儲存/移走/還原寫入 Firestore
+  - 中英文語系新增 `map.editor.*` / `map.status.*`
+  - 已通過 `tsc --noEmit` 與 `next build`（含 /map 路由）。
+  - **資料寫入待你以真實 Firebase 環境實測**（需 Firestore 規則允許後台寫入 `map_overrides`）。
 
 ### 地圖來源（同源 /maps）
 後台預設以同源 `/maps` 供應底圖，免第二個 server、無 CORS：

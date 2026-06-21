@@ -10,6 +10,9 @@
 
 export type MapObjectType = 'building' | 'prop' | 'terrain' | 'other';
 
+/** 3D 編輯器的操作模式 */
+export type GizmoMode = 'none' | 'move' | 'rotate' | 'scale';
+
 /** manifest.json 中的 chunk 描述 */
 export interface MapChunkInfo {
   id: string;
@@ -73,6 +76,17 @@ export interface MapOverride {
   createdAt: Date;
   updatedAt: Date;
   updatedBy?: string;
+}
+
+/** 建立 / 更新 map_overrides 時的輸入（不含系統欄位） */
+export interface MapOverrideInput {
+  mapName: string;
+  chunkId: string;
+  targetBuildingKey: string;
+  action: OverrideAction;
+  assetId?: string;
+  transform?: Transform;
+  isActive?: boolean;
 }
 
 /** Firestore：building_assets 集合 */
