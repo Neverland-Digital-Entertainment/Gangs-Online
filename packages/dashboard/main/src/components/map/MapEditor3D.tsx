@@ -84,6 +84,10 @@ function transformsEqual(a: Transform | null, b: Transform | null): boolean {
   );
 }
 
+function finiteSize(v: number): number {
+  return Number.isFinite(v) ? Math.abs(v) : 0;
+}
+
 /** 取得節點階層的可高亮 mesh（含自身） */
 function meshesOf(node: BABYLON.TransformNode): BABYLON.Mesh[] {
   const list: BABYLON.Mesh[] = [];
@@ -336,7 +340,11 @@ export default function MapEditor3D({
             type,
             key,
             ...original,
-            boundingSize: { x: Math.abs(size.x), y: Math.abs(size.y), z: Math.abs(size.z) },
+            boundingSize: {
+              x: finiteSize(size.x),
+              y: finiteSize(size.y),
+              z: finiteSize(size.z),
+            },
           };
           for (const m of childMeshes) {
             m.isPickable = true;
@@ -506,15 +514,23 @@ export default function MapEditor3D({
           boundingSize: { x: 0, y: 0, z: 0 },
         };
 
-        // 捨棄資產自身 __root__，把內容直接掛到 container（避免重複座標轉換）
-        const assetRoot = result.meshes.find((m) => m.name === '__root__');
+        // 設定 metadata / 可點選
         for (const m of result.meshes) {
           m.metadata = { ...(m.metadata as object), imported: true, instanceKey: key };
           if (m.name === '__root__') continue;
           m.isPickable = true;
           m.metadata = { ...(m.metadata as object), mapObject: info };
-          if (m.parent === assetRoot) m.parent = container;
         }
+
+        // 把資產 __root__ 的「直接子節點」整棵子樹搬到 container，再 dispose 空的 __root__
+        // （注意：必須搬子節點，不能只搬個別 mesh，否則 dispose __root__ 會連幾何一起刪掉）
+        const assetRoot: BABYLON.Node | undefined =
+          (result.meshes.find((m) => m.name === '__root__') as BABYLON.Node | undefined) ??
+          (result.transformNodes?.find((n) => n.name === '__root__') as BABYLON.Node | undefined);
+        const topNodes = assetRoot
+          ? [...assetRoot.getChildren()]
+          : result.meshes.filter((m) => !m.parent && m.name !== '__root__');
+        for (const n of topNodes) n.parent = container;
         if (assetRoot) assetRoot.dispose();
 
         let finalTransform: Transform;
@@ -539,7 +555,9 @@ export default function MapEditor3D({
                 })()
               : referenceBuildingSize();
           const factor =
-            rawMax > 1e-4 && targetSize > 1e-4 ? targetSize / rawMax : def.scale.x || 1;
+            Number.isFinite(rawMax) && rawMax > 1e-4 && targetSize > 1e-4
+              ? targetSize / rawMax
+              : def.scale.x || 1;
           finalTransform = {
             position: def.position,
             rotation: def.rotation,
@@ -555,7 +573,11 @@ export default function MapEditor3D({
         const finalInfo: MapObjectInfo = {
           ...info,
           ...readTransform(container),
-          boundingSize: { x: Math.abs(size.x), y: Math.abs(size.y), z: Math.abs(size.z) },
+          boundingSize: {
+            x: finiteSize(size.x),
+            y: finiteSize(size.y),
+            z: finiteSize(size.z),
+          },
         };
 
         instanceByKeyRef.current.set(key, {
