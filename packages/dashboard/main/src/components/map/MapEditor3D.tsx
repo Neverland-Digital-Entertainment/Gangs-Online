@@ -313,6 +313,15 @@ export default function MapEditor3D({
           max = BABYLON.Vector3.Maximize(max, bi.boundingBox.maximumWorld);
         }
 
+        // Floating origin：把整張地圖平移到場景原點附近再渲染，避免在 ~835000 的
+        // 巨大世界座標下 gizmo 精度不足、難以點選。節點的 local 座標不變，
+        // 所以儲存/顯示/客戶端套用都不受影響。
+        if (root && Number.isFinite(min.x)) {
+          const center = BABYLON.Vector3.Center(min, max);
+          root.position = root.position.subtract(center);
+          root.computeWorldMatrix(true);
+        }
+
         // 以「物件節點」（__root__ 直接子節點）為操作單位
         const children = root ? root.getChildren() : [];
         for (const child of children) {
@@ -356,10 +365,10 @@ export default function MapEditor3D({
         }
 
         if (Number.isFinite(min.x)) {
-          const center = BABYLON.Vector3.Center(min, max);
+          // 內容已平移到原點附近
           const radius = Math.max(max.subtract(min).length() * 0.8, 10);
           const cam = scene.activeCamera as BABYLON.ArcRotateCamera;
-          cam.setTarget(center);
+          cam.setTarget(BABYLON.Vector3.Zero());
           cam.radius = radius;
           cam.maxZ = radius * 20;
         }
@@ -637,6 +646,11 @@ export default function MapEditor3D({
     hook(gizmo.gizmos.positionGizmo as never);
     hook(gizmo.gizmos.rotationGizmo as never);
     hook(gizmo.gizmos.scaleGizmo as never);
+
+    // 放大手柄，較易點選
+    if (gizmo.gizmos.positionGizmo) gizmo.gizmos.positionGizmo.scaleRatio = 2;
+    if (gizmo.gizmos.rotationGizmo) gizmo.gizmos.rotationGizmo.scaleRatio = 2;
+    if (gizmo.gizmos.scaleGizmo) gizmo.gizmos.scaleGizmo.scaleRatio = 2;
 
     for (const m of highlightedRef.current) hl.removeMesh(m);
     highlightedRef.current = [];
