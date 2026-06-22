@@ -627,6 +627,7 @@ export default {
   'map.editor.deleteBuilding': '刪除此建築',
   'map.list.title': '地圖物件列表',
   'map.list.empty': '此區塊沒有可選取的物件',
+  'map.list.dblClickHint': '單擊選取，雙擊拉近至物件',
   'map.list.loadFailed': '以下編輯已存檔，但場景中未顯示（可能是模型或座標問題）：',
   'map.assets.title': '建築資產庫',
   'map.assets.subtitle': '上載建築 GLB，供地圖編輯器替換或新增使用',

@@ -626,6 +626,7 @@ export default {
   'map.editor.deleteBuilding': 'Delete this building',
   'map.list.title': 'Map Objects',
   'map.list.empty': 'No selectable objects in this chunk',
+  'map.list.dblClickHint': 'Click to select, double-click to zoom in',
   'map.list.loadFailed': 'These edits are saved but not shown in the scene (possible model or coordinate issue):',
   'map.assets.title': 'Building Asset Library',
   'map.assets.subtitle': 'Upload building GLBs to replace or add buildings in the map editor',

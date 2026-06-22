@@ -167,6 +167,12 @@ export default function MapEditorPage() {
     setSelected(obj);
     setDraftTransform(null);
     setSaveError(null);
+  }
+
+  function focusFromList(obj: MapObjectInfo) {
+    setSelected(obj);
+    setDraftTransform(null);
+    setSaveError(null);
     setFocusNonce((n) => n + 1);
   }
 
@@ -544,8 +550,10 @@ export default function MapEditorPage() {
                         key={o.key}
                         type="button"
                         onClick={() => selectFromList(o)}
+                        onDoubleClick={() => focusFromList(o)}
+                        title={t('map.list.dblClickHint')}
                         className={`w-full flex items-center justify-between gap-3 px-2 py-2 text-left hover:bg-[var(--sidebar-hover)] ${
-                          selected?.key === o.key ? 'bg-[var(--sidebar-hover)]' : ''
+                          selected?.key === o.key ? 'bg-[var(--sidebar-hover)] ring-1 ring-blue-500' : ''
                         }`}
                       >
                         <span className="flex items-center gap-2 min-w-0">

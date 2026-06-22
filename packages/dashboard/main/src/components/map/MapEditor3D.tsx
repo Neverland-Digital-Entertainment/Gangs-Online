@@ -156,12 +156,12 @@ export default function MapEditor3D({
     if (!scene) return;
     node.computeWorldMatrix(true);
     const { min, max } = node.getHierarchyBoundingVectors(true);
-    if (!Number.isFinite(min.x)) return;
+    if (!Number.isFinite(min.x) || !Number.isFinite(max.x)) return;
     const center = BABYLON.Vector3.Center(min, max);
     const size = max.subtract(min).length();
     const cam = scene.activeCamera as BABYLON.ArcRotateCamera;
     cam.setTarget(center.clone());
-    cam.radius = Math.max(size * 1.3, 2);
+    cam.radius = Number.isFinite(size) && size > 0.01 ? size * 1.3 : 10;
   }
 
   function emitTransform() {
