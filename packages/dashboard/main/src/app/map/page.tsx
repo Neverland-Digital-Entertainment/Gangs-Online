@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import {
   AlertCircle,
+  Eye,
+  EyeOff,
   Info,
   ListTree,
   Loader2,
@@ -42,6 +44,8 @@ export default function MapEditorPage() {
   const [draftTransform, setDraftTransform] = useState<Transform | null>(null);
   const [objects, setObjects] = useState<MapObjectInfo[]>([]);
   const [focusNonce, setFocusNonce] = useState(0);
+  const [rightTab, setRightTab] = useState<'inspector' | 'list'>('list');
+  const [showRemoved, setShowRemoved] = useState(false);
 
   const [overrides, setOverrides] = useState<MapOverride[]>([]);
   const [assets, setAssets] = useState<BuildingAsset[]>([]);
@@ -153,7 +157,23 @@ export default function MapEditorPage() {
     setSelected(obj);
     setDraftTransform(null);
     setSaveError(null);
+    if (obj) setRightTab('inspector');
   }, []);
+
+  // 狀態判斷小工具
+  const overrideByKey = useMemo(() => {
+    const map: Record<string, MapOverride> = {};
+    for (const o of overrides) if (o.isActive) map[o.targetBuildingKey] = o;
+    return map;
+  }, [overrides]);
+
+  const visibleObjects = useMemo(
+    () =>
+      showRemoved
+        ? objects
+        : objects.filter((o) => overrideByKey[o.key]?.action !== 'delete'),
+    [objects, overrideByKey, showRemoved]
+  );
 
   const handleTransformChange = useCallback((key: string, tr: Transform) => {
     if (selectedKeyRef.current === key) setDraftTransform(tr);
@@ -188,6 +208,7 @@ export default function MapEditorPage() {
     setDraftTransform(null);
     setSaveError(null);
     setFocusNonce((n) => n + 1);
+    setRightTab('inspector');
   }
 
   function changeChunk(id: string) {
@@ -431,8 +452,7 @@ export default function MapEditorPage() {
         </div>
       ) : (
         manifest && (
-          <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
             {/* 3D 檢視器 */}
             <div className="card overflow-hidden">
               <div className="relative h-[70vh] min-h-[420px] bg-[#11161d]">
@@ -484,111 +504,151 @@ export default function MapEditorPage() {
               </div>
             </div>
 
-            {/* Inspector */}
-            <BuildingInspector
-              object={selected}
-              gizmoMode={gizmoMode}
-              onGizmoModeChange={setGizmoMode}
-              draftTransform={draftTransform}
-              appliedTransform={selectedOverride?.transform ?? null}
-              overrideAction={selectedOverride?.action ?? null}
-              dirty={dirty}
-              saving={saving}
-              error={saveError}
-              onSave={handleSave}
-              onRemove={handleRemove}
-              onReset={handleReset}
-              onRequestReplace={() => setPicker('replace')}
-            />
-          </div>
-
-          {/* 物件列表 */}
-          <div className="card">
-            <div className="card-body">
-              <div className="flex items-center gap-2 mb-3">
-                <ListTree className="w-5 h-5 text-[var(--muted-foreground)]" />
-                <h2 className="text-lg font-semibold text-[var(--foreground)]">
-                  {t('map.list.title')}
-                </h2>
-                <span className="text-sm text-[var(--muted-foreground)]">
-                  ({objects.length})
-                </span>
+            {/* 右側面板：Tab（選取 / 物件列表） */}
+            <div className="flex flex-col h-[70vh] min-h-[420px]">
+              <div className="flex gap-2 mb-3 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setRightTab('inspector')}
+                  className={`flex-1 px-3 py-2 text-sm font-medium rounded-t border-b-2 ${
+                    rightTab === 'inspector'
+                      ? 'border-blue-500 text-[var(--foreground)]'
+                      : 'border-transparent text-[var(--muted-foreground)]'
+                  }`}
+                >
+                  {t('map.tab.inspector')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRightTab('list')}
+                  className={`flex-1 px-3 py-2 text-sm font-medium rounded-t border-b-2 ${
+                    rightTab === 'list'
+                      ? 'border-blue-500 text-[var(--foreground)]'
+                      : 'border-transparent text-[var(--muted-foreground)]'
+                  }`}
+                >
+                  {t('map.tab.list')} ({visibleObjects.length})
+                </button>
               </div>
 
-              {missingInstances.length > 0 && (
-                <div className="card bg-amber-50 dark:bg-amber-900/20 mb-3">
-                  <div className="card-body py-2 text-sm text-amber-700 dark:text-amber-300">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-medium">{t('map.list.loadFailed')}</p>
-                        <ul className="list-disc list-inside">
-                          {missingInstances.map((o) => (
-                            <li key={o.id}>
-                              {(o.assetId && assetsById[o.assetId]?.name) ||
-                                o.targetBuildingKey}{' '}
-                              ({t(`map.status.${o.action === 'add' ? 'added' : 'replaced'}`)})
-                            </li>
-                          ))}
-                        </ul>
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                {rightTab === 'inspector' ? (
+                  <BuildingInspector
+                    object={selected}
+                    gizmoMode={gizmoMode}
+                    onGizmoModeChange={setGizmoMode}
+                    draftTransform={draftTransform}
+                    appliedTransform={selectedOverride?.transform ?? null}
+                    overrideAction={selectedOverride?.action ?? null}
+                    dirty={dirty}
+                    saving={saving}
+                    error={saveError}
+                    onSave={handleSave}
+                    onRemove={handleRemove}
+                    onReset={handleReset}
+                    onRequestReplace={() => setPicker('replace')}
+                  />
+                ) : (
+                  <div className="card">
+                    <div className="card-body">
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <ListTree className="w-5 h-5 text-[var(--muted-foreground)]" />
+                          <h2 className="text-base font-semibold text-[var(--foreground)]">
+                            {t('map.list.title')}
+                          </h2>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowRemoved((v) => !v)}
+                          className="btn btn-sm btn-light"
+                          title={showRemoved ? t('map.list.hideRemoved') : t('map.list.showRemoved')}
+                        >
+                          {showRemoved ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
+                        </button>
                       </div>
+
+                      {missingInstances.length > 0 && (
+                        <div className="card bg-amber-50 dark:bg-amber-900/20 mb-3">
+                          <div className="card-body py-2 text-sm text-amber-700 dark:text-amber-300">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <p className="font-medium">{t('map.list.loadFailed')}</p>
+                                <ul className="list-disc list-inside">
+                                  {missingInstances.map((o) => (
+                                    <li key={o.id}>
+                                      {(o.assetId && assetsById[o.assetId]?.name) ||
+                                        o.targetBuildingKey}{' '}
+                                      ({t(`map.status.${o.action === 'add' ? 'added' : 'replaced'}`)})
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {visibleObjects.length === 0 ? (
+                        <p className="text-sm text-[var(--muted-foreground)] py-4 text-center">
+                          {t('map.list.empty')}
+                        </p>
+                      ) : (
+                        <div className="divide-y divide-[var(--border)]">
+                          {visibleObjects.map((o) => {
+                            const ov = overrideByKey[o.key];
+                            const status = ov
+                              ? ov.action === 'delete'
+                                ? 'removed'
+                                : ov.action === 'add'
+                                ? 'added'
+                                : ov.action === 'replace'
+                                ? 'replaced'
+                                : 'modified'
+                              : 'original';
+                            const displayName =
+                              ov && (ov.action === 'add' || ov.action === 'replace') && ov.assetId
+                                ? assetsById[ov.assetId]?.name ?? o.meshName
+                                : o.meshName;
+                            return (
+                              <button
+                                key={o.key}
+                                type="button"
+                                onClick={() => selectFromList(o)}
+                                onDoubleClick={() => focusFromList(o)}
+                                title={t('map.list.dblClickHint')}
+                                className={`w-full flex items-center justify-between gap-3 px-2 py-2 text-left hover:bg-[var(--sidebar-hover)] ${
+                                  selected?.key === o.key
+                                    ? 'bg-[var(--sidebar-hover)] ring-1 ring-blue-500'
+                                    : ''
+                                }`}
+                              >
+                                <span className="flex items-center gap-2 min-w-0">
+                                  <span className="text-sm text-[var(--foreground)] truncate">
+                                    {displayName}
+                                  </span>
+                                  <span className="badge badge-gray text-xs flex-shrink-0">
+                                    {t(`map.objectType.${o.type}`)}
+                                  </span>
+                                </span>
+                                <span className="text-xs text-[var(--muted-foreground)] flex-shrink-0">
+                                  {t(`map.status.${status}`)}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              )}
-
-              {objects.length === 0 ? (
-                <p className="text-sm text-[var(--muted-foreground)] py-4 text-center">
-                  {t('map.list.empty')}
-                </p>
-              ) : (
-                <div className="max-h-[320px] overflow-y-auto divide-y divide-[var(--border)]">
-                  {objects.map((o) => {
-                    const ov = overrides.find(
-                      (x) => x.targetBuildingKey === o.key && x.isActive
-                    );
-                    const status = ov
-                      ? ov.action === 'delete'
-                        ? 'removed'
-                        : ov.action === 'add'
-                        ? 'added'
-                        : ov.action === 'replace'
-                        ? 'replaced'
-                        : 'modified'
-                      : 'original';
-                    const displayName =
-                      ov && (ov.action === 'add' || ov.action === 'replace') && ov.assetId
-                        ? assetsById[ov.assetId]?.name ?? o.meshName
-                        : o.meshName;
-                    return (
-                      <button
-                        key={o.key}
-                        type="button"
-                        onClick={() => selectFromList(o)}
-                        onDoubleClick={() => focusFromList(o)}
-                        title={t('map.list.dblClickHint')}
-                        className={`w-full flex items-center justify-between gap-3 px-2 py-2 text-left hover:bg-[var(--sidebar-hover)] ${
-                          selected?.key === o.key ? 'bg-[var(--sidebar-hover)] ring-1 ring-blue-500' : ''
-                        }`}
-                      >
-                        <span className="flex items-center gap-2 min-w-0">
-                          <span className="text-sm text-[var(--foreground)] truncate">
-                            {displayName}
-                          </span>
-                          <span className="badge badge-gray text-xs flex-shrink-0">
-                            {t(`map.objectType.${o.type}`)}
-                          </span>
-                        </span>
-                        <span className="text-xs text-[var(--muted-foreground)] flex-shrink-0">
-                          {t(`map.status.${status}`)}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
           </div>
         )
       )}
