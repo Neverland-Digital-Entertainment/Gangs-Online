@@ -163,6 +163,20 @@ export default function MapEditorPage() {
     setObjects(objs);
   }, []);
 
+  // 新增/替換的實例首次自動擺放後，把 transform 寫回 override（持久化位置/縮放）
+  async function handleInstancePlaced(key: string, transform: Transform) {
+    const ov = overrides.find(
+      (o) => o.targetBuildingKey === key && o.isActive
+    );
+    if (!ov || ov.transform) return;
+    try {
+      await mapOverrideService.update(ov.id, { transform });
+      await loadOverrides(chunkId);
+    } catch (err) {
+      console.error('儲存自動擺放失敗:', err);
+    }
+  }
+
   function selectFromList(obj: MapObjectInfo) {
     setSelected(obj);
     setDraftTransform(null);
@@ -433,6 +447,7 @@ export default function MapEditorPage() {
                     focusNonce={focusNonce}
                     onSelect={handleSelect}
                     onTransformChange={handleTransformChange}
+                    onInstancePlaced={handleInstancePlaced}
                     onObjectsChange={handleObjectsChange}
                     onLoadingChange={setViewerLoading}
                     onError={setViewerError}

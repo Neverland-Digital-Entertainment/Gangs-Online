@@ -39,6 +39,7 @@ interface MapEditor3DProps {
   focusNonce: number;
   onSelect: (obj: MapObjectInfo | null) => void;
   onTransformChange: (key: string, transform: Transform) => void;
+  onInstancePlaced?: (key: string, transform: Transform) => void;
   onObjectsChange?: (objects: MapObjectInfo[]) => void;
   onLoadingChange?: (loading: boolean) => void;
   onError?: (message: string | null) => void;
@@ -103,6 +104,7 @@ export default function MapEditor3D({
   focusNonce,
   onSelect,
   onTransformChange,
+  onInstancePlaced,
   onObjectsChange,
   onLoadingChange,
   onError,
@@ -129,6 +131,7 @@ export default function MapEditor3D({
 
   const onSelectRef = useRef(onSelect);
   const onTransformRef = useRef(onTransformChange);
+  const onInstancePlacedRef = useRef(onInstancePlaced);
   const onObjectsRef = useRef(onObjectsChange);
   const onLoadingRef = useRef(onLoadingChange);
   const onErrorRef = useRef(onError);
@@ -136,6 +139,7 @@ export default function MapEditor3D({
   const assetsRef = useRef(assets);
   onSelectRef.current = onSelect;
   onTransformRef.current = onTransformChange;
+  onInstancePlacedRef.current = onInstancePlaced;
   onObjectsRef.current = onObjectsChange;
   onLoadingRef.current = onLoadingChange;
   onErrorRef.current = onError;
@@ -393,12 +397,38 @@ export default function MapEditor3D({
   }
 
   // ---- replace / add 資產實例調和（async） ----
+
+  /** 既有大廈的代表性尺寸（中位數最大邊），用來把新模型縮放到相近大小 */
+  function referenceBuildingSize(): number {
+    const sizes: number[] = [];
+    for (const [k, info] of objectsRef.current) {
+      if (instanceByKeyRef.current.has(k)) continue; // 跳過實例，只看既有大廈
+      const s = Math.max(info.boundingSize.x, info.boundingSize.y, info.boundingSize.z);
+      if (s > 0) sizes.push(s);
+    }
+    if (sizes.length === 0) return 30;
+    sizes.sort((a, b) => a - b);
+    return sizes[Math.floor(sizes.length / 2)];
+  }
+
+  /** 既有大廈的代表性地面高度（中位數 Y），用來讓新建築站在街面 */
+  function referenceGroundY(): number | null {
+    const ys: number[] = [];
+    for (const [k, info] of objectsRef.current) {
+      if (instanceByKeyRef.current.has(k)) continue;
+      ys.push(info.position.y);
+    }
+    if (ys.length === 0) return null;
+    ys.sort((a, b) => a - b);
+    return ys[Math.floor(ys.length / 2)];
+  }
+
   function defaultTransformFor(key: string, ov: MapOverride): Transform {
     if (ov.action === 'replace') {
       const orig = originalByKeyRef.current.get(key);
       if (orig) return orig;
     }
-    // add：放到目前鏡頭焦點（轉成底圖 __root__ 的 local 座標）
+    // add：放到目前鏡頭焦點（轉成底圖 __root__ 的 local 座標），Y 改為街面高度
     const scene = sceneRef.current!;
     const cam = scene.activeCamera as BABYLON.ArcRotateCamera;
     let pos = cam.target.clone();
@@ -407,9 +437,10 @@ export default function MapEditor3D({
       root.computeWorldMatrix(true);
       pos = BABYLON.Vector3.TransformCoordinates(pos, BABYLON.Matrix.Invert(root.getWorldMatrix()));
     }
+    const groundY = referenceGroundY();
     const s = assetsRef.current.find((a) => a.id === ov.assetId)?.defaultScale || 1;
     return {
-      position: { x: pos.x, y: pos.y, z: pos.z },
+      position: { x: pos.x, y: groundY ?? pos.y, z: pos.z },
       rotation: { x: 0, y: 0, z: 0 },
       scale: { x: s, y: s, z: s },
     };
@@ -486,7 +517,38 @@ export default function MapEditor3D({
         }
         if (assetRoot) assetRoot.dispose();
 
-        applyTransform(container, ov.transform ?? defaultTransformFor(key, ov));
+        let finalTransform: Transform;
+        if (ov.transform) {
+          finalTransform = ov.transform;
+        } else {
+          // 尚未儲存過 → 自動縮放到與周圍大廈相近的大小，並記住（持久化）
+          const def = defaultTransformFor(key, ov);
+          applyTransform(container, { ...def, scale: { x: 1, y: 1, z: 1 } });
+          container.computeWorldMatrix(true);
+          const raw = container.getHierarchyBoundingVectors(true);
+          const rawMax = Math.max(
+            raw.max.x - raw.min.x,
+            raw.max.y - raw.min.y,
+            raw.max.z - raw.min.z
+          );
+          const targetSize =
+            ov.action === 'replace'
+              ? (() => {
+                  const bs = objectsRef.current.get(key)?.boundingSize;
+                  return bs ? Math.max(bs.x, bs.y, bs.z) : referenceBuildingSize();
+                })()
+              : referenceBuildingSize();
+          const factor =
+            rawMax > 1e-4 && targetSize > 1e-4 ? targetSize / rawMax : def.scale.x || 1;
+          finalTransform = {
+            position: def.position,
+            rotation: def.rotation,
+            scale: { x: factor, y: factor, z: factor },
+          };
+          onInstancePlacedRef.current?.(key, finalTransform);
+        }
+
+        applyTransform(container, finalTransform);
         container.computeWorldMatrix(true);
         const hb = container.getHierarchyBoundingVectors(true);
         const size = hb.max.subtract(hb.min);

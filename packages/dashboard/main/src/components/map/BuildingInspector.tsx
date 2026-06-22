@@ -215,6 +215,14 @@ export default function BuildingInspector({
                   {vec(current.scale, 3)}
                 </dd>
               </div>
+              <div>
+                <dt className="text-xs text-[var(--muted-foreground)] mb-0.5">
+                  {t('map.inspector.size')}
+                </dt>
+                <dd className="text-sm font-mono break-all text-[var(--foreground)]">
+                  {vec(object.boundingSize)}
+                </dd>
+              </div>
             </dl>
           </>
         )}
