@@ -3,14 +3,15 @@
 /**
  * MapEditor3D — Babylon.js 3D 地圖編輯器（Map Editor P1 + P2 + P4）
  *
- *  P1：載入底圖 GLB、分類 mesh、點選高亮 + 回報資訊
- *  P2：GizmoManager 移動/旋轉/縮放、依 overrides 調和（transform/delete）
- *  P4：replace（替換成資產）、add（新增資產到地圖）
- *      - 資產 GLB 由 buildingAssetService.loadGlbObjectUrl 從 Firestore 重組載入
- *      - 資產內容掛在「容器 TransformNode」下，並 parent 到底圖 __root__，
- *        與既有大廈共用座標空間（沿用 local transform）
+ * 重要：glTF 載入後一個物件 = 「節點(帶真實座標) + 其下的 primitive mesh(本身 0,0,0)」。
+ * 因此本元件以「物件節點」（底圖 __root__ 的直接子節點）為操作單位：
+ *   - 讀寫 transform、掛 gizmo 都對節點進行（顯示真實座標、移動整棟）
+ *   - primitive mesh 只負責被射線點選（metadata 指回節點 key）
  *
- * 資料寫入由父層負責；僅能在瀏覽器執行（next/dynamic ssr:false）。
+ * P4：replace/add 的資產實例同樣掛在「容器節點」下、parent 到 __root__，
+ *     與既有大廈共用座標空間。
+ *
+ * 僅能在瀏覽器執行（next/dynamic ssr:false）。
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -82,6 +83,16 @@ function transformsEqual(a: Transform | null, b: Transform | null): boolean {
   );
 }
 
+/** 取得節點階層的可高亮 mesh（含自身） */
+function meshesOf(node: BABYLON.TransformNode): BABYLON.Mesh[] {
+  const list: BABYLON.Mesh[] = [];
+  if (node instanceof BABYLON.Mesh && node.getTotalVertices() > 0) list.push(node);
+  for (const m of node.getChildMeshes(false)) {
+    if (m instanceof BABYLON.Mesh && m.getTotalVertices() > 0) list.push(m);
+  }
+  return list;
+}
+
 export default function MapEditor3D({
   chunkId,
   chunkFile,
@@ -103,7 +114,7 @@ export default function MapEditor3D({
   const gizmoRef = useRef<BABYLON.GizmoManager | null>(null);
   const chunkRootRef = useRef<BABYLON.TransformNode | null>(null);
 
-  const meshByKeyRef = useRef<Map<string, BABYLON.AbstractMesh>>(new Map());
+  const nodeByKeyRef = useRef<Map<string, BABYLON.TransformNode>>(new Map());
   const originalByKeyRef = useRef<Map<string, Transform>>(new Map());
   const instanceByKeyRef = useRef<Map<string, InstanceRec>>(new Map());
   const objectsRef = useRef<Map<string, MapObjectInfo>>(new Map());
@@ -133,11 +144,24 @@ export default function MapEditor3D({
 
   function nodeForKey(key: string | null): BABYLON.TransformNode | null {
     if (!key) return null;
-    return instanceByKeyRef.current.get(key)?.container ?? meshByKeyRef.current.get(key) ?? null;
+    return instanceByKeyRef.current.get(key)?.container ?? nodeByKeyRef.current.get(key) ?? null;
   }
 
   function emitObjects() {
     onObjectsRef.current?.(Array.from(objectsRef.current.values()));
+  }
+
+  function frameNode(node: BABYLON.TransformNode) {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    node.computeWorldMatrix(true);
+    const { min, max } = node.getHierarchyBoundingVectors(true);
+    if (!Number.isFinite(min.x)) return;
+    const center = BABYLON.Vector3.Center(min, max);
+    const size = max.subtract(min).length();
+    const cam = scene.activeCamera as BABYLON.ArcRotateCamera;
+    cam.setTarget(center.clone());
+    cam.radius = Math.max(size * 1.3, 2);
   }
 
   function emitTransform() {
@@ -167,7 +191,7 @@ export default function MapEditor3D({
     );
     camera.attachControl(canvas, true);
     camera.wheelPrecision = 0.5;
-    camera.minZ = 0.1;
+    camera.minZ = 0.05;
     camera.maxZ = 200000;
     camera.panningSensibility = 10;
     camera.allowUpsideDown = false;
@@ -198,17 +222,25 @@ export default function MapEditor3D({
     });
 
     scene.onPointerObservable.add((pi) => {
-      if (pi.type !== BABYLON.PointerEventTypes.POINTERTAP) return;
-      if (draggingRef.current) return;
-      const picked = pi.pickInfo?.pickedMesh as BABYLON.AbstractMesh | undefined;
-      const base = picked
-        ? ((picked.metadata as Record<string, unknown> | undefined)?.mapObject as MapObjectInfo | undefined)
-        : undefined;
-      if (base) {
-        const node = nodeForKey(base.key);
-        onSelectRef.current(node ? { ...base, ...readTransform(node) } : base);
-      } else {
-        onSelectRef.current(null);
+      if (pi.type === BABYLON.PointerEventTypes.POINTERTAP) {
+        if (draggingRef.current) return;
+        const picked = pi.pickInfo?.pickedMesh as BABYLON.AbstractMesh | undefined;
+        const base = picked
+          ? ((picked.metadata as Record<string, unknown> | undefined)?.mapObject as MapObjectInfo | undefined)
+          : undefined;
+        if (base) {
+          const node = nodeForKey(base.key);
+          onSelectRef.current(node ? { ...base, ...readTransform(node) } : base);
+        } else {
+          onSelectRef.current(null);
+        }
+      } else if (pi.type === BABYLON.PointerEventTypes.POINTERDOUBLETAP) {
+        const picked = pi.pickInfo?.pickedMesh as BABYLON.AbstractMesh | undefined;
+        const base = picked
+          ? ((picked.metadata as Record<string, unknown> | undefined)?.mapObject as MapObjectInfo | undefined)
+          : undefined;
+        const node = base ? nodeForKey(base.key) : null;
+        if (node) frameNode(node);
       }
     });
 
@@ -222,9 +254,10 @@ export default function MapEditor3D({
       highlightRef.current = null;
       gizmoRef.current = null;
       chunkRootRef.current = null;
-      meshByKeyRef.current.clear();
+      nodeByKeyRef.current.clear();
       originalByKeyRef.current.clear();
       instanceByKeyRef.current.clear();
+      objectsRef.current.clear();
     };
   }, []);
 
@@ -234,8 +267,7 @@ export default function MapEditor3D({
     if (!scene || !chunkFile) return;
     let cancelled = false;
 
-    // 清理舊資料
-    meshByKeyRef.current.clear();
+    nodeByKeyRef.current.clear();
     originalByKeyRef.current.clear();
     objectsRef.current.clear();
     for (const [, rec] of instanceByKeyRef.current) {
@@ -258,47 +290,58 @@ export default function MapEditor3D({
       .then((result) => {
         if (cancelled) return;
 
-        chunkRootRef.current =
-          (result.meshes.find((m) => m.name === '__root__') as BABYLON.TransformNode) ?? null;
+        const root = (result.meshes.find((m) => m.name === '__root__') as BABYLON.TransformNode) ?? null;
+        chunkRootRef.current = root;
 
+        // 初始框景：所有 mesh 的世界包圍盒
         let min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
         let max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
-
         for (const mesh of result.meshes) {
           mesh.metadata = { ...(mesh.metadata as object), imported: true };
           if (mesh.name === '__root__') continue;
-
           mesh.computeWorldMatrix(true);
           const bi = mesh.getBoundingInfo();
           min = BABYLON.Vector3.Minimize(min, bi.boundingBox.minimumWorld);
           max = BABYLON.Vector3.Maximize(max, bi.boundingBox.maximumWorld);
-
-          const type = classifyMeshName(mesh.name);
-          const selectable = type === 'building' || type === 'prop';
-          mesh.isPickable = selectable;
-
-          if (selectable) {
-            if (!mesh.rotationQuaternion) {
-              mesh.rotationQuaternion = BABYLON.Quaternion.FromEulerVector(mesh.rotation);
-            }
-            const key = buildObjectKey(chunkId, mesh.name);
-            const original = readTransform(mesh);
-            const ext = bi.boundingBox.extendSizeWorld;
-            const base: MapObjectInfo = {
-              meshName: mesh.name,
-              chunkId,
-              type,
-              key,
-              ...original,
-              boundingSize: { x: ext.x * 2, y: ext.y * 2, z: ext.z * 2 },
-            };
-            mesh.metadata = { ...(mesh.metadata as object), mapObject: base };
-            meshByKeyRef.current.set(key, mesh);
-            originalByKeyRef.current.set(key, original);
-            objectsRef.current.set(key, base);
-          }
         }
-        emitObjects();
+
+        // 以「物件節點」（__root__ 直接子節點）為操作單位
+        const children = root ? root.getChildren() : [];
+        for (const child of children) {
+          const node = child as BABYLON.TransformNode;
+          const type = classifyMeshName(node.name);
+          const selectable = type === 'building' || type === 'prop';
+          const childMeshes = meshesOf(node);
+
+          if (!selectable) {
+            for (const m of childMeshes) m.isPickable = false;
+            continue;
+          }
+
+          if (!node.rotationQuaternion) {
+            node.rotationQuaternion = BABYLON.Quaternion.FromEulerVector(node.rotation);
+          }
+          const key = buildObjectKey(chunkId, node.name);
+          const original = readTransform(node);
+          node.computeWorldMatrix(true);
+          const hb = node.getHierarchyBoundingVectors(true);
+          const size = hb.max.subtract(hb.min);
+          const info: MapObjectInfo = {
+            meshName: node.name,
+            chunkId,
+            type,
+            key,
+            ...original,
+            boundingSize: { x: Math.abs(size.x), y: Math.abs(size.y), z: Math.abs(size.z) },
+          };
+          for (const m of childMeshes) {
+            m.isPickable = true;
+            m.metadata = { ...(m.metadata as object), mapObject: info };
+          }
+          nodeByKeyRef.current.set(key, node);
+          originalByKeyRef.current.set(key, original);
+          objectsRef.current.set(key, info);
+        }
 
         if (Number.isFinite(min.x)) {
           const center = BABYLON.Vector3.Center(min, max);
@@ -309,6 +352,7 @@ export default function MapEditor3D({
           cam.maxZ = radius * 20;
         }
 
+        emitObjects();
         reconcile();
         void reconcileInstances();
         onLoadingRef.current?.(false);
@@ -326,30 +370,29 @@ export default function MapEditor3D({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chunkFile, chunkId]);
 
-  // ---- 既有 mesh 的調和（delete / replace 隱藏、transform 套用、否則還原） ----
+  // ---- 既有節點調和（delete/replace 隱藏、transform 套用、否則還原） ----
   function reconcile() {
-    if (meshByKeyRef.current.size === 0) return;
+    if (nodeByKeyRef.current.size === 0) return;
     const activeByKey = new Map<string, MapOverride>();
     for (const o of overridesRef.current) {
       if (o.isActive) activeByKey.set(o.targetBuildingKey, o);
     }
-
-    for (const [key, mesh] of meshByKeyRef.current) {
+    for (const [key, node] of nodeByKeyRef.current) {
       const ov = activeByKey.get(key);
       if (ov?.action === 'delete' || ov?.action === 'replace') {
-        mesh.setEnabled(false);
+        node.setEnabled(false);
       } else if (ov?.action === 'transform' && ov.transform) {
-        mesh.setEnabled(true);
-        applyTransform(mesh, ov.transform);
+        node.setEnabled(true);
+        applyTransform(node, ov.transform);
       } else {
-        mesh.setEnabled(true);
+        node.setEnabled(true);
         const orig = originalByKeyRef.current.get(key);
-        if (orig) applyTransform(mesh, orig);
+        if (orig) applyTransform(node, orig);
       }
     }
   }
 
-  // ---- replace / add 資產實例的調和（async） ----
+  // ---- replace / add 資產實例調和（async） ----
   function defaultTransformFor(key: string, ov: MapOverride): Transform {
     if (ov.action === 'replace') {
       const orig = originalByKeyRef.current.get(key);
@@ -359,11 +402,10 @@ export default function MapEditor3D({
     const scene = sceneRef.current!;
     const cam = scene.activeCamera as BABYLON.ArcRotateCamera;
     let pos = cam.target.clone();
-    if (chunkRootRef.current) {
-      pos = BABYLON.Vector3.TransformCoordinates(
-        pos,
-        BABYLON.Matrix.Invert(chunkRootRef.current.getWorldMatrix())
-      );
+    const root = chunkRootRef.current;
+    if (root) {
+      root.computeWorldMatrix(true);
+      pos = BABYLON.Vector3.TransformCoordinates(pos, BABYLON.Matrix.Invert(root.getWorldMatrix()));
     }
     const s = assetsRef.current.find((a) => a.id === ov.assetId)?.defaultScale || 1;
     return {
@@ -393,13 +435,11 @@ export default function MapEditor3D({
       }
     }
 
-    // 移除不再需要 / 資產已變更的實例
     for (const [key, rec] of [...instanceByKeyRef.current]) {
       const o = desired.get(key);
       if (!o || o.assetId !== rec.assetId) disposeInstance(key);
     }
 
-    // 載入 / 更新
     for (const [key, ov] of desired) {
       const assetId = ov.assetId;
       if (!assetId) continue;
@@ -435,24 +475,33 @@ export default function MapEditor3D({
           boundingSize: { x: 0, y: 0, z: 0 },
         };
 
+        // 捨棄資產自身 __root__，把內容直接掛到 container（避免重複座標轉換）
         const assetRoot = result.meshes.find((m) => m.name === '__root__');
         for (const m of result.meshes) {
           m.metadata = { ...(m.metadata as object), imported: true, instanceKey: key };
           if (m.name === '__root__') continue;
           m.isPickable = true;
           m.metadata = { ...(m.metadata as object), mapObject: info };
-          // 將資產內容直接掛到 container（捨棄資產自身 __root__，避免重複座標轉換）
           if (m.parent === assetRoot) m.parent = container;
         }
         if (assetRoot) assetRoot.dispose();
 
         applyTransform(container, ov.transform ?? defaultTransformFor(key, ov));
+        container.computeWorldMatrix(true);
+        const hb = container.getHierarchyBoundingVectors(true);
+        const size = hb.max.subtract(hb.min);
+        const finalInfo: MapObjectInfo = {
+          ...info,
+          ...readTransform(container),
+          boundingSize: { x: Math.abs(size.x), y: Math.abs(size.y), z: Math.abs(size.z) },
+        };
+
         instanceByKeyRef.current.set(key, {
           container,
           meshes: result.meshes.filter((m) => m.name !== '__root__'),
           assetId,
         });
-        objectsRef.current.set(key, { ...info, ...readTransform(container) });
+        objectsRef.current.set(key, finalInfo);
         setInstancesVersion((v) => v + 1);
       } catch (err) {
         console.error('[MapEditor3D] failed to load asset instance', key, err);
@@ -505,21 +554,13 @@ export default function MapEditor3D({
     hook(gizmo.gizmos.rotationGizmo as never);
     hook(gizmo.gizmos.scaleGizmo as never);
 
-    // 清除舊高亮
     for (const m of highlightedRef.current) hl.removeMesh(m);
     highlightedRef.current = [];
 
     const node = nodeForKey(selectedKey);
-    const inst = selectedKey ? instanceByKeyRef.current.get(selectedKey) : undefined;
-    const visible = !!node && (node as BABYLON.AbstractMesh).isEnabled?.() !== false;
-
-    if (selectedKey) {
-      const meshes = inst
-        ? inst.meshes.filter((m): m is BABYLON.Mesh => m instanceof BABYLON.Mesh)
-        : node instanceof BABYLON.Mesh && visible
-        ? [node]
-        : [];
-      for (const m of meshes) {
+    const visible = !!node && node.isEnabled();
+    if (node && visible) {
+      for (const m of meshesOf(node)) {
         hl.addMesh(m, BABYLON.Color3.Yellow());
         highlightedRef.current.push(m);
       }
@@ -527,21 +568,15 @@ export default function MapEditor3D({
 
     attachedKeyRef.current = selectedKey;
     lastEmitRef.current = null;
-    gizmo.attachToNode(node && gizmoMode !== 'none' ? node : null);
+    gizmo.attachToNode(node && visible && gizmoMode !== 'none' ? node : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedKey, gizmoMode, overrides, instancesVersion]);
 
-  // ---- 鏡頭聚焦到選取的物件（由列表觸發） ----
+  // ---- 鏡頭聚焦到選取的物件（由列表 / double-click 觸發） ----
   useEffect(() => {
     if (focusNonce <= 0) return;
-    const scene = sceneRef.current;
     const node = nodeForKey(selectedKey);
-    if (!scene || !node) return;
-    node.computeWorldMatrix(true);
-    const pos = node.getAbsolutePosition().clone();
-    const cam = scene.activeCamera as BABYLON.ArcRotateCamera;
-    cam.setTarget(pos);
-    cam.radius = 150;
+    if (node) frameNode(node);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusNonce]);
 

@@ -243,6 +243,14 @@ Firestore: map_overrides          Firestore: building_assets
   - **待瀏覽器實測**：替換/新增的初始擺放位置與朝向可能需用 gizmo 微調（座標/朝向
     在編輯器與客戶端會一致）；縮圖空白仍為已知小問題。
 
+- **2026-06-22** — P4 座標修正 + 診斷：
+  - 改以「物件節點」(底圖 `__root__` 直接子節點，帶真實座標) 為操作單位，
+    取代先前誤用的 primitive mesh（本身 0,0,0）→ 修正既有大廈顯示真實座標、
+    replace 預設放回原位
+  - 新增建築預設放到目前鏡頭焦點（視角中央）
+  - 雙擊物件 → 鏡頭拉近至該模型實際大小（hierarchy bounding）
+  - 物件列表 + 點選聚焦 + 載入失敗診斷
+
 ### 地圖來源（同源 /maps）
 後台預設以同源 `/maps` 供應底圖，免第二個 server、無 CORS：
 - `scripts/copy-maps.mjs` 會在 `npm run dev` / `npm run build` 前（`predev`/`prebuild`）

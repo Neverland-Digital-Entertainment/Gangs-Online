@@ -585,7 +585,7 @@ export default {
   'map.editor.manifestError': 'Failed to load map list',
   'map.editor.mapError': 'Failed to load map model',
   'map.editor.checkSource': 'Check the map source URL (NEXT_PUBLIC_MAP_BASE_URL) and make sure the server hosting the maps is running.',
-  'map.editor.help': 'Left-drag to orbit, scroll to zoom, right-drag to pan; click a building or object to select.',
+  'map.editor.help': 'Left-drag to orbit, scroll to zoom, right-drag to pan; click to select, double-click to zoom to a model.',
   'map.editor.noObjectSelected': 'No object selected',
   'map.editor.noObjectHint': 'Click a building or object on the map to view its details.',
   'map.inspector.title': 'Object Info',

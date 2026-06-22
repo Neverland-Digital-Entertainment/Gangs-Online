@@ -586,7 +586,7 @@ export default {
   'map.editor.manifestError': '無法載入地圖清單',
   'map.editor.mapError': '無法載入地圖模型',
   'map.editor.checkSource': '請確認地圖來源網址設定 (NEXT_PUBLIC_MAP_BASE_URL)，並確保提供地圖的伺服器正在執行。',
-  'map.editor.help': '左鍵拖曳旋轉、滾輪縮放、右鍵平移；點擊大廈或物件以選取。',
+  'map.editor.help': '左鍵拖曳旋轉、滾輪縮放、右鍵平移；點擊大廈或物件以選取，雙擊可拉近至該模型。',
   'map.editor.noObjectSelected': '尚未選取物件',
   'map.editor.noObjectHint': '在地圖上點擊一棟大廈或物件以查看詳細資料。',
   'map.inspector.title': '物件資訊',
