@@ -18,6 +18,7 @@ import { QuestBlueprintUI } from "./ui/QuestBlueprintUI"; // Phase 20: 藍圖任
 // Phase 10.1: ShopSystem 已整合到 HUDManager 的 Popup 系統
 import { HUDManager } from "./systems/HUDManager"; // Phase 9.1
 import { SceneManager } from "./world/SceneManager"; // Phase 15: 取代 CityGenerator
+import { MapOverrideSystem } from "./systems/MapOverrideSystem"; // Map Editor P5
 import { DebugUISystem } from "./systems/DebugUISystem"; // Phase 15: Debug UI
 import { PlayerManager } from "./entities/PlayerManager";
 import { EnemyManager } from "./entities/EnemyManager";
@@ -111,6 +112,14 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
             loadingScreen.updateProgress(progress);
         });
         console.log("✅ Scene loaded successfully");
+
+        // Map Editor P5: 套用後台地圖編輯（移走/移動/替換/新增）
+        try {
+            const mapOverrideSystem = new MapOverrideSystem(scene);
+            await mapOverrideSystem.apply(sceneManager);
+        } catch (overrideError) {
+            console.error("❌ Failed to apply map overrides:", overrideError);
+        }
     } catch (error) {
         console.error("❌ Failed to load scene:", error);
     }

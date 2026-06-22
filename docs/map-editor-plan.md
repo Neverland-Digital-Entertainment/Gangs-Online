@@ -16,7 +16,7 @@
 | **P2** | 操作既有：移走 / 移動 / 旋轉 / 縮放 + GizmoManager + 寫 `map_overrides` | ✅ 已完成 |
 | **P3** | 資產庫：後台選檔上載 GLB 到 Storage + 縮圖 + `building_assets` CRUD | ✅ 已完成 |
 | **P4** | 替換 / 新增：從資產庫挑模型放到地圖 | ✅ 已完成 |
-| **P5** | 客戶端 `MapOverrideSystem`：讀取並套用全部 override（含碰撞/遮擋修補） | ⬜ 未開始 |
+| **P5** | 客戶端 `MapOverrideSystem`：讀取並套用全部 override（含碰撞/遮擋修補） | ✅ 已完成 |
 | **P6** | 收尾：還原/停用 override、權限、編輯器內最終效果預覽 | ⬜ 未開始 |
 
 > 狀態圖例：⬜ 未開始 ／ 🔄 進行中 ／ ✅ 已完成
@@ -250,6 +250,20 @@ Firestore: map_overrides          Firestore: building_assets
   - 新增建築預設放到目前鏡頭焦點（視角中央）
   - 雙擊物件 → 鏡頭拉近至該模型實際大小（hierarchy bounding）
   - 物件列表 + 點選聚焦 + 載入失敗診斷
+
+- **2026-06-22** — P5 完成。遊戲客戶端套用 override：
+  - `client/src/systems/MapOverrideSystem.ts`：載完 chunks 後從 Firestore 讀
+    `map_overrides`（依 chunkId），套用 delete（隱藏節點）/ transform（套 local
+    transform）/ replace（隱藏原節點 + 載資產）/ add（載資產）；資產 GLB 從
+    `building_assets/{id}/chunks` 重組 object URL 載入；新增/替換的 mesh 補上
+    `checkCollisions`、`isPickable`、`metadata.type=building`、材質複製，並註冊進
+    `BuildingOcclusionSystem`
+  - `FirebaseService.getApp()`、`SceneManager.getOcclusionSystem()` 對外暴露
+  - `main.ts`：`sceneManager.initialize()` 完成後呼叫 `mapOverrideSystem.apply()`
+  - 客戶端不平移地圖；override.transform 為節點 local 座標，掛在該 chunk __root__
+    下套用即對齊原始世界座標（與後台一致）
+  - 已通過 client `tsc --noEmit`（需先 build shared）與 `vite build`。
+  - **端到端待實測**：在後台編輯並儲存後，進遊戲應看到移走/移動/替換/新增生效。
 
 ### 地圖來源（同源 /maps）
 後台預設以同源 `/maps` 供應底圖，免第二個 server、無 CORS：
