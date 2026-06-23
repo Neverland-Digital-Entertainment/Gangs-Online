@@ -93,12 +93,21 @@ export class BuildingOcclusionSystem {
     }
 
     /**
-     * 新增建築物 mesh
+     * 新增建築物 mesh（同時登記分組，遮擋偵測才會生效）
      */
     addBuildingMesh(mesh: BABYLON.AbstractMesh): void {
         if (!this.buildingMeshes.includes(mesh)) {
             this.buildingMeshes.push(mesh);
         }
+        const baseName = this.extractBuildingBaseName(mesh.name);
+        if (!this.buildingGroups.has(baseName)) {
+            this.buildingGroups.set(baseName, []);
+        }
+        const group = this.buildingGroups.get(baseName)!;
+        if (!group.includes(mesh)) {
+            group.push(mesh);
+        }
+        this.meshToGroup.set(mesh, baseName);
     }
 
     /**
@@ -226,9 +235,8 @@ export class BuildingOcclusionSystem {
                 ? BABYLON.Material.MATERIAL_ALPHABLEND
                 : BABYLON.Material.MATERIAL_OPAQUE;
         }
-
-        // 碰撞保持啟用
-        mesh.checkCollisions = true;
+        // 註：透明度與碰撞無關，不在此變更 checkCollisions
+        // （既有建築在載入時已設好碰撞；新增建築改用獨立方塊碰撞體）
     }
 
     /**
