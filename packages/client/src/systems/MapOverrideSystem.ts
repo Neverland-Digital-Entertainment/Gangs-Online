@@ -254,12 +254,13 @@ export class MapOverrideSystem {
 
             this.applyTransform(container, transform);
 
-            // 設定建築 mesh 屬性（比照 ChunkLoaderSystem.setupBuildingMesh）並註冊遮擋
+            // 設定建築 mesh 屬性（比照 ChunkLoaderSystem.setupBuildingMesh）並註冊遮擋。
+            // 注意：視覺 mesh 不直接當碰撞體（詳細三角面會讓玩家卡住），改用乾淨方塊。
             const occlusion = sceneManager.getOcclusionSystem();
             for (const mesh of result.meshes) {
                 if (mesh.name === "__root__") continue;
                 mesh.isPickable = true;
-                mesh.checkCollisions = true;
+                mesh.checkCollisions = false;
                 mesh.metadata = { ...mesh.metadata, type: "building", chunkId, overrideKey: key };
 
                 if (mesh.material) {
@@ -277,9 +278,48 @@ export class MapOverrideSystem {
                 }
                 occlusion.addBuildingMesh(mesh);
             }
+
+            // 建立貼合外框的隱形方塊碰撞體（隨 container 旋轉/縮放，移動更順）
+            this.addBoxCollider(container, key, chunkId);
         } finally {
             URL.revokeObjectURL(url);
         }
+    }
+
+    /** 依 container 階層在「本地座標」算出貼合外框的方塊，當作碰撞體 */
+    private addBoxCollider(
+        container: BABYLON.TransformNode,
+        key: string,
+        chunkId: string
+    ): void {
+        container.computeWorldMatrix(true);
+        const inv = BABYLON.Matrix.Invert(container.getWorldMatrix());
+        let lmin = new BABYLON.Vector3(Infinity, Infinity, Infinity);
+        let lmax = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
+        for (const mesh of container.getChildMeshes(false)) {
+            if (mesh.getTotalVertices() === 0) continue;
+            for (const corner of mesh.getBoundingInfo().boundingBox.vectorsWorld) {
+                const local = BABYLON.Vector3.TransformCoordinates(corner, inv);
+                lmin = BABYLON.Vector3.Minimize(lmin, local);
+                lmax = BABYLON.Vector3.Maximize(lmax, local);
+            }
+        }
+        if (!Number.isFinite(lmin.x) || !Number.isFinite(lmax.x)) return;
+
+        const size = lmax.subtract(lmin);
+        const center = lmin.add(lmax).scale(0.5);
+        const box = BABYLON.MeshBuilder.CreateBox(
+            `collider_${key}`,
+            { width: Math.abs(size.x), height: Math.abs(size.y), depth: Math.abs(size.z) },
+            this.scene
+        );
+        box.parent = container;
+        box.position.copyFrom(center);
+        box.rotationQuaternion = BABYLON.Quaternion.Identity();
+        box.checkCollisions = true;
+        box.isVisible = false;
+        box.isPickable = false;
+        box.metadata = { isOverrideCollider: true, chunkId, overrideKey: key };
     }
 
     /** 從 Firestore 讀回資產 GLB，重組成 object URL */
