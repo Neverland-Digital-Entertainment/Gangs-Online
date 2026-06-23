@@ -17,7 +17,7 @@
 | **P3** | 資產庫：後台選檔上載 GLB 到 Storage + 縮圖 + `building_assets` CRUD | ✅ 已完成 |
 | **P4** | 替換 / 新增：從資產庫挑模型放到地圖 | ✅ 已完成 |
 | **P5** | 客戶端 `MapOverrideSystem`：讀取並套用全部 override（含碰撞/遮擋修補） | ✅ 已完成 |
-| **P6** | 收尾：還原/停用 override、權限、編輯器內最終效果預覽 | ⬜ 未開始 |
+| **P6** | 收尾：可編輯數值、啟用/停用 override、管理員權限 | ✅ 已完成 |
 
 > 狀態圖例：⬜ 未開始 ／ 🔄 進行中 ／ ✅ 已完成
 >
@@ -264,6 +264,14 @@ Firestore: map_overrides          Firestore: building_assets
     下套用即對齊原始世界座標（與後台一致）
   - 已通過 client `tsc --noEmit`（需先 build shared）與 `vite build`。
   - **端到端待實測**：在後台編輯並儲存後，進遊戲應看到移走/移動/替換/新增生效。
+
+- **2026-06-22** — P6 完成：
+  - Inspector 的位置/旋轉(度)/縮放改為可手動輸入，即時套用到 3D 並可儲存
+  - override 可啟用/停用（isActive），停用不刪除、遊戲端不套用；列表/Inspector 顯示「已停用」
+  - 管理員權限：Firebase Auth（Google 登入）+ `NEXT_PUBLIC_ADMIN_EMAILS` email 白名單，
+    `AuthProvider` + `AuthGate` 包住整個後台；側欄顯示登入帳號與登出
+  - 已通過 `tsc --noEmit` 與 `next build`
+  - 後續安全強化：應在 Firestore/Storage 規則層強制管理員（前端閘門僅第一層）
 
 ### 地圖來源（同源 /maps）
 後台預設以同源 `/maps` 供應底圖，免第二個 server、無 CORS：

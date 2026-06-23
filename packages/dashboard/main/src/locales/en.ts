@@ -660,6 +660,16 @@ export default {
   'map.assets.invalidFile': 'Please select a .glb file',
   'map.assets.tooLarge': 'File too large (10MB limit on the free plan); use a smaller model.',
 
+  // Auth
+  'auth.title': 'Admin Sign In',
+  'auth.subtitle': 'Please sign in as an admin to continue',
+  'auth.signInGoogle': 'Sign in with Google',
+  'auth.signOut': 'Sign out',
+  'auth.noPermission': 'No admin permission',
+  'auth.noPermissionHint': 'This account is not on the admin list. Please sign in with an admin account.',
+  'auth.switchAccount': 'Switch account',
+  'auth.allowlistWarning': 'Admin allowlist (NEXT_PUBLIC_ADMIN_EMAILS) is not set — any signed-in account can access. Please configure it soon.',
+
   // Validation
   'validation.required': 'Please enter {field}',
   'validation.mustBePositive': '{field} must be greater than 0',

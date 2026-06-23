@@ -24,6 +24,8 @@ import {
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 import { useI18n } from '@/contexts/i18n-context';
+import { useAuth } from '@/contexts/auth-context';
+import { LogOut } from 'lucide-react';
 
 type MenuItem = {
   titleKey: string;
@@ -121,6 +123,7 @@ const menuItems: MenuItem[] = [
 function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
   const { t } = useI18n();
+  const { user, signOut } = useAuth();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   // Auto-expand menus based on current path
@@ -256,6 +259,20 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
       </nav>
 
       <div className="p-4 border-t border-[var(--border)] bg-[var(--sidebar-bg)]">
+        {user && (
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-xs text-[var(--muted)] truncate" title={user.email || ''}>
+              {user.email}
+            </span>
+            <button
+              onClick={() => signOut()}
+              className="p-1.5 hover:bg-[var(--sidebar-hover)] rounded flex-shrink-0"
+              title={t('auth.signOut')}
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2 mb-2">
           <LanguageSwitcher />
           <ThemeToggle />

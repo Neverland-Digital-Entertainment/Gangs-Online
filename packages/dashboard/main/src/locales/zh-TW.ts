@@ -661,6 +661,16 @@ export default {
   'map.assets.invalidFile': '請選擇 .glb 檔案',
   'map.assets.tooLarge': '檔案太大（免費方案上限 10MB），請用較小的模型。',
 
+  // Auth
+  'auth.title': '管理後台登入',
+  'auth.subtitle': '請以管理員身分登入以繼續',
+  'auth.signInGoogle': '使用 Google 登入',
+  'auth.signOut': '登出',
+  'auth.noPermission': '沒有管理權限',
+  'auth.noPermissionHint': '此帳號不在管理員名單中，請改用管理員帳號登入。',
+  'auth.switchAccount': '切換帳號',
+  'auth.allowlistWarning': '尚未設定管理員白名單（NEXT_PUBLIC_ADMIN_EMAILS），目前任何登入帳號都可存取，請盡快設定。',
+
   // Validation
   'validation.required': '請輸入{field}',
   'validation.mustBePositive': '{field}必須大於 0',
