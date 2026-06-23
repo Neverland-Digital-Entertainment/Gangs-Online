@@ -286,36 +286,39 @@ export class MapOverrideSystem {
         }
     }
 
-    /** 依 container 階層在「本地座標」算出貼合外框的方塊，當作碰撞體 */
+    /** 依 container 的世界包圍盒建立貼合外框的方塊碰撞體（移動更順） */
     private addBoxCollider(
         container: BABYLON.TransformNode,
         key: string,
         chunkId: string
     ): void {
         container.computeWorldMatrix(true);
-        const inv = BABYLON.Matrix.Invert(container.getWorldMatrix());
-        let lmin = new BABYLON.Vector3(Infinity, Infinity, Infinity);
-        let lmax = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
-        for (const mesh of container.getChildMeshes(false)) {
-            if (mesh.getTotalVertices() === 0) continue;
-            for (const corner of mesh.getBoundingInfo().boundingBox.vectorsWorld) {
-                const local = BABYLON.Vector3.TransformCoordinates(corner, inv);
-                lmin = BABYLON.Vector3.Minimize(lmin, local);
-                lmax = BABYLON.Vector3.Maximize(lmax, local);
-            }
+        // getHierarchyBoundingVectors 會強制更新世界矩陣，回傳可靠的世界 AABB
+        const hb = container.getHierarchyBoundingVectors(true);
+        if (
+            !Number.isFinite(hb.min.x) ||
+            !Number.isFinite(hb.max.x) ||
+            !Number.isFinite(hb.min.y) ||
+            !Number.isFinite(hb.max.y)
+        ) {
+            console.warn(`[MapOverride] collider skipped (no bounds): ${key}`);
+            return;
         }
-        if (!Number.isFinite(lmin.x) || !Number.isFinite(lmax.x)) return;
 
-        const size = lmax.subtract(lmin);
-        const center = lmin.add(lmax).scale(0.5);
+        const size = hb.max.subtract(hb.min);
+        // 防呆：尺寸異常巨大代表算錯，寧可不放碰撞體也不要把玩家困住
+        if (size.length() > 5000 || size.length() < 1e-3) {
+            console.warn(`[MapOverride] collider skipped (bad size ${size.length().toFixed(1)}): ${key}`);
+            return;
+        }
+
+        const center = hb.min.add(hb.max).scale(0.5);
         const box = BABYLON.MeshBuilder.CreateBox(
             `collider_${key}`,
             { width: Math.abs(size.x), height: Math.abs(size.y), depth: Math.abs(size.z) },
             this.scene
         );
-        box.parent = container;
-        box.position.copyFrom(center);
-        box.rotationQuaternion = BABYLON.Quaternion.Identity();
+        box.position.copyFrom(center); // 世界座標（頂層，不掛 container 以免重複套用變換）
         box.checkCollisions = true;
         box.isVisible = false;
         box.isPickable = false;
