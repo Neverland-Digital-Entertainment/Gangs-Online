@@ -1,12 +1,12 @@
 'use client';
 
 /**
- * BuildingInspector — 選中地圖物件的資訊與編輯面板（Map Editor P1 + P2）
+ * BuildingInspector — 選中地圖物件的資訊與編輯面板（Map Editor P1/P2/P4/P6）
  *
- * P2：操作模式切換（移動/旋轉/縮放）、即時 transform、儲存/移走/還原。
+ * P6：transform 數值可手動輸入；override 可啟用/停用。
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Building2,
   Info,
@@ -19,6 +19,7 @@ import {
   Loader2,
   AlertCircle,
   Replace,
+  Power,
 } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
 import type {
@@ -35,6 +36,9 @@ interface BuildingInspectorProps {
   draftTransform: Transform | null;
   appliedTransform: Transform | null;
   overrideAction: OverrideAction | null;
+  overrideActive: boolean;
+  hasOverride: boolean;
+  canToggleActive: boolean;
   dirty: boolean;
   saving: boolean;
   error: string | null;
@@ -42,10 +46,73 @@ interface BuildingInspectorProps {
   onRemove: () => void;
   onReset: () => void;
   onRequestReplace: () => void;
+  onTransformInput: (t: Transform) => void;
+  onToggleActive: () => void;
 }
 
-function vec(v: { x: number; y: number; z: number }, digits = 2): string {
-  return `${v.x.toFixed(digits)}, ${v.y.toFixed(digits)}, ${v.z.toFixed(digits)}`;
+const RAD2DEG = 180 / Math.PI;
+const DEG2RAD = Math.PI / 180;
+
+function fmt(n: number): string {
+  return (Math.round(n * 1000) / 1000).toString();
+}
+
+/** 單一數值輸入：保留輸入字串，外部值變動且未聚焦時才同步 */
+function NumField({
+  value,
+  step,
+  onCommit,
+}: {
+  value: number;
+  step: number;
+  onCommit: (n: number) => void;
+}) {
+  const [str, setStr] = useState(fmt(value));
+  const focused = useRef(false);
+  useEffect(() => {
+    if (!focused.current) setStr(fmt(value));
+  }, [value]);
+  return (
+    <input
+      type="number"
+      step={step}
+      value={str}
+      onFocus={() => (focused.current = true)}
+      onBlur={() => {
+        focused.current = false;
+        setStr(fmt(value));
+      }}
+      onChange={(e) => {
+        setStr(e.target.value);
+        const n = parseFloat(e.target.value);
+        if (Number.isFinite(n)) onCommit(n);
+      }}
+      className="input input-sm font-mono text-sm w-full"
+    />
+  );
+}
+
+function Vec3Field({
+  label,
+  v,
+  step,
+  onChange,
+}: {
+  label: string;
+  v: { x: number; y: number; z: number };
+  step: number;
+  onChange: (axis: 'x' | 'y' | 'z', n: number) => void;
+}) {
+  return (
+    <div>
+      <p className="text-xs text-[var(--muted-foreground)] mb-1">{label}</p>
+      <div className="grid grid-cols-3 gap-2">
+        <NumField value={v.x} step={step} onCommit={(n) => onChange('x', n)} />
+        <NumField value={v.y} step={step} onCommit={(n) => onChange('y', n)} />
+        <NumField value={v.z} step={step} onCommit={(n) => onChange('z', n)} />
+      </div>
+    </div>
+  );
 }
 
 export default function BuildingInspector({
@@ -55,6 +122,9 @@ export default function BuildingInspector({
   draftTransform,
   appliedTransform,
   overrideAction,
+  overrideActive,
+  hasOverride,
+  canToggleActive,
   dirty,
   saving,
   error,
@@ -62,6 +132,8 @@ export default function BuildingInspector({
   onRemove,
   onReset,
   onRequestReplace,
+  onTransformInput,
+  onToggleActive,
 }: BuildingInspectorProps) {
   const { t } = useI18n();
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -82,13 +154,16 @@ export default function BuildingInspector({
     );
   }
 
-  const removed = overrideAction === 'delete';
+  const disabled = hasOverride && !overrideActive;
   const isReplace = overrideAction === 'replace';
   const isAdd = overrideAction === 'add';
   const isInstance = isReplace || isAdd;
+  const removed = overrideAction === 'delete' && overrideActive;
 
-  const status: 'original' | 'modified' | 'removed' | 'replaced' | 'added' =
-    removed
+  const status: 'original' | 'modified' | 'removed' | 'replaced' | 'added' | 'disabled' =
+    disabled
+      ? 'disabled'
+      : removed
       ? 'removed'
       : isAdd
       ? 'added'
@@ -101,6 +176,8 @@ export default function BuildingInspector({
   const statusClass =
     status === 'removed'
       ? 'bg-red-500 text-white'
+      : status === 'disabled'
+      ? 'bg-slate-500 text-white'
       : status === 'added'
       ? 'bg-blue-500 text-white'
       : status === 'replaced'
@@ -115,6 +192,10 @@ export default function BuildingInspector({
       rotation: object.rotation,
       scale: object.scale,
     };
+
+  function commit(next: Transform) {
+    onTransformInput(next);
+  }
 
   const modes: { mode: GizmoMode; icon: typeof Move; label: string }[] = [
     { mode: 'move', icon: Move, label: t('map.editor.gizmo.move') },
@@ -140,7 +221,6 @@ export default function BuildingInspector({
           </span>
         </div>
 
-        {/* 基本資訊 */}
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <div>
             <dt className="text-xs text-[var(--muted-foreground)]">
@@ -189,41 +269,49 @@ export default function BuildingInspector({
               </p>
             </div>
 
-            {/* 即時 transform */}
-            <dl className="space-y-3">
+            {/* 可編輯 transform */}
+            <div className="space-y-3">
+              <Vec3Field
+                label={t('map.inspector.position')}
+                v={current.position}
+                step={1}
+                onChange={(axis, n) =>
+                  commit({ ...current, position: { ...current.position, [axis]: n } })
+                }
+              />
+              <Vec3Field
+                label={t('map.inspector.rotationDeg')}
+                v={{
+                  x: current.rotation.x * RAD2DEG,
+                  y: current.rotation.y * RAD2DEG,
+                  z: current.rotation.z * RAD2DEG,
+                }}
+                step={5}
+                onChange={(axis, deg) =>
+                  commit({
+                    ...current,
+                    rotation: { ...current.rotation, [axis]: deg * DEG2RAD },
+                  })
+                }
+              />
+              <Vec3Field
+                label={t('map.inspector.scale')}
+                v={current.scale}
+                step={0.1}
+                onChange={(axis, n) =>
+                  commit({ ...current, scale: { ...current.scale, [axis]: n } })
+                }
+              />
               <div>
-                <dt className="text-xs text-[var(--muted-foreground)] mb-0.5">
-                  {t('map.inspector.position')}
-                </dt>
-                <dd className="text-sm font-mono break-all text-[var(--foreground)]">
-                  {vec(current.position)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-[var(--muted-foreground)] mb-0.5">
-                  {t('map.inspector.rotation')}
-                </dt>
-                <dd className="text-sm font-mono break-all text-[var(--foreground)]">
-                  {vec(current.rotation, 3)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-[var(--muted-foreground)] mb-0.5">
-                  {t('map.inspector.scale')}
-                </dt>
-                <dd className="text-sm font-mono break-all text-[var(--foreground)]">
-                  {vec(current.scale, 3)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-[var(--muted-foreground)] mb-0.5">
+                <p className="text-xs text-[var(--muted-foreground)] mb-0.5">
                   {t('map.inspector.size')}
-                </dt>
-                <dd className="text-sm font-mono break-all text-[var(--foreground)]">
-                  {vec(object.boundingSize)}
-                </dd>
+                </p>
+                <p className="text-sm font-mono text-[var(--foreground)]">
+                  {fmt(object.boundingSize.x)}, {fmt(object.boundingSize.y)},{' '}
+                  {fmt(object.boundingSize.z)}
+                </p>
               </div>
-            </dl>
+            </div>
           </>
         )}
 
@@ -231,6 +319,9 @@ export default function BuildingInspector({
           <p className="text-xs text-amber-600 dark:text-amber-400">
             {t('map.editor.unsaved')}
           </p>
+        )}
+        {disabled && (
+          <p className="text-xs text-slate-500">{t('map.editor.disabledHint')}</p>
         )}
 
         {error && (
@@ -258,7 +349,6 @@ export default function BuildingInspector({
             </button>
           )}
 
-          {/* 替換 / 更換資產 */}
           {!removed && (
             <button
               type="button"
@@ -267,13 +357,23 @@ export default function BuildingInspector({
               className="btn btn-outline w-full"
             >
               <Replace className="w-4 h-4 mr-2" />
-              {isInstance
-                ? t('map.editor.changeAsset')
-                : t('map.editor.replace')}
+              {isInstance ? t('map.editor.changeAsset') : t('map.editor.replace')}
             </button>
           )}
 
-          {/* 還原 / 復原 */}
+          {/* 啟用/停用 */}
+          {hasOverride && canToggleActive && (
+            <button
+              type="button"
+              onClick={onToggleActive}
+              disabled={saving}
+              className="btn btn-outline w-full"
+            >
+              <Power className="w-4 h-4 mr-2" />
+              {overrideActive ? t('map.editor.disable') : t('map.editor.enable')}
+            </button>
+          )}
+
           {(overrideAction === 'transform' || isReplace || removed) && (
             <button
               type="button"
@@ -286,7 +386,6 @@ export default function BuildingInspector({
             </button>
           )}
 
-          {/* 新增的建築：直接刪除 */}
           {isAdd && (
             <button
               type="button"
@@ -299,7 +398,6 @@ export default function BuildingInspector({
             </button>
           )}
 
-          {/* 既有建築：移走 */}
           {!removed &&
             !isInstance &&
             (confirmRemove ? (

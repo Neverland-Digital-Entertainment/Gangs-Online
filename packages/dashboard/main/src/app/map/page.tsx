@@ -44,6 +44,7 @@ export default function MapEditorPage() {
   const [draftTransform, setDraftTransform] = useState<Transform | null>(null);
   const [objects, setObjects] = useState<MapObjectInfo[]>([]);
   const [focusNonce, setFocusNonce] = useState(0);
+  const [applyNonce, setApplyNonce] = useState(0);
   const [rightTab, setRightTab] = useState<'inspector' | 'list'>('list');
   const [showRemoved, setShowRemoved] = useState(false);
 
@@ -102,9 +103,7 @@ export default function MapEditorPage() {
   const selectedOverride = useMemo(
     () =>
       selected
-        ? overrides.find(
-            (o) => o.targetBuildingKey === selected.key && o.isActive
-          ) ?? null
+        ? overrides.find((o) => o.targetBuildingKey === selected.key) ?? null
         : null,
     [overrides, selected]
   );
@@ -115,7 +114,12 @@ export default function MapEditorPage() {
     return map;
   }, [assets]);
 
-  // 有 add/replace override 但場景裡找不到對應實例 → 載入失敗（診斷用）
+  // 全部 override（含停用）依 key 索引，供列表/狀態判斷
+  const overrideByKey = useMemo(() => {
+    const map: Record<string, MapOverride> = {};
+    for (const o of overrides) map[o.targetBuildingKey] = o;
+    return map;
+  }, [overrides]);
   const missingInstances = useMemo(() => {
     const keys = new Set(objects.map((o) => o.key));
     return overrides.filter(
@@ -161,23 +165,41 @@ export default function MapEditorPage() {
   }, []);
 
   // 狀態判斷小工具
-  const overrideByKey = useMemo(() => {
-    const map: Record<string, MapOverride> = {};
-    for (const o of overrides) if (o.isActive) map[o.targetBuildingKey] = o;
-    return map;
-  }, [overrides]);
-
   const visibleObjects = useMemo(
     () =>
       showRemoved
         ? objects
-        : objects.filter((o) => overrideByKey[o.key]?.action !== 'delete'),
+        : objects.filter((o) => {
+            const ov = overrideByKey[o.key];
+            return !(ov?.action === 'delete' && ov.isActive);
+          }),
     [objects, overrideByKey, showRemoved]
   );
 
   const handleTransformChange = useCallback((key: string, tr: Transform) => {
     if (selectedKeyRef.current === key) setDraftTransform(tr);
   }, []);
+
+  // 手動輸入數值 → 更新草稿並推送到 3D（applyNonce 觸發編輯器套用）
+  function handleTransformInput(tr: Transform) {
+    setDraftTransform(tr);
+    setApplyNonce((n) => n + 1);
+  }
+
+  async function handleToggleActive() {
+    if (!selectedOverride) return;
+    try {
+      setSaving(true);
+      setSaveError(null);
+      await mapOverrideService.setActive(selectedOverride.id, !selectedOverride.isActive);
+      await loadOverrides(chunkId);
+    } catch (err) {
+      console.error('切換啟用狀態失敗:', err);
+      setSaveError(t('map.editor.saveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const handleObjectsChange = useCallback((objs: MapObjectInfo[]) => {
     setObjects(objs);
@@ -465,6 +487,8 @@ export default function MapEditorPage() {
                     overrides={overrides}
                     assets={assets}
                     focusNonce={focusNonce}
+                    inputTransform={draftTransform}
+                    inputNonce={applyNonce}
                     onSelect={handleSelect}
                     onTransformChange={handleTransformChange}
                     onInstancePlaced={handleInstancePlaced}
@@ -540,6 +564,11 @@ export default function MapEditorPage() {
                     draftTransform={draftTransform}
                     appliedTransform={selectedOverride?.transform ?? null}
                     overrideAction={selectedOverride?.action ?? null}
+                    overrideActive={selectedOverride?.isActive ?? true}
+                    hasOverride={!!selectedOverride}
+                    canToggleActive={
+                      !!selectedOverride && selectedOverride.action !== 'add'
+                    }
                     dirty={dirty}
                     saving={saving}
                     error={saveError}
@@ -547,6 +576,8 @@ export default function MapEditorPage() {
                     onRemove={handleRemove}
                     onReset={handleReset}
                     onRequestReplace={() => setPicker('replace')}
+                    onTransformInput={handleTransformInput}
+                    onToggleActive={handleToggleActive}
                   />
                 ) : (
                   <div className="card">
@@ -602,15 +633,17 @@ export default function MapEditorPage() {
                         <div className="divide-y divide-[var(--border)]">
                           {visibleObjects.map((o) => {
                             const ov = overrideByKey[o.key];
-                            const status = ov
-                              ? ov.action === 'delete'
-                                ? 'removed'
-                                : ov.action === 'add'
-                                ? 'added'
-                                : ov.action === 'replace'
-                                ? 'replaced'
-                                : 'modified'
-                              : 'original';
+                            const status = !ov
+                              ? 'original'
+                              : !ov.isActive
+                              ? 'disabled'
+                              : ov.action === 'delete'
+                              ? 'removed'
+                              : ov.action === 'add'
+                              ? 'added'
+                              : ov.action === 'replace'
+                              ? 'replaced'
+                              : 'modified';
                             const displayName =
                               ov && (ov.action === 'add' || ov.action === 'replace') && ov.assetId
                                 ? assetsById[ov.assetId]?.name ?? o.meshName

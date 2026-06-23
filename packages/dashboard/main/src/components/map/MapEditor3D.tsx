@@ -37,6 +37,8 @@ interface MapEditor3DProps {
   overrides: MapOverride[];
   assets: BuildingAsset[];
   focusNonce: number;
+  inputTransform: Transform | null;
+  inputNonce: number;
   onSelect: (obj: MapObjectInfo | null) => void;
   onTransformChange: (key: string, transform: Transform) => void;
   onInstancePlaced?: (key: string, transform: Transform) => void;
@@ -106,6 +108,8 @@ export default function MapEditor3D({
   overrides,
   assets,
   focusNonce,
+  inputTransform,
+  inputNonce,
   onSelect,
   onTransformChange,
   onInstancePlaced,
@@ -677,6 +681,14 @@ export default function MapEditor3D({
     if (node) frameNode(node);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusNonce]);
+
+  // ---- 手動輸入的數值套用到選取物件（由 Inspector 輸入框觸發） ----
+  useEffect(() => {
+    if (inputNonce <= 0 || !inputTransform) return;
+    const node = nodeForKey(selectedKey);
+    if (node) applyTransform(node, inputTransform);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputNonce]);
 
   return (
     <canvas
