@@ -1,22 +1,21 @@
 'use client';
 
 /**
- * AuthGate — 後台登入閘門（Map Editor P6）
- * 未登入或非管理員時擋下整個後台。
+ * AuthGate — 後台登入閘門。
+ * 未登入 → 登入頁；待審/停用 → 無權限頁；ok → 放行。
  */
 
-import { AlertCircle, Loader2, LogIn, ShieldAlert } from 'lucide-react';
+import { AlertCircle, Clock, Loader2, LogIn } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
-  const { user, loading, isAdmin, allowlistConfigured, error, signIn, signOut } =
-    useAuth();
+  const { user, status, error, signIn, signOut } = useAuth();
   const { t } = useI18n();
 
-  if (loading) {
+  if (status === 'loading') {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="w-10 h-10 animate-spin text-[var(--muted-foreground)]" />
@@ -24,8 +23,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 未登入
-  if (!user) {
+  if (status === 'signedOut' || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="card w-full max-w-sm">
@@ -63,21 +61,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 已登入但非管理員
-  if (!isAdmin) {
+  if (status === 'pending') {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="card w-full max-w-sm">
           <div className="card-body text-center space-y-4 py-10">
-            <ShieldAlert className="w-12 h-12 text-amber-500 mx-auto" />
+            <Clock className="w-12 h-12 text-amber-500 mx-auto" />
             <h1 className="text-xl font-bold text-[var(--foreground)]">
-              {t('auth.noPermission')}
+              {t('auth.pending')}
             </h1>
+            <p className="text-sm text-[var(--muted-foreground)]">{user.email}</p>
             <p className="text-sm text-[var(--muted-foreground)]">
-              {user.email}
-            </p>
-            <p className="text-sm text-[var(--muted-foreground)]">
-              {t('auth.noPermissionHint')}
+              {t('auth.pendingHint')}
             </p>
             <button onClick={signOut} className="btn btn-outline w-full">
               {t('auth.switchAccount')}
@@ -88,15 +83,5 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 管理員：放行；白名單未設定時提示
-  return (
-    <>
-      {!allowlistConfigured && (
-        <div className="bg-amber-500/90 text-white text-xs text-center py-1 px-3">
-          {t('auth.allowlistWarning')}
-        </div>
-      )}
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }

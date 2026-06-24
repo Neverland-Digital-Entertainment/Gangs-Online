@@ -1,15 +1,17 @@
 'use client';
 
 /**
- * Auth Context (Map Editor P6 — 管理員權限驗證)
+ * Auth Context — 認證 + 授權（RBAC）
  *
- * 用 Firebase Auth（Google 登入）驗證後台使用者，管理員判定來源有二：
- *   1. Firestore `admins` 集合：文件 ID = 管理員 email（小寫），或文件含 email 欄位。
- *      （推薦：在 Firebase Console 直接加文件即可，免重新部署、即時生效）
- *   2. 環境變數 NEXT_PUBLIC_ADMIN_EMAILS（逗號分隔，建置時寫入，需重新部署）
+ * 認證：Firebase Auth（Google）。授權：dashboard_users（帳號）+ dashboard_groups（群組）。
  *
- * 若兩者皆未設定，暫時允許任何已登入帳號（方便初次設定），請盡快設定。
- * 注意：前端閘門只是第一層；真正安全需在 Firestore/Storage 規則強制管理員權限。
+ * 超級管理員（bootstrap）：email 在 NEXT_PUBLIC_ADMIN_EMAILS 或 Firestore `admins`
+ * 集合者，永遠擁有全部權限（用來建立第一批群組/帳號）。
+ *
+ * 一般帳號：首次登入自動建立「待審」帳號（isActive=false）；管理員指派群組並啟用後，
+ * 有效權限 = 所屬啟用中群組權限的聯集。
+ *
+ * 注意：前端閘門為第一層；正式安全需另在 Firestore 規則強制。
  */
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -25,19 +27,24 @@ import {
 } from 'firebase/auth';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { getFirebaseServices } from '@/lib/firebase/config';
+import { groupService } from '@/lib/admin/group-service';
+import { userService } from '@/lib/admin/user-service';
+import { ALL_PERMISSIONS, type DashboardUser } from '@/types/admin';
 
 const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
   .split(',')
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean);
 
-const ADMINS_COLLECTION = 'admins';
+export type AuthStatus = 'loading' | 'signedOut' | 'pending' | 'ok';
 
 interface AuthContextType {
   user: User | null;
-  loading: boolean;
-  isAdmin: boolean;
-  allowlistConfigured: boolean;
+  status: AuthStatus;
+  isSuperAdmin: boolean;
+  account: DashboardUser | null;
+  permissions: Set<string>;
+  hasPermission: (p: string) => boolean;
   error: string | null;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -45,37 +52,29 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/** 檢查使用者是否為管理員（env 白名單 + Firestore admins 集合） */
-async function resolveAdmin(
-  user: User
-): Promise<{ isAdmin: boolean; configured: boolean }> {
-  const email = (user.email || '').toLowerCase();
-  let isAdmin = ADMIN_EMAILS.includes(email);
-  let configured = ADMIN_EMAILS.length > 0;
-
+async function isSuperAdminEmail(email: string): Promise<boolean> {
+  const e = email.toLowerCase();
+  if (ADMIN_EMAILS.includes(e)) return true;
   try {
     const { db } = getFirebaseServices();
-    const snap = await getDocs(query(collection(db, ADMINS_COLLECTION), limit(100)));
-    if (!snap.empty) configured = true;
-    snap.forEach((d) => {
+    const snap = await getDocs(query(collection(db, 'admins'), limit(100)));
+    for (const d of snap.docs) {
       const id = d.id.toLowerCase();
-      const fieldEmail = ((d.data().email as string) || '').toLowerCase();
-      if (id === email || fieldEmail === email) isAdmin = true;
-    });
+      const fEmail = ((d.data().email as string) || '').toLowerCase();
+      if (id === e || fEmail === e) return true;
+    }
   } catch (err) {
-    console.error('讀取 admins 集合失敗:', err);
+    console.error('讀取 admins 失敗:', err);
   }
-
-  // 完全未設定任何白名單 → 暫時允許所有登入者
-  if (!configured) isAdmin = true;
-  return { isAdmin, configured };
+  return false;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [allowlistConfigured, setAllowlistConfigured] = useState(true);
+  const [status, setStatus] = useState<AuthStatus>('loading');
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [account, setAccount] = useState<DashboardUser | null>(null);
+  const [permissions, setPermissions] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -86,15 +85,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const unsub = onAuthStateChanged(auth, async (u) => {
         if (cancelled) return;
         setUser(u);
-        if (u) {
-          const { isAdmin: admin, configured } = await resolveAdmin(u);
-          if (cancelled) return;
-          setIsAdmin(admin);
-          setAllowlistConfigured(configured);
-        } else {
-          setIsAdmin(false);
+        if (!u) {
+          setStatus('signedOut');
+          setIsSuperAdmin(false);
+          setAccount(null);
+          setPermissions(new Set());
+          return;
         }
-        setLoading(false);
+
+        try {
+          const acc = await userService.ensureUser(u);
+          if (cancelled) return;
+          setAccount(acc);
+
+          const superAdmin = await isSuperAdminEmail(u.email || '');
+          if (cancelled) return;
+          setIsSuperAdmin(superAdmin);
+
+          if (superAdmin) {
+            setPermissions(new Set(ALL_PERMISSIONS));
+            setStatus('ok');
+            return;
+          }
+
+          if (!acc.isActive) {
+            setPermissions(new Set());
+            setStatus('pending');
+            return;
+          }
+
+          const groups = await groupService.getAll();
+          if (cancelled) return;
+          const perms = new Set<string>();
+          for (const g of groups) {
+            if (g.isActive && acc.groupIds.includes(g.id)) {
+              g.permissions.forEach((p) => perms.add(p));
+            }
+          }
+          setPermissions(perms);
+          setStatus('ok');
+        } catch (err) {
+          console.error('載入帳號權限失敗:', err);
+          if (!cancelled) setStatus('pending');
+        }
       });
       return () => {
         cancelled = true;
@@ -102,9 +135,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
     } catch (err) {
       console.error('Auth 初始化失敗:', err);
-      setLoading(false);
+      setStatus('signedOut');
     }
   }, []);
+
+  function hasPermission(p: string): boolean {
+    return isSuperAdmin || permissions.has(p);
+  }
 
   async function signIn() {
     try {
@@ -132,9 +169,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        loading,
-        isAdmin,
-        allowlistConfigured,
+        status,
+        isSuperAdmin,
+        account,
+        permissions,
+        hasPermission,
         error,
         signIn,
         signOut,
@@ -150,4 +189,3 @@ export function useAuth(): AuthContextType {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
-
