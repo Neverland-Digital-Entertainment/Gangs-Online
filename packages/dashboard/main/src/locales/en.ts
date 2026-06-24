@@ -668,7 +668,7 @@ export default {
   'auth.noPermission': 'No admin permission',
   'auth.noPermissionHint': 'This account is not on the admin list. Please sign in with an admin account.',
   'auth.switchAccount': 'Switch account',
-  'auth.allowlistWarning': 'Admin allowlist (NEXT_PUBLIC_ADMIN_EMAILS) is not set — any signed-in account can access. Please configure it soon.',
+  'auth.allowlistWarning': 'No admin allowlist set — any signed-in account can access. Create an "admins" collection in Firestore (doc ID = admin email), or set NEXT_PUBLIC_ADMIN_EMAILS.',
 
   // Validation
   'validation.required': 'Please enter {field}',

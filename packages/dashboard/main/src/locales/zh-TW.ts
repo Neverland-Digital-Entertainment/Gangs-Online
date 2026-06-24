@@ -669,7 +669,7 @@ export default {
   'auth.noPermission': '沒有管理權限',
   'auth.noPermissionHint': '此帳號不在管理員名單中，請改用管理員帳號登入。',
   'auth.switchAccount': '切換帳號',
-  'auth.allowlistWarning': '尚未設定管理員白名單（NEXT_PUBLIC_ADMIN_EMAILS），目前任何登入帳號都可存取，請盡快設定。',
+  'auth.allowlistWarning': '尚未設定管理員白名單，目前任何登入帳號都可存取。請在 Firestore 建立 admins 集合（文件 ID = 管理員 email），或設定 NEXT_PUBLIC_ADMIN_EMAILS。',
 
   // Validation
   'validation.required': '請輸入{field}',
