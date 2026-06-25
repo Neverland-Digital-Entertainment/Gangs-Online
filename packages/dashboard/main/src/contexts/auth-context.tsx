@@ -103,6 +103,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsSuperAdmin(superAdmin);
 
           if (superAdmin) {
+            // 超管自己的帳號自動啟用，避免在帳號列表顯示為待審核
+            if (!acc.isActive) {
+              try {
+                await userService.setActive(acc.id, true);
+                setAccount({ ...acc, isActive: true });
+              } catch (err) {
+                console.error('自動啟用超管帳號失敗:', err);
+              }
+            }
             setPermissions(new Set(ALL_PERMISSIONS));
             setStatus('ok');
             return;

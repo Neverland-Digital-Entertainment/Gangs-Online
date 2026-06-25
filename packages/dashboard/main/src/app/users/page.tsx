@@ -130,8 +130,8 @@ export default function UsersPage() {
                       <button
                         className="btn btn-sm btn-light"
                         onClick={() => toggleActive(u)}
-                        disabled={isSelf}
-                        title={isSelf ? t('users.accounts.cannotSelf') : ''}
+                        disabled={isSelf && u.isActive}
+                        title={isSelf && u.isActive ? t('users.accounts.cannotSelf') : ''}
                       >
                         {u.isActive ? t('common.disable') : t('common.enable')}
                       </button>
