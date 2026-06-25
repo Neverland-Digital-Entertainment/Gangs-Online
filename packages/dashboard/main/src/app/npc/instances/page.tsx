@@ -14,6 +14,7 @@ import {
 import { npcInstanceService } from '@/lib/npc/instance-service';
 import { npcTemplateService } from '@/lib/npc/template-service';
 import { useI18n } from '@/contexts/i18n-context';
+import { Can } from '@/components/auth/Can';
 import type {
   NpcInstance,
   NpcInstanceFilter,
@@ -175,12 +176,14 @@ export default function InstancesPage() {
             {t('common.total')} {filteredInstances.length} {t('common.items')}
           </p>
         </div>
-        <Link href="/npc/instances/new">
-          <button className="btn btn-primary">
-            <Plus className="w-4 h-4 mr-2" />
-            {t('npc.instances.create')}
-          </button>
-        </Link>
+        <Can perm="npc.edit">
+          <Link href="/npc/instances/new">
+            <button className="btn btn-primary">
+              <Plus className="w-4 h-4 mr-2" />
+              {t('npc.instances.create')}
+            </button>
+          </Link>
+        </Can>
       </div>
 
       {/* Filters */}
@@ -287,12 +290,14 @@ export default function InstancesPage() {
                 : t('npc.instances.noMatchingInstances')}
             </p>
             {instances.length === 0 && (
-              <Link href="/npc/instances/new">
-                <button className="btn btn-primary">
-                  <Plus className="w-4 h-4 mr-2" />
-                  {t('npc.instances.createFirst')}
-                </button>
-              </Link>
+              <Can perm="npc.edit">
+                <Link href="/npc/instances/new">
+                  <button className="btn btn-primary">
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t('npc.instances.createFirst')}
+                  </button>
+                </Link>
+              </Can>
             )}
           </div>
         </div>
@@ -346,46 +351,48 @@ export default function InstancesPage() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() =>
-                        handleToggleStatus(instance.id, instance.isActive)
-                      }
-                      className="btn btn-sm btn-light"
-                      title={instance.isActive ? t('common.disable') : t('common.enable')}
-                    >
-                      {instance.isActive ? t('common.disable') : t('common.enable')}
-                    </button>
-                    <Link href={`/npc/instances/edit?id=${instance.id}`}>
-                      <button className="btn btn-sm btn-light" title={t('common.edit')}>
-                        <Edit className="w-4 h-4" />
-                      </button>
-                    </Link>
-                    {deleteConfirm === instance.id ? (
-                      <>
-                        <button
-                          onClick={() => handleDelete(instance.id)}
-                          className="btn btn-sm btn-danger"
-                        >
-                          {t('npc.instances.deleteConfirm')}
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirm(null)}
-                          className="btn btn-sm btn-light"
-                        >
-                          {t('common.cancel')}
-                        </button>
-                      </>
-                    ) : (
+                  <Can perm="npc.edit">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <button
-                        onClick={() => setDeleteConfirm(instance.id)}
-                        className="btn btn-sm btn-light hover:bg-red-50 dark:hover:bg-red-900/20"
-                        title={t('common.delete')}
+                        onClick={() =>
+                          handleToggleStatus(instance.id, instance.isActive)
+                        }
+                        className="btn btn-sm btn-light"
+                        title={instance.isActive ? t('common.disable') : t('common.enable')}
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" />
+                        {instance.isActive ? t('common.disable') : t('common.enable')}
                       </button>
-                    )}
-                  </div>
+                      <Link href={`/npc/instances/edit?id=${instance.id}`}>
+                        <button className="btn btn-sm btn-light" title={t('common.edit')}>
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      </Link>
+                      {deleteConfirm === instance.id ? (
+                        <>
+                          <button
+                            onClick={() => handleDelete(instance.id)}
+                            className="btn btn-sm btn-danger"
+                          >
+                            {t('npc.instances.deleteConfirm')}
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(null)}
+                            className="btn btn-sm btn-light"
+                          >
+                            {t('common.cancel')}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteConfirm(instance.id)}
+                          className="btn btn-sm btn-light hover:bg-red-50 dark:hover:bg-red-900/20"
+                          title={t('common.delete')}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </button>
+                      )}
+                    </div>
+                  </Can>
                 </div>
               </div>
             </div>

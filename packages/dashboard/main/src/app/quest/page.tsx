@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Plus, Search, Trash2, Edit, Power, PowerOff, ScrollText } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
+import { Can } from '@/components/auth/Can';
 import { QuestBlueprintService } from '@/lib/quest/quest-service';
 import type { QuestBlueprint } from '@/types/quest';
 
@@ -85,13 +86,15 @@ export default function QuestListPage() {
             {t('quest.subtitle')}
           </p>
         </div>
-        <Link
-          href="/quest/edit"
-          className="btn btn-primary inline-flex items-center gap-2 whitespace-nowrap"
-        >
-          <Plus className="w-4 h-4" />
-          {t('quest.create')}
-        </Link>
+        <Can perm="quest.edit">
+          <Link
+            href="/quest/edit"
+            className="btn btn-primary inline-flex items-center gap-2 whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4" />
+            {t('quest.create')}
+          </Link>
+        </Can>
       </div>
 
       {/* Filters */}
@@ -138,9 +141,11 @@ export default function QuestListPage() {
               : t('quest.noMatchingBlueprints')}
           </p>
           {blueprints.length === 0 && (
-            <Link href="/quest/edit" className="btn btn-primary">
-              {t('quest.createFirst')}
-            </Link>
+            <Can perm="quest.edit">
+              <Link href="/quest/edit" className="btn btn-primary">
+                {t('quest.createFirst')}
+              </Link>
+            </Can>
           )}
         </div>
       ) : (
@@ -183,33 +188,35 @@ export default function QuestListPage() {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => handleToggleActive(blueprint.id, blueprint.isActive)}
-                    className="btn btn-light p-2"
-                    title={blueprint.isActive ? t('common.disable') : t('common.enable')}
-                  >
-                    {blueprint.isActive ? (
-                      <PowerOff className="w-4 h-4" />
-                    ) : (
-                      <Power className="w-4 h-4" />
-                    )}
-                  </button>
-                  <Link
-                    href={`/quest/edit?id=${blueprint.id}`}
-                    className="btn btn-light p-2"
-                    title={t('common.edit')}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(blueprint.id, blueprint.name)}
-                    className="btn btn-light p-2"
-                    title={t('common.delete')}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </button>
-                </div>
+                <Can perm="quest.edit">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => handleToggleActive(blueprint.id, blueprint.isActive)}
+                      className="btn btn-light p-2"
+                      title={blueprint.isActive ? t('common.disable') : t('common.enable')}
+                    >
+                      {blueprint.isActive ? (
+                        <PowerOff className="w-4 h-4" />
+                      ) : (
+                        <Power className="w-4 h-4" />
+                      )}
+                    </button>
+                    <Link
+                      href={`/quest/edit?id=${blueprint.id}`}
+                      className="btn btn-light p-2"
+                      title={t('common.edit')}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(blueprint.id, blueprint.name)}
+                      className="btn btn-light p-2"
+                      title={t('common.delete')}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </button>
+                  </div>
+                </Can>
               </div>
             </div>
           ))}

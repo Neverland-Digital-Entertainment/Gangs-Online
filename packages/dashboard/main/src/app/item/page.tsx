@@ -20,6 +20,7 @@ import {
 import { itemService } from '@/lib/item/service';
 import { ItemImage } from '@/components/common/ItemImage';
 import { useI18n } from '@/contexts/i18n-context';
+import { Can } from '@/components/auth/Can';
 import { getCategoryTranslationKey, getAllCategories } from '@/lib/item-helpers';
 import type { Item, ItemFilter, ItemCategory } from '@/types/item';
 
@@ -285,10 +286,12 @@ export default function ItemsPage() {
             <p className="text-[var(--muted-foreground)] mb-4">
               {items.length === 0 ? t('item.noItems') : t('item.noMatchingItems')}
             </p>
-            <Link href="/item/new" className="btn btn-primary inline-flex">
-              <Plus className="w-4 h-4" />
-              {t('item.createFirst')}
-            </Link>
+            <Can perm="item.edit">
+              <Link href="/item/new" className="btn btn-primary inline-flex">
+                <Plus className="w-4 h-4" />
+                {t('item.createFirst')}
+              </Link>
+            </Can>
           </div>
         </div>
       ) : viewMode === 'grid' ? (
@@ -332,48 +335,50 @@ export default function ItemsPage() {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2 border-t border-[var(--border)]">
-                    <Link
-                      href={`/item/edit?id=${item.id}`}
-                      className="btn btn-sm btn-light flex-1"
-                    >
-                      <Edit className="w-3 h-3" />
-                      {t('common.edit')}
-                    </Link>
-                    <button
-                      onClick={() => handleDuplicate(item.id)}
-                      className="btn btn-sm btn-light"
-                      title={t('common.create')}
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
-                    {deleteConfirm === item.id ? (
-                      <>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="btn btn-sm btn-danger"
-                          title={t('common.confirm')}
-                        >
-                          ✓
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirm(null)}
-                          className="btn btn-sm btn-light"
-                          title={t('common.cancel')}
-                        >
-                          ✕
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => setDeleteConfirm(item.id)}
-                        className="btn btn-sm btn-light hover:bg-red-50 dark:hover:bg-red-900/20"
-                        title={t('common.delete')}
+                  <Can perm="item.edit">
+                    <div className="flex items-center gap-2 pt-2 border-t border-[var(--border)]">
+                      <Link
+                        href={`/item/edit?id=${item.id}`}
+                        className="btn btn-sm btn-light flex-1"
                       >
-                        <Trash2 className="w-3 h-3 text-red-500" />
+                        <Edit className="w-3 h-3" />
+                        {t('common.edit')}
+                      </Link>
+                      <button
+                        onClick={() => handleDuplicate(item.id)}
+                        className="btn btn-sm btn-light"
+                        title={t('common.create')}
+                      >
+                        <Copy className="w-3 h-3" />
                       </button>
-                    )}
-                  </div>
+                      {deleteConfirm === item.id ? (
+                        <>
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="btn btn-sm btn-danger"
+                            title={t('common.confirm')}
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(null)}
+                            className="btn btn-sm btn-light"
+                            title={t('common.cancel')}
+                          >
+                            ✕
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteConfirm(item.id)}
+                          className="btn btn-sm btn-light hover:bg-red-50 dark:hover:bg-red-900/20"
+                          title={t('common.delete')}
+                        >
+                          <Trash2 className="w-3 h-3 text-red-500" />
+                        </button>
+                      )}
+                    </div>
+                  </Can>
                 </div>
               </div>
             </div>
@@ -459,48 +464,50 @@ export default function ItemsPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2 w-32">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link
-                          href={`/item/edit?id=${item.id}`}
-                          className="btn btn-sm btn-light"
-                          title={t('common.edit')}
-                        >
-                          <Edit className="w-3 h-3" />
-                        </Link>
-                        <button
-                          onClick={() => handleDuplicate(item.id)}
-                          className="btn btn-sm btn-light"
-                          title={t('common.create')}
-                        >
-                          <Copy className="w-3 h-3" />
-                        </button>
-                        {deleteConfirm === item.id ? (
-                          <>
-                            <button
-                              onClick={() => handleDelete(item.id)}
-                              className="btn btn-sm btn-danger"
-                              title={t('common.confirm')}
-                            >
-                              ✓
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirm(null)}
-                              className="btn btn-sm btn-light"
-                              title={t('common.cancel')}
-                            >
-                              ✕
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => setDeleteConfirm(item.id)}
-                            className="btn btn-sm btn-light hover:bg-red-50 dark:hover:bg-red-900/20"
-                            title={t('common.delete')}
+                      <Can perm="item.edit">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/item/edit?id=${item.id}`}
+                            className="btn btn-sm btn-light"
+                            title={t('common.edit')}
                           >
-                            <Trash2 className="w-3 h-3 text-red-500" />
+                            <Edit className="w-3 h-3" />
+                          </Link>
+                          <button
+                            onClick={() => handleDuplicate(item.id)}
+                            className="btn btn-sm btn-light"
+                            title={t('common.create')}
+                          >
+                            <Copy className="w-3 h-3" />
                           </button>
-                        )}
-                      </div>
+                          {deleteConfirm === item.id ? (
+                            <>
+                              <button
+                                onClick={() => handleDelete(item.id)}
+                                className="btn btn-sm btn-danger"
+                                title={t('common.confirm')}
+                              >
+                                ✓
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirm(null)}
+                                className="btn btn-sm btn-light"
+                                title={t('common.cancel')}
+                              >
+                                ✕
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => setDeleteConfirm(item.id)}
+                              className="btn btn-sm btn-light hover:bg-red-50 dark:hover:bg-red-900/20"
+                              title={t('common.delete')}
+                            >
+                              <Trash2 className="w-3 h-3 text-red-500" />
+                            </button>
+                          )}
+                        </div>
+                      </Can>
                     </td>
                   </tr>
                 ))}
