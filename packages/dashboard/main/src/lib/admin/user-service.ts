@@ -62,6 +62,7 @@ export class UserService {
         email: u.email || '',
         displayName: u.displayName || '',
         groupIds: [],
+        permissions: [],
         isActive: false,
         createdAt: now,
         updatedAt: now,
@@ -80,10 +81,15 @@ export class UserService {
     return toUser(u.uid, { ...prev, lastLoginAt: now, email: u.email || prev.email });
   }
 
-  async setGroups(id: string, groupIds: string[]): Promise<void> {
+  async setGroups(
+    id: string,
+    groupIds: string[],
+    permissions: string[]
+  ): Promise<void> {
     const { db } = getFirebaseServices();
     await updateDoc(doc(db, COLLECTION_NAME, id), {
       groupIds,
+      permissions,
       updatedAt: Timestamp.now(),
     });
   }

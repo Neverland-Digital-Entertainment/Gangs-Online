@@ -13,6 +13,7 @@ import {
 import { useI18n } from '@/contexts/i18n-context';
 import { useAuth } from '@/contexts/auth-context';
 import { groupService } from '@/lib/admin/group-service';
+import { syncAllUsersPermissions } from '@/lib/admin/permissions';
 import {
   PERMISSION_MODULES,
   perm,
@@ -51,6 +52,7 @@ export default function GroupsPage() {
   async function handleDelete(id: string) {
     try {
       await groupService.delete(id);
+      await syncAllUsersPermissions();
       setGroups((prev) => prev.filter((g) => g.id !== id));
       setDeleteConfirm(null);
     } catch (err) {
@@ -222,6 +224,7 @@ function GroupEditModal({
       setSaving(true);
       if (group) await groupService.update(group.id, input);
       else await groupService.create(input);
+      await syncAllUsersPermissions();
       onSaved();
     } catch (err) {
       console.error('儲存群組失敗:', err);

@@ -6,6 +6,7 @@ import { useI18n } from '@/contexts/i18n-context';
 import { useAuth } from '@/contexts/auth-context';
 import { userService } from '@/lib/admin/user-service';
 import { groupService } from '@/lib/admin/group-service';
+import { effectivePermissions } from '@/lib/admin/permissions';
 import type { DashboardGroup, DashboardUser } from '@/types/admin';
 
 export default function UsersPage() {
@@ -186,7 +187,12 @@ function AssignGroupsModal({
   async function handleSave() {
     try {
       setSaving(true);
-      await userService.setGroups(user.id, Array.from(selected));
+      const groupIds = Array.from(selected);
+      await userService.setGroups(
+        user.id,
+        groupIds,
+        effectivePermissions(groupIds, groups)
+      );
       onSaved();
     } catch (err) {
       console.error('指派群組失敗:', err);

@@ -1,0 +1,107 @@
+rules_version = '2';
+
+// =============================================================================
+// Gangs Online — Firestore 安全規則（後台 RBAC 強制）
+//
+// 套用方式：Firebase Console → Firestore Database → Rules → 貼上 → Publish。
+// 強烈建議先用 Rules Playground 或 staging 專案測試，確認「遊戲」與「後台」都正常。
+//
+// 設計重點：
+//  - 遊戲伺服器使用 firebase-admin（會「繞過」這些規則），故伺服器寫入不受影響。
+//  - 客戶端/後台的「讀取」大多開放（遊戲與後台都要讀）；「寫入」依後台權限控管。
+//  - 超級管理員 = admins 集合存在該 email 的文件。
+//  - 一般管理員 = dashboard_users 文件 isActive 且 permissions 含對應權限
+//    （permissions 由後台在指派群組/群組變動時反正規化寫入）。
+//
+// ⚠️ 若遊戲「客戶端」會直接寫入某些未列出的集合，請為那些集合補上規則，
+//    否則客戶端寫入會被拒。（若全部寫入都經由伺服器 admin SDK 則不受影響。）
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function userEmail() {
+      return request.auth.token.email;
+    }
+    function isSuper() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(userEmail()));
+    }
+    function meDoc() {
+      return get(/databases/$(database)/documents/dashboard_users/$(request.auth.uid)).data;
+    }
+    function meExists() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/dashboard_users/$(request.auth.uid));
+    }
+    function hasPerm(p) {
+      return isSuper()
+        || (meExists() && meDoc().isActive == true && (p in meDoc().permissions));
+    }
+
+    // ---- 管理員清單（bootstrap）----
+    match /admins/{id} {
+      allow read: if signedIn();
+      allow write: if isSuper();
+    }
+
+    // ---- 群組 ----
+    match /dashboard_groups/{id} {
+      allow read: if signedIn();
+      allow write: if hasPerm('users.edit');
+    }
+
+    // ---- 帳號 ----
+    match /dashboard_users/{uid} {
+      allow read: if signedIn();
+
+      // 登入時自建「待審」帳號（只能建自己、且不可自我授權）
+      allow create: if signedIn()
+        && uid == request.auth.uid
+        && request.resource.data.isActive == false
+        && request.resource.data.groupIds.size() == 0
+        && request.resource.data.permissions.size() == 0;
+
+      // 管理員可改任何人；本人只能更新登入資訊（不可改自己的權限/啟用/群組）
+      allow update: if hasPerm('users.edit')
+        || (uid == request.auth.uid
+            && request.resource.data.isActive == resource.data.isActive
+            && request.resource.data.groupIds == resource.data.groupIds
+            && request.resource.data.permissions == resource.data.permissions);
+
+      allow delete: if hasPerm('users.edit');
+    }
+
+    // ---- 地圖編輯（後台寫、遊戲讀）----
+    match /map_overrides/{id} {
+      allow read: if true;
+      allow write: if hasPerm('map.edit');
+    }
+    match /building_assets/{id} {
+      allow read: if true;
+      allow write: if hasPerm('map.edit');
+      match /chunks/{chunkId} {
+        allow read: if true;
+        allow write: if hasPerm('map.edit');
+      }
+    }
+
+    // ---- 遊戲內容（後台寫、遊戲讀）----
+    match /items/{id}            { allow read: if true; allow write: if hasPerm('item.edit'); }
+    match /shops/{id}            { allow read: if true; allow write: if hasPerm('shop.edit'); }
+    match /npc_templates/{id}    { allow read: if true; allow write: if hasPerm('npc.edit'); }
+    match /npc_instances/{id}    { allow read: if true; allow write: if hasPerm('npc.edit'); }
+    match /quest_blueprints/{id} { allow read: if true; allow write: if hasPerm('quest.edit'); }
+
+    // ---- 玩家 / 公會（遊戲資料；伺服器 admin SDK 會繞過規則）----
+    // 開放已登入者讀寫，避免影響現有遊戲；如有需要可再收緊。
+    match /players/{id} { allow read: if true; allow write: if signedIn(); }
+    match /guilds/{id}  { allow read: if true; allow write: if signedIn(); }
+
+    // 其餘集合預設拒絕用戶端寫入（伺服器 admin SDK 不受影響）。
+    // 若遊戲客戶端需直接寫入其他集合，請在此補上對應規則。
+  }
+}
