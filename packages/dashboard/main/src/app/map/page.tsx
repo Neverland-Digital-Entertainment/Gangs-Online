@@ -13,6 +13,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
+import { useAuth } from '@/contexts/auth-context';
 import { loadMapManifest } from '@/lib/map/map-loader';
 import { mapOverrideService } from '@/lib/map/override-service';
 import { buildingAssetService } from '@/lib/map/asset-service';
@@ -34,6 +35,8 @@ const MapEditor3D = dynamic(() => import('@/components/map/MapEditor3D'), {
 
 export default function MapEditorPage() {
   const { t } = useI18n();
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('map.edit');
   const [manifest, setManifest] = useState<MapManifest | null>(null);
   const [manifestLoading, setManifestLoading] = useState(true);
   const [manifestError, setManifestError] = useState<string | null>(null);
@@ -207,6 +210,7 @@ export default function MapEditorPage() {
 
   // 新增/替換的實例首次自動擺放後，把 transform 寫回 override（持久化位置/縮放）
   async function handleInstancePlaced(key: string, transform: Transform) {
+    if (!canEdit) return;
     const ov = overrides.find(
       (o) => o.targetBuildingKey === key && o.isActive
     );
@@ -430,7 +434,8 @@ export default function MapEditorPage() {
             <button
               className="btn btn-primary"
               onClick={() => setPicker('add')}
-              disabled={saving}
+              disabled={saving || !canEdit}
+              hidden={!canEdit}
             >
               <Plus className="w-4 h-4 mr-2" />
               {t('map.editor.addBuilding')}
@@ -483,7 +488,7 @@ export default function MapEditorPage() {
                     chunkId={chunkId}
                     chunkFile={chunkFile}
                     selectedKey={selected?.key ?? null}
-                    gizmoMode={gizmoMode}
+                    gizmoMode={canEdit ? gizmoMode : 'none'}
                     overrides={overrides}
                     assets={assets}
                     focusNonce={focusNonce}
@@ -559,6 +564,7 @@ export default function MapEditorPage() {
                 {rightTab === 'inspector' ? (
                   <BuildingInspector
                     object={selected}
+                    readOnly={!canEdit}
                     gizmoMode={gizmoMode}
                     onGizmoModeChange={setGizmoMode}
                     draftTransform={draftTransform}

@@ -13,6 +13,7 @@ import {
   ImageOff,
 } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
+import { useAuth } from '@/contexts/auth-context';
 import {
   buildingAssetService,
   MAX_ASSET_BYTES,
@@ -35,6 +36,8 @@ function parseTags(raw: string): string[] {
 
 export default function BuildingAssetsPage() {
   const { t } = useI18n();
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('map.edit');
   const [assets, setAssets] = useState<BuildingAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -165,13 +168,15 @@ export default function BuildingAssetsPage() {
             {t('map.assets.subtitle')}
           </p>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowUpload((v) => !v)}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          {t('map.assets.upload')}
-        </button>
+        {canEdit && (
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowUpload((v) => !v)}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            {t('map.assets.upload')}
+          </button>
+        )}
       </div>
 
       {/* Upload panel */}
@@ -305,10 +310,12 @@ export default function BuildingAssetsPage() {
             <p className="text-[var(--muted-foreground)] mb-4">
               {t('map.assets.empty')}
             </p>
-            <button className="btn btn-primary" onClick={() => setShowUpload(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              {t('map.assets.uploadFirst')}
-            </button>
+            {canEdit && (
+              <button className="btn btn-primary" onClick={() => setShowUpload(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                {t('map.assets.uploadFirst')}
+              </button>
+            )}
           </div>
         </div>
       ) : (
@@ -337,37 +344,39 @@ export default function BuildingAssetsPage() {
                   )}
                   <span>{formatSize(asset.fileSize)}</span>
                 </div>
-                <div className="flex items-center gap-2 mt-3">
-                  <button
-                    className="btn btn-sm btn-light flex-1"
-                    onClick={() => setEditing(asset)}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  {deleteConfirm === asset.id ? (
-                    <>
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleDelete(asset)}
-                      >
-                        {t('map.assets.deleteConfirm')}
-                      </button>
-                      <button
-                        className="btn btn-sm btn-light"
-                        onClick={() => setDeleteConfirm(null)}
-                      >
-                        {t('common.cancel')}
-                      </button>
-                    </>
-                  ) : (
+                {canEdit && (
+                  <div className="flex items-center gap-2 mt-3">
                     <button
-                      className="btn btn-sm btn-light text-red-500"
-                      onClick={() => setDeleteConfirm(asset.id)}
+                      className="btn btn-sm btn-light flex-1"
+                      onClick={() => setEditing(asset)}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Edit className="w-4 h-4" />
                     </button>
-                  )}
-                </div>
+                    {deleteConfirm === asset.id ? (
+                      <>
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => handleDelete(asset)}
+                        >
+                          {t('map.assets.deleteConfirm')}
+                        </button>
+                        <button
+                          className="btn btn-sm btn-light"
+                          onClick={() => setDeleteConfirm(null)}
+                        >
+                          {t('common.cancel')}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="btn btn-sm btn-light text-red-500"
+                        onClick={() => setDeleteConfirm(asset.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}

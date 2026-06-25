@@ -633,6 +633,7 @@ export default {
   'map.editor.enable': 'Enable',
   'map.editor.disable': 'Disable',
   'map.editor.disabledHint': 'This edit is disabled and won\'t apply in-game; click "Enable" to restore.',
+  'map.editor.readOnly': 'Read-only: you do not have permission to edit the map.',
   'map.editor.replace': 'Replace with asset',
   'map.editor.changeAsset': 'Change asset',
   'map.editor.addBuilding': 'Add building',

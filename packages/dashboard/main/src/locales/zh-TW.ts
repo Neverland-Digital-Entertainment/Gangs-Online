@@ -634,6 +634,7 @@ export default {
   'map.editor.enable': '啟用',
   'map.editor.disable': '停用',
   'map.editor.disabledHint': '此編輯已停用，遊戲中不會套用；按「啟用」恢復。',
+  'map.editor.readOnly': '唯讀模式：您沒有編輯地圖的權限。',
   'map.editor.replace': '替換成資產',
   'map.editor.changeAsset': '更換資產',
   'map.editor.addBuilding': '新增建築',

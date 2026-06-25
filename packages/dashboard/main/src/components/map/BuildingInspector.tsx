@@ -31,6 +31,7 @@ import type {
 
 interface BuildingInspectorProps {
   object: MapObjectInfo | null;
+  readOnly?: boolean;
   gizmoMode: GizmoMode;
   onGizmoModeChange: (mode: GizmoMode) => void;
   draftTransform: Transform | null;
@@ -62,10 +63,12 @@ function NumField({
   value,
   step,
   onCommit,
+  disabled,
 }: {
   value: number;
   step: number;
   onCommit: (n: number) => void;
+  disabled?: boolean;
 }) {
   const [str, setStr] = useState(fmt(value));
   const focused = useRef(false);
@@ -77,6 +80,7 @@ function NumField({
       type="number"
       step={step}
       value={str}
+      disabled={disabled}
       onFocus={() => (focused.current = true)}
       onBlur={() => {
         focused.current = false;
@@ -97,19 +101,21 @@ function Vec3Field({
   v,
   step,
   onChange,
+  disabled,
 }: {
   label: string;
   v: { x: number; y: number; z: number };
   step: number;
   onChange: (axis: 'x' | 'y' | 'z', n: number) => void;
+  disabled?: boolean;
 }) {
   return (
     <div>
       <p className="text-xs text-[var(--muted-foreground)] mb-1">{label}</p>
       <div className="grid grid-cols-3 gap-2">
-        <NumField value={v.x} step={step} onCommit={(n) => onChange('x', n)} />
-        <NumField value={v.y} step={step} onCommit={(n) => onChange('y', n)} />
-        <NumField value={v.z} step={step} onCommit={(n) => onChange('z', n)} />
+        <NumField value={v.x} step={step} disabled={disabled} onCommit={(n) => onChange('x', n)} />
+        <NumField value={v.y} step={step} disabled={disabled} onCommit={(n) => onChange('y', n)} />
+        <NumField value={v.z} step={step} disabled={disabled} onCommit={(n) => onChange('z', n)} />
       </div>
     </div>
   );
@@ -117,6 +123,7 @@ function Vec3Field({
 
 export default function BuildingInspector({
   object,
+  readOnly = false,
   gizmoMode,
   onGizmoModeChange,
   draftTransform,
@@ -246,7 +253,13 @@ export default function BuildingInspector({
           </div>
         ) : (
           <>
+            {readOnly && (
+              <p className="text-xs text-[var(--muted-foreground)]">
+                {t('map.editor.readOnly')}
+              </p>
+            )}
             {/* 操作模式 */}
+            {!readOnly && (
             <div>
               <p className="label">{t('map.editor.gizmoMode')}</p>
               <div className="grid grid-cols-3 gap-2">
@@ -268,6 +281,7 @@ export default function BuildingInspector({
                 {t('map.editor.dragHint')}
               </p>
             </div>
+            )}
 
             {/* 可編輯 transform */}
             <div className="space-y-3">
@@ -275,6 +289,7 @@ export default function BuildingInspector({
                 label={t('map.inspector.position')}
                 v={current.position}
                 step={1}
+                disabled={readOnly}
                 onChange={(axis, n) =>
                   commit({ ...current, position: { ...current.position, [axis]: n } })
                 }
@@ -287,6 +302,7 @@ export default function BuildingInspector({
                   z: current.rotation.z * RAD2DEG,
                 }}
                 step={5}
+                disabled={readOnly}
                 onChange={(axis, deg) =>
                   commit({
                     ...current,
@@ -298,6 +314,7 @@ export default function BuildingInspector({
                 label={t('map.inspector.scale')}
                 v={current.scale}
                 step={0.1}
+                disabled={readOnly}
                 onChange={(axis, n) =>
                   commit({ ...current, scale: { ...current.scale, [axis]: n } })
                 }
@@ -332,6 +349,7 @@ export default function BuildingInspector({
         )}
 
         {/* 動作 */}
+        {!readOnly && (
         <div className="flex flex-col gap-2 pt-1">
           {!removed && (
             <button
@@ -433,6 +451,7 @@ export default function BuildingInspector({
               </button>
             ))}
         </div>
+        )}
       </div>
     </div>
   );
