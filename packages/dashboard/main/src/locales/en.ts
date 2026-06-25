@@ -501,6 +501,11 @@ export default {
   'quest.notFound': 'Quest blueprint not found',
   'home.questManagement': 'Quest Management',
   'home.questManagement.desc': 'Design quest flows with visual node editor',
+  'home.mapEditor.desc': 'Move, replace and add map buildings in a 3D scene',
+  'home.mapAssets.desc': 'Upload and manage building models for the map',
+  'home.userAccounts.desc': 'Manage dashboard accounts: groups and active status',
+  'home.userGroups.desc': 'Set permissions per group, then add accounts to groups',
+  'home.noAccess': 'You have no accessible modules yet. Please ask an admin to assign permissions.',
 
   // Quest Node Types
   'quest.node.start': 'Start',

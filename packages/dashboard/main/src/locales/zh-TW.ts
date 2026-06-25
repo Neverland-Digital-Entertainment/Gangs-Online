@@ -502,6 +502,11 @@ export default {
   'quest.notFound': '找不到指定的任務藍圖',
   'home.questManagement': '任務管理',
   'home.questManagement.desc': '使用視覺化節點編輯器設計任務流程',
+  'home.mapEditor.desc': '在 3D 場景中移動、替換、新增地圖建築',
+  'home.mapAssets.desc': '上載與管理可放到地圖的建築模型',
+  'home.userAccounts.desc': '管理後台帳號的群組與啟用狀態',
+  'home.userGroups.desc': '用群組設定權限，再把帳號加入群組',
+  'home.noAccess': '您目前沒有任何可存取的模組，請聯絡管理員指派權限。',
 
   // 任務節點類型
   'quest.node.start': '開始',
