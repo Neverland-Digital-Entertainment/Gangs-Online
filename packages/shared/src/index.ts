@@ -162,8 +162,8 @@ export interface IEnemyData extends IEntityData {
     state: 'idle' | 'chase' | 'attack';
 }
 
-// Item Types (Phase 8)
-export type ItemType = 'currency' | 'consumable';
+// Item Types (Phase 8, Phase 21: 新增 weapon / material)
+export type ItemType = 'currency' | 'consumable' | 'weapon' | 'material';
 
 // Quest Types (Phase 10)
 export type QuestType = 'kill' | 'talk' | 'collect';
@@ -720,7 +720,10 @@ export interface IBPQuestRuntimeState {
     completedBlueprintIds: string[];
 }
 
+// ==================== Phase 21: Core Gameplay Systems ====================
+export * from "./newSystems";
+
 /**
- * 遊戲版本（0.20.0 - Quest Blueprint System）
+ * 遊戲版本（0.21.0 - Core Gameplay Systems：武器升級/社團/地盤/組隊）
  */
-export const GAME_VERSION = "0.20.0";
+export const GAME_VERSION = "0.21.0";

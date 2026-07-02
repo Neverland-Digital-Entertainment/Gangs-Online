@@ -26,7 +26,11 @@ export const savePlayer = async (player: Player, firebaseUid: string): Promise<b
             id: item.id,
             name: item.name,
             type: item.type,
-            value: item.value
+            value: item.value,
+            // Phase 21: 武器升級系統欄位
+            baseId: item.baseId || "",
+            enhanceLevel: item.enhanceLevel || 0,
+            failCount: item.failCount || 0
         }));
 
     // 序列化任務
@@ -53,6 +57,10 @@ export const savePlayer = async (player: Player, firebaseUid: string): Promise<b
         // Phase 13: 幫會資料現在只存在 guilds 集合，不再存在 players
         // Phase 14: 罪惡值（登出時保存，但監獄釋放會重置）
         evilValue: player.evilValue,
+        // Phase 21: 裝備中武器
+        equippedWeaponIndex: player.equippedWeaponIndex,
+        equippedWeaponName: player.equippedWeaponName,
+        attackBonus: player.attackBonus,
         lastOnline: getFieldValue().serverTimestamp()
     };
 
@@ -110,8 +118,22 @@ export const loadPlayer = async (
                     item.name = itemData.name;
                     item.type = itemData.type;
                     item.value = itemData.value;
+                    // Phase 21: 武器升級系統欄位
+                    item.baseId = itemData.baseId || "";
+                    item.enhanceLevel = itemData.enhanceLevel || 0;
+                    item.failCount = itemData.failCount || 0;
                     player.inventory.push(item);
                 });
+            }
+
+            // Phase 21: 還原裝備中武器
+            player.equippedWeaponIndex = saved.equippedWeaponIndex ?? -1;
+            player.equippedWeaponName = saved.equippedWeaponName || "";
+            player.attackBonus = saved.attackBonus ?? 0;
+            if (player.equippedWeaponIndex >= player.inventory.length) {
+                player.equippedWeaponIndex = -1;
+                player.equippedWeaponName = "";
+                player.attackBonus = 0;
             }
 
             // 還原任務

@@ -14,6 +14,7 @@ import { UISystem } from "./systems/UISystem";
 import { WeaponSystem } from "./systems/WeaponSystem";
 import { DialogueSystem } from "./ui/DialogueSystem"; // Phase 16-2: 對話系統
 import { QuestBlueprintUI } from "./ui/QuestBlueprintUI"; // Phase 20: 藍圖任務 UI
+import { CoreSystemsUI } from "./ui/CoreSystemsUI"; // Phase 21: 武器升級/社團/地盤/組隊 UI
 // Phase 9.1: InventorySystem UI 已移除，金錢改為在 HUD 顯示
 // Phase 10.1: ShopSystem 已整合到 HUDManager 的 Popup 系統
 import { HUDManager } from "./systems/HUDManager"; // Phase 9.1
@@ -206,6 +207,9 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
         // Phase 20: 初始化藍圖任務 UI
         questBlueprintUI = new QuestBlueprintUI(room);
+
+        // Phase 21: 初始化核心系統 UI（U:武器強化 G:社團 P:組隊 T:地盤 K:測試套件）
+        new CoreSystemsUI(room);
 
         // Phase 16-3: 連接對話系統和商店系統
         dialogueSystem.setOnOpenShop((npcId, shopId, npcName) => {

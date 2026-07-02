@@ -73,6 +73,11 @@ export class EnemyManager {
                 return;
             }
 
+            // Phase 21: 跳過地盤守衛（守衛由 TerritorySystem 的駐守 AI 管理）
+            if (enemy.territoryId) {
+                return;
+            }
+
             if (enemy.hp <= 0) {
                 // 收集死亡敵人 ID，稍後移除
                 deadEnemies.push(enemyId);

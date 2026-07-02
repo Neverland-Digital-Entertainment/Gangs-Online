@@ -1,6 +1,6 @@
 import { Room } from "colyseus";
 import { GameState, Loot, Item } from "../rooms/schema/GameState";
-import { GAME_CONSTANTS } from "@gangs-online/shared";
+import { GAME_CONSTANTS, HUNTING_DROP_CONFIG } from "@gangs-online/shared";
 
 /**
  * LootSystem - Phase 8
@@ -46,6 +46,16 @@ export class LootSystem {
      */
     private generateRandomItem(): Item {
         const item = new Item();
+
+        // Phase 21: 野外練功掉落強化石（供武器升級系統，守衛掉落率更高作差異化）
+        if (Math.random() < HUNTING_DROP_CONFIG.ENHANCE_STONE_DROP_RATE) {
+            item.id = `enhance_stone_${Date.now()}`;
+            item.baseId = "enhance_stone";
+            item.name = "強化石";
+            item.type = "material";
+            item.value = 0;
+            return item;
+        }
 
         // 50% 機率掉落金錢，50% 掉落消耗品
         if (Math.random() > 0.5) {
