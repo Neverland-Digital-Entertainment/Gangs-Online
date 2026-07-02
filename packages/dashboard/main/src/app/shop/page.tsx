@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useI18n } from '@/contexts/i18n-context';
+import { Can } from '@/components/auth/Can';
 import { shopService } from '@/lib/shop/shop-service';
 import type { Shop } from '@/types/shop';
 
@@ -98,9 +99,11 @@ export default function ShopListPage() {
         </select>
 
         {/* Create Button */}
-        <Link href="/shop/new" className="btn btn-primary whitespace-nowrap">
-          + {t('shop.create')}
-        </Link>
+        <Can perm="shop.edit">
+          <Link href="/shop/new" className="btn btn-primary whitespace-nowrap">
+            + {t('shop.create')}
+          </Link>
+        </Can>
       </div>
 
       {/* Content */}
@@ -116,9 +119,11 @@ export default function ShopListPage() {
             {searchQuery ? t('shop.noMatchingShops') : t('shop.noShops')}
           </h3>
           {!searchQuery && (
-            <Link href="/shop/new" className="btn btn-primary mt-4">
-              {t('shop.createFirst')}
-            </Link>
+            <Can perm="shop.edit">
+              <Link href="/shop/new" className="btn btn-primary mt-4">
+                {t('shop.createFirst')}
+              </Link>
+            </Can>
           )}
         </div>
       ) : (
@@ -164,20 +169,22 @@ export default function ShopListPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2">
-                  <Link
-                    href={`/shop/edit?id=${shop.id}`}
-                    className="btn btn-sm btn-primary flex-1"
-                  >
-                    {t('common.edit')}
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(shop.id)}
-                    className="btn btn-sm btn-danger"
-                  >
-                    {t('common.delete')}
-                  </button>
-                </div>
+                <Can perm="shop.edit">
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/shop/edit?id=${shop.id}`}
+                      className="btn btn-sm btn-primary flex-1"
+                    >
+                      {t('common.edit')}
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(shop.id)}
+                      className="btn btn-sm btn-danger"
+                    >
+                      {t('common.delete')}
+                    </button>
+                  </div>
+                </Can>
               </div>
             </div>
           ))}

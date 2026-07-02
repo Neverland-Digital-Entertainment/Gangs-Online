@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { npcTemplateService } from '@/lib/npc/template-service';
 import { useI18n } from '@/contexts/i18n-context';
+import { Can } from '@/components/auth/Can';
 import type {
   NpcTemplate,
   NpcTemplateFilter,
@@ -158,12 +159,14 @@ export default function NpcTemplatesPage() {
             {t('common.total')} {filteredTemplates.length} {t('common.items')}
           </p>
         </div>
-        <Link href="/npc/templates/new">
-          <button className="btn btn-primary">
-            <Plus className="w-4 h-4 mr-2" />
-            {t('npc.templates.create')}
-          </button>
-        </Link>
+        <Can perm="npc.edit">
+          <Link href="/npc/templates/new">
+            <button className="btn btn-primary">
+              <Plus className="w-4 h-4 mr-2" />
+              {t('npc.templates.create')}
+            </button>
+          </Link>
+        </Can>
       </div>
 
       {/* Filters */}
@@ -251,12 +254,14 @@ export default function NpcTemplatesPage() {
                 : t('npc.templates.noMatchingTemplates')}
             </p>
             {templates.length === 0 && (
-              <Link href="/npc/templates/new">
-                <button className="btn btn-primary">
-                  <Plus className="w-4 h-4 mr-2" />
-                  {t('npc.templates.createFirst')}
-                </button>
-              </Link>
+              <Can perm="npc.edit">
+                <Link href="/npc/templates/new">
+                  <button className="btn btn-primary">
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t('npc.templates.createFirst')}
+                  </button>
+                </Link>
+              </Can>
             )}
           </div>
         </div>
@@ -314,46 +319,48 @@ export default function NpcTemplatesPage() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() =>
-                        handleToggleStatus(template.id, template.isActive)
-                      }
-                      className="btn btn-sm btn-light"
-                      title={template.isActive ? t('common.disable') : t('common.enable')}
-                    >
-                      {template.isActive ? t('common.disable') : t('common.enable')}
-                    </button>
-                    <Link href={`/npc/templates/edit?id=${template.id}`}>
-                      <button className="btn btn-sm btn-light" title={t('common.edit')}>
-                        <Edit className="w-4 h-4" />
-                      </button>
-                    </Link>
-                    {deleteConfirm === template.id ? (
-                      <>
-                        <button
-                          onClick={() => handleDelete(template.id)}
-                          className="btn btn-sm btn-danger"
-                        >
-                          {t('npc.templates.deleteConfirm')}
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirm(null)}
-                          className="btn btn-sm btn-light"
-                        >
-                          {t('common.cancel')}
-                        </button>
-                      </>
-                    ) : (
+                  <Can perm="npc.edit">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <button
-                        onClick={() => setDeleteConfirm(template.id)}
-                        className="btn btn-sm btn-light hover:bg-red-50 dark:hover:bg-red-900/20"
-                        title={t('common.delete')}
+                        onClick={() =>
+                          handleToggleStatus(template.id, template.isActive)
+                        }
+                        className="btn btn-sm btn-light"
+                        title={template.isActive ? t('common.disable') : t('common.enable')}
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" />
+                        {template.isActive ? t('common.disable') : t('common.enable')}
                       </button>
-                    )}
-                  </div>
+                      <Link href={`/npc/templates/edit?id=${template.id}`}>
+                        <button className="btn btn-sm btn-light" title={t('common.edit')}>
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      </Link>
+                      {deleteConfirm === template.id ? (
+                        <>
+                          <button
+                            onClick={() => handleDelete(template.id)}
+                            className="btn btn-sm btn-danger"
+                          >
+                            {t('npc.templates.deleteConfirm')}
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(null)}
+                            className="btn btn-sm btn-light"
+                          >
+                            {t('common.cancel')}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteConfirm(template.id)}
+                          className="btn btn-sm btn-light hover:bg-red-50 dark:hover:bg-red-900/20"
+                          title={t('common.delete')}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </button>
+                      )}
+                    </div>
+                  </Can>
                 </div>
               </div>
             </div>
