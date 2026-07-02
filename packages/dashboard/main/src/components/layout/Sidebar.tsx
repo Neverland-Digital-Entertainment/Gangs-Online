@@ -18,6 +18,8 @@ import {
   FileText,
   UserCheck,
   Palette,
+  Map,
+  Database,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
@@ -88,6 +90,16 @@ const menuItems: MenuItem[] = [
     titleKey: 'nav.quest',
     icon: ScrollText,
     href: '/quest',
+  },
+  {
+    titleKey: 'nav.territory',
+    icon: Map,
+    href: '/territory',
+  },
+  {
+    titleKey: 'nav.systemsData',
+    icon: Database,
+    href: '/systems',
   },
   {
     titleKey: 'nav.settings',
@@ -236,7 +248,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
           <ThemeToggle />
         </div>
         <div className="text-xs text-[var(--muted)] text-center">
-          v0.20.0
+          v0.21.0
         </div>
       </div>
     </>

@@ -16,7 +16,7 @@
  *   6. 玩家攻擊力使用 getPlayerDamage()
  */
 import { Room, Client } from "colyseus";
-import { GameState, Player, Item } from "../rooms/schema/GameState";
+import { GameState, Player, Item, Enemy } from "../rooms/schema/GameState";
 import {
     GAME_CONSTANTS,
     getRankTitle,
@@ -378,6 +378,27 @@ export class CoreSystemsExtension {
             }
             player.money += 100000;
             client.send("notification", "測試套件已發放：唐刀 x1、強化石 x20、$100,000");
+        });
+
+        // 測試工具：在玩家附近生成 5 隻練功用敵人（現有地圖出生點離原點極遠，舊生成邏輯不適用）
+        let testEnemyCounter = 0;
+        room.onMessage("spawnTestEnemies", (client) => {
+            const player = getPlayer(client);
+            if (!player) return;
+            for (let i = 0; i < 5; i++) {
+                const enemy = new Enemy();
+                enemy.id = `mob_thug_test_${++testEnemyCounter}`;
+                const angle = (i / 5) * Math.PI * 2;
+                enemy.x = player.x + Math.cos(angle) * 8;
+                enemy.z = player.z + Math.sin(angle) * 8;
+                enemy.name = "街頭混混";
+                enemy.hp = 50;
+                enemy.maxHp = 50;
+                enemy.type = "enemy";
+                enemy.npcType = "gangs";
+                room.state.enemies.set(enemy.id, enemy);
+            }
+            client.send("notification", "已在附近生成 5 隻街頭混混（練功測試用）");
         });
     }
 }

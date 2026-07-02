@@ -98,7 +98,7 @@ export class CoreSystemsUI {
             color: rgba(255,215,0,0.75); font-size: 11px; font-family: monospace;
             background: rgba(0,0,0,0.5); padding: 3px 8px; border-radius: 4px;
         `;
-        bar.textContent = "U:武器強化  G:社團  P:組隊  T:地盤  K:測試套件";
+        bar.textContent = "U:武器強化  G:社團  P:組隊  T:地盤  K:測試套件  N:生成測試怪";
         document.body.appendChild(bar);
     }
 
@@ -146,6 +146,7 @@ export class CoreSystemsUI {
                 case "p": this.toggle("party"); break;
                 case "t": this.toggle("territory"); break;
                 case "k": this.room.send("giveTestKit"); break;
+                case "n": this.room.send("spawnTestEnemies"); break;
             }
         });
     }
