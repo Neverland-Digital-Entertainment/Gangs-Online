@@ -18,12 +18,16 @@ import {
   FileText,
   UserCheck,
   Palette,
-  Map,
+  Map as MapIcon,
+  Building2,
+  Hexagon,
   Database,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 import { useI18n } from '@/contexts/i18n-context';
+import { useAuth } from '@/contexts/auth-context';
+import { LogOut, ShieldCheck, UserCog } from 'lucide-react';
 
 type MenuItem = {
   titleKey: string;
@@ -31,11 +35,14 @@ type MenuItem = {
   href: string;
   exact?: boolean;
   disabled?: boolean;
+  permission?: string;
   subItems?: {
     titleKey: string;
     href: string;
     icon?: React.ComponentType<{ className?: string }>;
     disabled?: boolean;
+    exact?: boolean;
+    permission?: string;
   }[];
 };
 
@@ -55,11 +62,13 @@ const menuItems: MenuItem[] = [
         titleKey: 'nav.item',
         href: '/item',
         icon: Package,
+        permission: 'item.view',
       },
       {
         titleKey: 'nav.shop',
         href: '/shop',
         icon: Store,
+        permission: 'shop.view',
       },
     ],
   },
@@ -72,17 +81,20 @@ const menuItems: MenuItem[] = [
         titleKey: 'nav.npcTemplates',
         href: '/npc/templates',
         icon: FileText,
+        permission: 'npc.view',
       },
       {
         titleKey: 'nav.npcInstances',
         href: '/npc/instances',
         icon: UserCheck,
+        permission: 'npc.view',
       },
       {
         titleKey: 'nav.npcAppearances',
         href: '/npc/appearances',
         icon: Palette,
         disabled: true,
+        permission: 'npc.view',
       },
     ],
   },
@@ -90,11 +102,53 @@ const menuItems: MenuItem[] = [
     titleKey: 'nav.quest',
     icon: ScrollText,
     href: '/quest',
+    permission: 'quest.view',
   },
   {
-    titleKey: 'nav.territory',
-    icon: Map,
-    href: '/territory',
+    titleKey: 'nav.map',
+    icon: MapIcon,
+    href: '/map',
+    subItems: [
+      {
+        titleKey: 'nav.mapEditor',
+        href: '/map',
+        icon: MapIcon,
+        exact: true,
+        permission: 'map.view',
+      },
+      {
+        titleKey: 'nav.mapAssets',
+        href: '/map/assets',
+        icon: Building2,
+        permission: 'map.view',
+      },
+      {
+        titleKey: 'nav.territory',
+        href: '/map/territory',
+        icon: Hexagon,
+        permission: 'map.view',
+      },
+    ],
+  },
+  {
+    titleKey: 'nav.users',
+    icon: UserCog,
+    href: '/users',
+    subItems: [
+      {
+        titleKey: 'nav.userAccounts',
+        href: '/users',
+        icon: Users,
+        exact: true,
+        permission: 'users.view',
+      },
+      {
+        titleKey: 'nav.userGroups',
+        href: '/users/groups',
+        icon: ShieldCheck,
+        permission: 'users.view',
+      },
+    ],
   },
   {
     titleKey: 'nav.systemsData',
@@ -112,7 +166,22 @@ const menuItems: MenuItem[] = [
 function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
   const { t } = useI18n();
+  const { user, signOut, hasPermission } = useAuth();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+
+  // 依權限過濾選單（沒有 view 權限就隱藏）
+  const visibleMenu = menuItems
+    .map((item) => {
+      if (!item.subItems) return item;
+      const subItems = item.subItems.filter(
+        (s) => !s.permission || hasPermission(s.permission)
+      );
+      return { ...item, subItems };
+    })
+    .filter((item) => {
+      if (item.subItems) return item.subItems.length > 0;
+      return !item.permission || hasPermission(item.permission);
+    });
 
   // Auto-expand menus based on current path
   useEffect(() => {
@@ -123,6 +192,14 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
     // Expand NPC menu if on NPC pages
     if (pathname.startsWith('/npc')) {
       setExpandedItems((prev) => prev.includes('/npc') ? prev : [...prev, '/npc']);
+    }
+    // Expand Map menu if on map pages
+    if (pathname.startsWith('/map')) {
+      setExpandedItems((prev) => prev.includes('/map') ? prev : [...prev, '/map']);
+    }
+    // Expand Users menu if on users pages
+    if (pathname.startsWith('/users')) {
+      setExpandedItems((prev) => prev.includes('/users') ? prev : [...prev, '/users']);
     }
   }, [pathname]);
 
@@ -155,7 +232,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
       </div>
 
       <nav className="py-4 flex-1">
-        {menuItems.map((item) => {
+        {visibleMenu.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href, item.exact);
           const isExpanded = expandedItems.includes(item.href);
@@ -209,7 +286,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                           </div>
                         );
                       }
-                      const subActive = isActive(subItem.href);
+                      const subActive = isActive(subItem.href, subItem.exact);
                       return (
                         <Link
                           key={subItem.href}
@@ -243,6 +320,20 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
       </nav>
 
       <div className="p-4 border-t border-[var(--border)] bg-[var(--sidebar-bg)]">
+        {user && (
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-xs text-[var(--muted)] truncate" title={user.email || ''}>
+              {user.email}
+            </span>
+            <button
+              onClick={() => signOut()}
+              className="p-1.5 hover:bg-[var(--sidebar-hover)] rounded flex-shrink-0"
+              title={t('auth.signOut')}
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2 mb-2">
           <LanguageSwitcher />
           <ThemeToggle />

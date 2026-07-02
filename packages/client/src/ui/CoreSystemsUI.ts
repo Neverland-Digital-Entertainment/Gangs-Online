@@ -19,6 +19,12 @@ import {
     SocietyRole,
 } from "@gangs-online/shared";
 
+/** HTML escape：玩家名/社團名等使用者可控字串進入 innerHTML 前必須經過此函數（防 XSS） */
+const esc = (s: unknown): string =>
+    String(s ?? "").replace(/[&<>"']/g, (c) => (
+        { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string
+    ));
+
 const PANEL_STYLE = `
     display: none;
     position: fixed;
@@ -286,9 +292,9 @@ export class CoreSystemsUI {
         }
 
         body.innerHTML = `
-            <div><b style="color:#FFD700;">${info.name}</b>　Lv${info.level}（經驗 ${info.exp}${info.nextLevelExp ? "/" + info.nextLevelExp : "（滿級）"}）</div>
-            <div>💰 社團資金：$${info.funds}　👥 成員：${info.memberCount}/${info.memberCap}</div>
-            <div>我的職級：<b>${info.myRole}</b>　我的貢獻度：${info.myContribution}</div>
+            <div><b style="color:#FFD700;">${esc(info.name)}</b>　Lv${Number(info.level)}（經驗 ${Number(info.exp)}${info.nextLevelExp ? "/" + Number(info.nextLevelExp) : "（滿級）"}）</div>
+            <div>💰 社團資金：$${Number(info.funds)}　👥 成員：${Number(info.memberCount)}/${Number(info.memberCap)}</div>
+            <div>我的職級：<b>${esc(info.myRole)}</b>　我的貢獻度：${Number(info.myContribution)}</div>
             <hr style="border-color:#444;">
         `;
 
@@ -318,7 +324,7 @@ export class CoreSystemsUI {
         (info.members || []).forEach((m: any) => {
             const row = document.createElement("div");
             row.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #333;";
-            row.innerHTML = `<span>${m.userId.substring(0, 8)}…　<b style="color:#FFD700;">${m.role}</b>　貢獻 ${m.totalContribution}</span>`;
+            row.innerHTML = `<span>${esc(m.userId.substring(0, 8))}…　<b style="color:#FFD700;">${esc(m.role)}</b>　貢獻 ${Number(m.totalContribution)}</span>`;
             if (m.role !== "話事人") {
                 const sel = document.createElement("select");
                 sel.style.cssText = "background:#222;color:#fff;border:1px solid #555;font-size:12px;";
@@ -344,7 +350,7 @@ export class CoreSystemsUI {
         (info.warehouse || []).forEach((w: any, i: number) => {
             const row = document.createElement("div");
             row.style.cssText = "display:flex;justify-content:space-between;padding:2px 0;";
-            row.innerHTML = `<span>${w.name}${w.enhanceLevel ? "" : ""}</span>`;
+            row.innerHTML = `<span>${esc(w.name)}</span>`;
             const btn = document.createElement("button");
             btn.style.cssText = BTN_DARK_STYLE;
             btn.textContent = "取出";
@@ -363,7 +369,7 @@ export class CoreSystemsUI {
         (info.shopItems || []).forEach((s: any) => {
             const row = document.createElement("div");
             row.style.cssText = "display:flex;justify-content:space-between;padding:2px 0;";
-            row.innerHTML = `<span>${s.name}（需社團 Lv${s.minSocietyLevel}）</span>`;
+            row.innerHTML = `<span>${esc(s.name)}（需社團 Lv${Number(s.minSocietyLevel)}）</span>`;
             const btn = document.createElement("button");
             btn.style.cssText = BTN_STYLE;
             btn.textContent = `${s.contributionPrice} 貢獻`;
@@ -397,7 +403,10 @@ export class CoreSystemsUI {
         if (this.pendingInvite) {
             const inviteBox = document.createElement("div");
             inviteBox.style.cssText = "border:1px solid #FFD700;border-radius:6px;padding:8px;margin-bottom:8px;";
-            inviteBox.innerHTML = `<b>${this.pendingInvite.inviterName}</b> 邀請你組隊！`;
+            const inviterName = document.createElement("b");
+            inviterName.textContent = this.pendingInvite.inviterName;
+            inviteBox.appendChild(inviterName);
+            inviteBox.appendChild(document.createTextNode(" 邀請你組隊！"));
             const acceptBtn = document.createElement("button");
             acceptBtn.style.cssText = BTN_STYLE;
             acceptBtn.textContent = "接受";
@@ -432,7 +441,10 @@ export class CoreSystemsUI {
             listDiv.innerHTML += `<b>隊伍成員（${this.partyInfo.members.length}/5）</b>　擊殺經驗全隊共享（範圍內全額）`;
             this.partyInfo.members.forEach((m) => {
                 const isLeader = m.sessionId === this.partyInfo!.leaderSessionId;
-                listDiv.innerHTML += `<div style="padding:2px 0;">${isLeader ? "👑 " : ""}${m.name}（Lv${m.level}）</div>`;
+                const memberRow = document.createElement("div");
+                memberRow.style.cssText = "padding:2px 0;";
+                memberRow.textContent = `${isLeader ? "👑 " : ""}${m.name}（Lv${m.level}）`;
+                listDiv.appendChild(memberRow);
             });
             const leaveBtn = document.createElement("button");
             leaveBtn.style.cssText = BTN_DARK_STYLE + "color:#f66;border-color:#f66;margin-top:6px;";
@@ -464,9 +476,9 @@ export class CoreSystemsUI {
             const box = document.createElement("div");
             box.style.cssText = `border:1px solid ${isCurrent ? "#FFD700" : "#444"};border-radius:6px;padding:8px;margin-bottom:8px;`;
             box.innerHTML = `
-                <b style="color:#FFD700;">${t.name}</b>${isCurrent ? "（你在此地盤內）" : ""}<br>
-                持有：${t.ownerGuildName || "無主"}${isMine ? "（我的社團）" : ""}<br>
-                守衛：${t.guardCount} 存活 / ${t.hiredGuardCount} 已招聘 / ${t.maxGuardSlots} 位<br>
+                <b style="color:#FFD700;">${esc(t.name)}</b>${isCurrent ? "（你在此地盤內）" : ""}<br>
+                持有：${esc(t.ownerGuildName || "無主")}${isMine ? "（我的社團）" : ""}<br>
+                守衛：${Number(t.guardCount)} 存活 / ${Number(t.hiredGuardCount)} 已招聘 / ${Number(t.maxGuardSlots)} 位<br>
                 ${protectedNow ? `🛡️ 保護期剩 ${Math.ceil((t.protectionUntil - Date.now()) / 60000)} 分鐘<br>` : ""}
             `;
 

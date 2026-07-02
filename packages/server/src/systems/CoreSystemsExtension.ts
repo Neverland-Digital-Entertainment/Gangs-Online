@@ -356,6 +356,15 @@ export class CoreSystemsExtension {
         });
 
         // ---------- 測試工具（測試套件：武器 + 強化石 + 金幣） ----------
+        // 安全 gating：production 環境預設停用（除非明確設 ENABLE_TEST_TOOLS=true）
+        const testToolsEnabled =
+            process.env.ENABLE_TEST_TOOLS === "true" || process.env.NODE_ENV !== "production";
+        if (!testToolsEnabled) {
+            room.onMessage("giveTestKit", (client) => client.send("notification", "測試工具已停用"));
+            room.onMessage("spawnTestEnemies", (client) => client.send("notification", "測試工具已停用"));
+            return;
+        }
+
         room.onMessage("giveTestKit", (client) => {
             const player = getPlayer(client);
             if (!player) return;

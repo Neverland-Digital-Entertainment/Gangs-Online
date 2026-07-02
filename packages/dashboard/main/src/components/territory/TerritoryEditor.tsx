@@ -35,7 +35,8 @@ import {
     MIN_VERTEX_DISTANCE,
     CLOSE_POLYGON_DISTANCE,
 } from '@/lib/territory/geometry';
-import { TerritoryService, TerritoryDoc } from '@/lib/territory/territory-service';
+import { TerritoryService, TerritoryDoc, MAX_GUARD_SLOTS } from '@/lib/territory/territory-service';
+import { MAP_BASE_URL } from '@/lib/map/map-loader';
 
 // 遊戲地圖（旺角）的大致中心（玩家出生點附近），地圖載入失敗時的後備視角
 const MAP_CENTER = { x: -835575, z: -819659 };
@@ -48,7 +49,7 @@ interface TerritoryMeshes {
     vertexSpheres: BABYLON.Mesh[];
 }
 
-export default function TerritoryEditor() {
+export default function TerritoryEditor({ canEdit = true }: { canEdit?: boolean }) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     // Babylon refs
@@ -101,9 +102,10 @@ export default function TerritoryEditor() {
     const disposeTerritoryMeshes = useCallback((id: string) => {
         const meshes = territoryMeshesRef.current.get(id);
         if (!meshes) return;
-        meshes.fill?.dispose();
-        meshes.outline?.dispose();
-        meshes.vertexSpheres.forEach((s) => s.dispose());
+        // 連同材質一起釋放（編輯拖曳時每次 POINTERMOVE 都會重建，否則材質會累積洩漏）
+        meshes.fill?.dispose(false, true);
+        meshes.outline?.dispose(false, true);
+        meshes.vertexSpheres.forEach((s) => s.dispose(false, true));
         territoryMeshesRef.current.delete(id);
     }, []);
 
@@ -169,8 +171,8 @@ export default function TerritoryEditor() {
     const renderDrawPreview = useCallback(() => {
         const scene = sceneRef.current;
         if (!scene) return;
-        drawMeshesRef.current.spheres.forEach((s) => s.dispose());
-        drawMeshesRef.current.line?.dispose();
+        drawMeshesRef.current.spheres.forEach((s) => s.dispose(false, true));
+        drawMeshesRef.current.line?.dispose(false, true);
         drawMeshesRef.current = { spheres: [], line: null };
 
         const pts = drawPointsRef.current;
@@ -316,7 +318,10 @@ export default function TerritoryEditor() {
 
     // ==================== 落點 / 封閉 / 拖曳邏輯 ====================
 
+    const isCreatingRef = useRef(false);
+
     const handleDrawClick = useCallback(async (pick: BABYLON.Vector3) => {
+        if (isCreatingRef.current) return; // 建立中，避免重複 create
         const p: Vec2 = { x: pick.x, z: pick.z };
         const pts = drawPointsRef.current;
 
@@ -327,10 +332,11 @@ export default function TerritoryEditor() {
             if (err) { toast(`無法完成領地：${err}`); return; }
             const name = prompt('領地已封閉！輸入領地名稱：', `領地 ${territoriesRef.current.length + 1}`);
             if (!name) return;
+            isCreatingRef.current = true;
             try {
                 const id = await service.create(name.trim(), pts);
                 const newDoc: TerritoryDoc = {
-                    id, name: name.trim(), vertices: [...pts], maxGuardSlots: 10,
+                    id, name: name.trim(), vertices: [...pts], maxGuardSlots: MAX_GUARD_SLOTS,
                     ownerGuildId: '', ownerGuildName: '', protectionUntil: 0,
                     guards: [], capturedAt: 0, createdAt: Date.now(), updatedAt: Date.now(),
                 };
@@ -344,6 +350,8 @@ export default function TerritoryEditor() {
             } catch (e) {
                 console.error(e);
                 toast('建立領地失敗');
+            } finally {
+                isCreatingRef.current = false;
             }
             return;
         }
@@ -406,7 +414,7 @@ export default function TerritoryEditor() {
         new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0.3, 1, 0.2), scene).intensity = 1.1;
 
         // ---------- 地圖載入 ----------
-        const base = process.env.NEXT_PUBLIC_MAP_BASE_URL || '/maps';
+        const base = MAP_BASE_URL; // 與 Map Editor 同一來源（copy-maps 腳本自動複製 client 地圖）
         (async () => {
             let loaded = false;
             try {
@@ -577,12 +585,15 @@ export default function TerritoryEditor() {
 
                 {/* 工具列 */}
                 <div className="absolute top-3 left-3 flex flex-wrap gap-2 items-center bg-black/70 rounded-lg p-2 text-white text-sm">
+                    {canEdit && (
                     <button
                         onClick={() => changeMode(mode === 'draw' ? 'view' : 'draw')}
                         className={`px-3 py-1 rounded ${mode === 'draw' ? 'bg-yellow-500 text-black' : 'bg-gray-700'}`}
                     >
                         ➕ 新增領地{mode === 'draw' ? `（已落 ${drawCount} 點，點回綠色起點封閉）` : ''}
                     </button>
+                    )}
+                    {canEdit && (
                     <button
                         onClick={() => changeMode(mode === 'edit' ? 'view' : 'edit')}
                         className={`px-3 py-1 rounded ${mode === 'edit' ? 'bg-yellow-500 text-black' : 'bg-gray-700'}`}
@@ -590,6 +601,7 @@ export default function TerritoryEditor() {
                     >
                         ✏️ 編輯頂點{mode === 'edit' ? '中（拖曳橘色頂點）' : ''}
                     </button>
+                    )}
                     {mode === 'edit' && (
                         <>
                             <button onClick={revertEdit} className="px-3 py-1 rounded bg-gray-700">↩️ 回溯</button>
@@ -621,14 +633,17 @@ export default function TerritoryEditor() {
                     地圖上點位太密集時，可從此列表選取。新領地一律中立無主，歸屬由遊戲內佔領機制決定。
                 </p>
                 <div className="flex gap-2 mb-3">
-                    <button onClick={renameSelected} disabled={!selectedId} className="btn-light text-sm px-2 py-1">更名</button>
-                    <button onClick={deleteSelected} disabled={!selectedId} className="btn-light text-sm px-2 py-1 text-red-500">刪除</button>
+                    {canEdit && <button onClick={renameSelected} disabled={!selectedId} className="btn-light text-sm px-2 py-1">更名</button>}
+                    {canEdit && <button onClick={deleteSelected} disabled={!selectedId} className="btn-light text-sm px-2 py-1 text-red-500">刪除</button>}
                     <button onClick={loadTerritories} className="btn-light text-sm px-2 py-1">重新整理</button>
                 </div>
                 {territories.map((t) => (
                     <div
                         key={t.id}
                         onClick={() => selectTerritory(t.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectTerritory(t.id); } }}
                         className={`p-2 mb-2 rounded cursor-pointer border ${
                             selectedId === t.id
                                 ? 'border-yellow-500 bg-yellow-500/10'

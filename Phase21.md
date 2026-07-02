@@ -85,13 +85,9 @@
 6. **Dashboard → 系統資料 → 組隊**：檢視進行中隊伍快照。
 
 ### 6. Dashboard 地盤設置模組
-路徑：Dashboard 側邊欄 → **地盤設置**。
+路徑：Dashboard 側邊欄 → **地圖管理 → 地盤設置**（`/map/territory`，與地圖編輯器同屬 Map Management，需 `map.view` 權限；編輯操作需 `map.edit`）。
 
-**地圖顯示**：編輯器讀取 `public/maps/manifest.json`（與遊戲 client 同格式）。首次使用請複製地圖檔：
-```bash
-cp -r packages/client/public/maps packages/dashboard/main/public/maps
-```
-（或設環境變數 `NEXT_PUBLIC_MAP_BASE_URL` 指向 client dev server。未複製時會退回平面網格，仍可繪製。）
+**地圖顯示**：與地圖編輯器共用同一份地圖來源 — `predev`/`prebuild` 的 copy-maps 腳本會自動把 `packages/client/public/maps` 複製到 dashboard 的 `public/maps`，無需手動處理（也可用 `NEXT_PUBLIC_MAP_BASE_URL` 指定外部來源；載入失敗時退回平面網格，仍可繪製）。
 
 1. **新增領地**：點「➕ 新增領地」→ 在地圖上逐點 click 連線 → 點回綠色起點自動封閉 → 輸入名稱完成。
 2. **落點防呆**：嘗試把點落在既有點上、或讓新邊跨過既有邊 → click 被擋掉並提示。
@@ -107,7 +103,7 @@ cp -r packages/client/public/maps packages/dashboard/main/public/maps
 
 ## 涉及的檔案
 
-```
+```text
 packages/shared/src/
 ├── newSystems.ts                                # 【新】全部類型與數值設定
 └── index.ts                                     # ItemType 擴充 + re-export + 版本 0.21.0
@@ -129,7 +125,7 @@ packages/client/src/
 └── main.ts                                      # 修改：僅 +2 行（import + new）
 
 packages/dashboard/main/src/
-├── app/territory/page.tsx                       # 【新】地盤設置頁
+├── app/map/territory/page.tsx                  # 【新】地盤設置頁（Map Management 之下）
 ├── components/territory/TerritoryEditor.tsx     # 【新】Babylon 多邊形編輯器
 ├── lib/territory/geometry.ts                    # 【新】相交/重疊演算法（標準線段相交 + 射線法）
 ├── lib/territory/territory-service.ts           # 【新】territories CRUD

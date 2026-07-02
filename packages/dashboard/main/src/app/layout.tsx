@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/providers/theme-provider';
 import { I18nProvider } from '@/contexts/i18n-context';
+import { AuthProvider } from '@/contexts/auth-context';
+import { AuthGate } from '@/components/auth/AuthGate';
 import { Sidebar } from '@/components/layout/Sidebar';
 
 export const metadata: Metadata = {
@@ -19,12 +21,16 @@ export default function RootLayout({
       <body className="antialiased">
         <ThemeProvider>
           <I18nProvider>
-            <div className="flex min-h-screen">
-              <Sidebar />
-              <main className="flex-1 overflow-y-auto pt-14 lg:pt-0">
-                {children}
-              </main>
-            </div>
+            <AuthProvider>
+              <AuthGate>
+                <div className="flex min-h-screen">
+                  <Sidebar />
+                  <main className="flex-1 overflow-y-auto pt-14 lg:pt-0">
+                    {children}
+                  </main>
+                </div>
+              </AuthGate>
+            </AuthProvider>
           </I18nProvider>
         </ThemeProvider>
       </body>

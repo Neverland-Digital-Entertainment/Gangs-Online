@@ -65,8 +65,14 @@ export class WeaponEnhanceSystem {
         }
 
         // 扣除資源（失敗也照扣 — 唯一的失敗懲罰）
+        // 刪除強化石會使後面的背包 index 前移，需同步修正裝備指標與目標武器 index
         player.money -= goldCost;
-        stoneIndices.sort((a, b) => b - a).forEach((i) => player.inventory.deleteAt(i));
+        let targetIndex = itemIndex;
+        stoneIndices.sort((a, b) => b - a).forEach((i) => {
+            player.inventory.deleteAt(i);
+            this.onInventoryRemoved(player, i);
+            if (i < targetIndex) targetIndex -= 1;
+        });
 
         // 判定成功率（保底：連續失敗達標後必定成功）
         const pityTriggered = weapon.failCount >= CFG.PITY_FAIL_COUNT;
@@ -82,8 +88,8 @@ export class WeaponEnhanceSystem {
             weapon.name = getWeaponDisplayName(baseName, weapon.enhanceLevel);
 
             // 若強化的是裝備中的武器，同步更新攻擊加成
-            if (player.equippedWeaponIndex === itemIndex) {
-                player.attackBonus = this.getWeaponAttack(weapon) ;
+            if (player.equippedWeaponIndex === targetIndex) {
+                player.attackBonus = this.getWeaponAttack(weapon);
                 player.equippedWeaponName = weapon.name;
             }
         } else {

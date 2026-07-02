@@ -3,7 +3,9 @@
   "version": "0.16.2",
   "private": true,
   "scripts": {
+    "predev": "node scripts/copy-maps.mjs",
     "dev": "next dev -p 3001",
+    "prebuild": "node scripts/copy-maps.mjs",
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "next lint"
@@ -23,7 +25,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.11",
-    "@types/earcut": "^3.0.0",
     "@types/node": "^24.0.7",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

@@ -3,7 +3,7 @@
  * 負責玩家資料的儲存和載入
  */
 import { Player, Item, Quest } from "../rooms/schema/GameState";
-import { IQuestDef } from "@gangs-online/shared";
+import { IQuestDef, WEAPON_ENHANCE_CONFIG } from "@gangs-online/shared";
 import { getFirestore, getFieldValue, isFirebaseInitialized } from "../services/FirebaseService";
 import { guildService } from "../services/GuildService";
 
@@ -127,10 +127,17 @@ export const loadPlayer = async (
             }
 
             // Phase 21: 還原裝備中武器
+            // attackBonus 不直接還原快取值，而是由武器強化等級重新計算（數值表調整後不會殘留舊值）
             player.equippedWeaponIndex = saved.equippedWeaponIndex ?? -1;
             player.equippedWeaponName = saved.equippedWeaponName || "";
-            player.attackBonus = saved.attackBonus ?? 0;
-            if (player.equippedWeaponIndex >= player.inventory.length) {
+            const equippedItem =
+                player.equippedWeaponIndex >= 0 && player.equippedWeaponIndex < player.inventory.length
+                    ? player.inventory.at(player.equippedWeaponIndex)
+                    : undefined;
+            if (equippedItem && equippedItem.type === "weapon") {
+                player.attackBonus = equippedItem.value +
+                    (WEAPON_ENHANCE_CONFIG.ATTACK_BONUS[equippedItem.enhanceLevel] ?? 0);
+            } else {
                 player.equippedWeaponIndex = -1;
                 player.equippedWeaponName = "";
                 player.attackBonus = 0;

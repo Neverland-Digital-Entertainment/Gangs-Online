@@ -133,7 +133,8 @@ export const SOCIETY_CONFIG = {
     GOLD_PER_CONTRIBUTION: 100,   // 捐獻 100 金 = 1 貢獻度
     MAX_SOCIETY_LEVEL: 5,
     // 社團升級所需累計經驗（成員總貢獻 + 佔地貢獻），index = 目前等級-1 → 升下一級
-    LEVEL_EXP_THRESHOLDS: [500, 2000, 6000, 15000, 40000],
+    // 4 筆 = 1→2、2→3、3→4、4→5（滿級後不再有下一級門檻）
+    LEVEL_EXP_THRESHOLDS: [500, 2000, 6000, 15000],
     // 各社團等級的成員上限（index = 等級-1）
     MEMBER_CAPS: [20, 26, 32, 40, 50],
     TERRITORY_CONTRIBUTION_PER_HOUR: 10, // 每塊持有地盤每小時計入社團經驗

@@ -19,7 +19,7 @@ import { getFirebaseServices } from "@/lib/firebase/config";
 import type { Vec2 } from './geometry';
 
 const COLLECTION = 'territories';
-const MAX_GUARD_SLOTS = 10; // 全域固定值（GDD 3.3）
+export const MAX_GUARD_SLOTS = 10; // 全域固定值（GDD 3.3）
 
 export interface TerritoryDoc {
     id: string;

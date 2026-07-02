@@ -237,6 +237,13 @@ export class FirebaseService {
     getUid(): string | null {
         return auth?.currentUser?.uid || null;
     }
+
+    /**
+     * 取得 Firebase App（供其他服務取用 Firestore 等）
+     */
+    getApp(): FirebaseApp | null {
+        return app;
+    }
 }
 
 // 單例導出

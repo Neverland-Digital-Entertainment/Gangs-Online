@@ -67,6 +67,29 @@ export class SocietyService {
         await db.collection(GUILDS_PATH).doc(guildId).set({ society }, { merge: true });
     }
 
+    /**
+     * 在 Firestore transaction 中讀取-修改-寫回社團擴展資料，
+     * 避免併發操作（如捐獻 vs 招聘守衛扣款）互相覆蓋造成資料遺失。
+     * mutator 必須是同步函數：回傳 { write: 是否寫回, result: 回傳值 }
+     */
+    private async mutateSociety<T>(
+        guildId: string,
+        mutator: (doc: ISocietyDoc) => { write: boolean; result: T }
+    ): Promise<T | null> {
+        const db = this.db();
+        if (!db) return null;
+        return db.runTransaction(async (txn: any) => {
+            const ref = db.collection(GUILDS_PATH).doc(guildId);
+            const snap = await txn.get(ref);
+            if (!snap.exists) return null;
+            const doc = snap.data() as ISocietyDoc;
+            if (!doc.society) doc.society = JSON.parse(JSON.stringify(DEFAULT_EXTENSION));
+            const { write, result } = mutator(doc);
+            if (write) txn.set(ref, { society: doc.society }, { merge: true });
+            return result;
+        });
+    }
+
     /** 取得成員職級（兼容舊資料：龍頭→話事人、成員→四九仔） */
     getMemberRole(doc: ISocietyDoc, userId: string): SocietyRole | null {
         const member = doc.members?.[userId];
@@ -132,21 +155,19 @@ export class SocietyService {
      * 同時計入社團經驗（可升級）
      */
     async donate(guildId: string, userId: string, goldAmount: number): Promise<Result<{ gained: number; total: number; societyLevel: number; leveledUp: boolean }>> {
-        const doc = await this.getSocietyDoc(guildId);
-        if (!doc || !doc.society) return { success: false, error: "社團不存在" };
-        if (!doc.members?.[userId]) return { success: false, error: "你不在此社團中" };
-
         const gained = Math.floor(goldAmount / SOCIETY_CONFIG.GOLD_PER_CONTRIBUTION);
         if (gained <= 0) return { success: false, error: `至少需捐獻 $${SOCIETY_CONFIG.GOLD_PER_CONTRIBUTION}（100金 = 1貢獻）` };
 
-        const s = doc.society;
-        s.contributions[userId] = (s.contributions[userId] || 0) + gained;
-        s.totalContributions[userId] = (s.totalContributions[userId] || 0) + gained;
-        s.funds += goldAmount; // 捐獻的金幣進入社團資金
-        const leveledUp = this.addExp(s, gained);
-
-        await this.saveExtension(guildId, s);
-        return { success: true, gained, total: s.contributions[userId], societyLevel: s.level, leveledUp };
+        const result = await this.mutateSociety<Result<{ gained: number; total: number; societyLevel: number; leveledUp: boolean }>>(guildId, (doc) => {
+            if (!doc.members?.[userId]) return { write: false, result: { success: false, error: "你不在此社團中" } };
+            const s = doc.society!;
+            s.contributions[userId] = (s.contributions[userId] || 0) + gained;
+            s.totalContributions[userId] = (s.totalContributions[userId] || 0) + gained;
+            s.funds += goldAmount; // 捐獻的金幣進入社團資金
+            const leveledUp = this.addExp(s, gained);
+            return { write: true, result: { success: true, gained, total: s.contributions[userId], societyLevel: s.level, leveledUp } };
+        });
+        return result ?? { success: false, error: "社團不存在" };
     }
 
     /** 增加社團經驗並處理升級，回傳是否升級 */
@@ -165,10 +186,10 @@ export class SocietyService {
 
     /** 佔領地盤計入社團經驗（TerritorySystem 定時調用） */
     async addTerritoryExp(guildId: string, exp: number): Promise<void> {
-        const doc = await this.getSocietyDoc(guildId);
-        if (!doc || !doc.society) return;
-        this.addExp(doc.society, exp);
-        await this.saveExtension(guildId, doc.society);
+        await this.mutateSociety(guildId, (doc) => {
+            this.addExp(doc.society!, exp);
+            return { write: true, result: true };
+        });
     }
 
     /** 目前社團等級的成員上限 */
@@ -180,46 +201,55 @@ export class SocietyService {
 
     /** 動用社團資金（招聘守衛等），需 manage_money 或 deploy_guards 權限由呼叫端判斷 */
     async spendFunds(guildId: string, amount: number): Promise<Result<{ remaining: number }>> {
-        const doc = await this.getSocietyDoc(guildId);
-        if (!doc || !doc.society) return { success: false, error: "社團不存在" };
-        if (doc.society.funds < amount) return { success: false, error: `社團資金不足（需要 $${amount}，現有 $${doc.society.funds}）` };
-        doc.society.funds -= amount;
-        await this.saveExtension(guildId, doc.society);
-        return { success: true, remaining: doc.society.funds };
+        const result = await this.mutateSociety<Result<{ remaining: number }>>(guildId, (doc) => {
+            const s = doc.society!;
+            if (s.funds < amount) {
+                return { write: false, result: { success: false, error: `社團資金不足（需要 $${amount}，現有 $${s.funds}）` } };
+            }
+            s.funds -= amount;
+            return { write: true, result: { success: true, remaining: s.funds } };
+        });
+        return result ?? { success: false, error: "社團不存在" };
     }
 
     /** 存入社團資金（守衛練功產出歸公等） */
     async addFunds(guildId: string, amount: number): Promise<void> {
-        const doc = await this.getSocietyDoc(guildId);
-        if (!doc || !doc.society) return;
-        doc.society.funds += amount;
-        await this.saveExtension(guildId, doc.society);
+        await this.mutateSociety(guildId, (doc) => {
+            doc.society!.funds += amount;
+            return { write: true, result: true };
+        });
     }
 
     // ==================== 社團倉庫 ====================
 
     /** 存入物品（任何成員可存） */
     async warehouseDeposit(guildId: string, userId: string, item: ISocietyWarehouseItem): Promise<Result> {
-        const doc = await this.getSocietyDoc(guildId);
-        if (!doc || !doc.society) return { success: false, error: "社團不存在" };
-        if (!this.checkPermission(doc, userId, 'warehouse_deposit')) return { success: false, error: "你沒有存入倉庫的權限" };
-        if (doc.society.warehouse.length >= SOCIETY_CONFIG.WAREHOUSE_CAPACITY) return { success: false, error: "社團倉庫已滿" };
-
-        doc.society.warehouse.push(item);
-        await this.saveExtension(guildId, doc.society);
-        return { success: true };
+        const result = await this.mutateSociety<Result>(guildId, (doc) => {
+            if (!this.checkPermission(doc, userId, 'warehouse_deposit')) {
+                return { write: false, result: { success: false, error: "你沒有存入倉庫的權限" } };
+            }
+            if (doc.society!.warehouse.length >= SOCIETY_CONFIG.WAREHOUSE_CAPACITY) {
+                return { write: false, result: { success: false, error: "社團倉庫已滿" } };
+            }
+            doc.society!.warehouse.push(item);
+            return { write: true, result: { success: true } };
+        });
+        return result ?? { success: false, error: "社團不存在" };
     }
 
     /** 取出物品（需 warehouse_withdraw 權限：話事人/坐館/白紙扇） */
     async warehouseWithdraw(guildId: string, userId: string, warehouseIndex: number): Promise<Result<{ item: ISocietyWarehouseItem }>> {
-        const doc = await this.getSocietyDoc(guildId);
-        if (!doc || !doc.society) return { success: false, error: "社團不存在" };
-        if (!this.checkPermission(doc, userId, 'warehouse_withdraw')) return { success: false, error: "你沒有取出倉庫物品的權限（僅話事人/坐館/白紙扇）" };
-        if (warehouseIndex < 0 || warehouseIndex >= doc.society.warehouse.length) return { success: false, error: "找不到該倉庫物品" };
-
-        const [item] = doc.society.warehouse.splice(warehouseIndex, 1);
-        await this.saveExtension(guildId, doc.society);
-        return { success: true, item };
+        const result = await this.mutateSociety<Result<{ item: ISocietyWarehouseItem }>>(guildId, (doc) => {
+            if (!this.checkPermission(doc, userId, 'warehouse_withdraw')) {
+                return { write: false, result: { success: false, error: "你沒有取出倉庫物品的權限（僅話事人/坐館/白紙扇）" } };
+            }
+            if (warehouseIndex < 0 || warehouseIndex >= doc.society!.warehouse.length) {
+                return { write: false, result: { success: false, error: "找不到該倉庫物品" } };
+            }
+            const [item] = doc.society!.warehouse.splice(warehouseIndex, 1);
+            return { write: true, result: { success: true, item } };
+        });
+        return result ?? { success: false, error: "社團不存在" };
     }
 
     // ==================== 社團商店 ====================
@@ -229,20 +259,25 @@ export class SocietyService {
      * 回傳兌換到的商品定義（呼叫端負責放入玩家背包）
      */
     async shopBuy(guildId: string, userId: string, itemId: string): Promise<Result<{ item: typeof SOCIETY_SHOP_ITEMS[number]; remaining: number }>> {
-        const doc = await this.getSocietyDoc(guildId);
-        if (!doc || !doc.society) return { success: false, error: "社團不存在" };
-        if (!this.checkPermission(doc, userId, 'shop_buy')) return { success: false, error: "你沒有使用社團商店的權限" };
-
         const shopItem = SOCIETY_SHOP_ITEMS.find((i) => i.itemId === itemId);
         if (!shopItem) return { success: false, error: "社團商店沒有此商品" };
-        if (doc.society.level < shopItem.minSocietyLevel) return { success: false, error: `需要社團等級 Lv${shopItem.minSocietyLevel}` };
 
-        const balance = doc.society.contributions[userId] || 0;
-        if (balance < shopItem.contributionPrice) return { success: false, error: `貢獻度不足（需要 ${shopItem.contributionPrice}，現有 ${balance}）` };
-
-        doc.society.contributions[userId] = balance - shopItem.contributionPrice;
-        await this.saveExtension(guildId, doc.society);
-        return { success: true, item: shopItem, remaining: doc.society.contributions[userId] };
+        const result = await this.mutateSociety<Result<{ item: typeof SOCIETY_SHOP_ITEMS[number]; remaining: number }>>(guildId, (doc) => {
+            const s = doc.society!;
+            if (!this.checkPermission(doc, userId, 'shop_buy')) {
+                return { write: false, result: { success: false, error: "你沒有使用社團商店的權限" } };
+            }
+            if (s.level < shopItem.minSocietyLevel) {
+                return { write: false, result: { success: false, error: `需要社團等級 Lv${shopItem.minSocietyLevel}` } };
+            }
+            const balance = s.contributions[userId] || 0;
+            if (balance < shopItem.contributionPrice) {
+                return { write: false, result: { success: false, error: `貢獻度不足（需要 ${shopItem.contributionPrice}，現有 ${balance}）` } };
+            }
+            s.contributions[userId] = balance - shopItem.contributionPrice;
+            return { write: true, result: { success: true, item: shopItem, remaining: s.contributions[userId] } };
+        });
+        return result ?? { success: false, error: "社團不存在" };
     }
 
     // ==================== 解散 ====================

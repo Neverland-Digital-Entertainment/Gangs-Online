@@ -169,6 +169,13 @@ export class SceneManager {
     }
 
     /**
+     * 獲取建築遮擋系統（供 MapOverrideSystem 註冊新增/替換的建築）
+     */
+    getOcclusionSystem(): BuildingOcclusionSystem {
+        return this.occlusionSystem;
+    }
+
+    /**
      * 檢查場景是否已載入
      */
     isSceneLoaded(): boolean {

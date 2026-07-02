@@ -40,6 +40,7 @@ export default function SystemsDataPage() {
     const load = useCallback(async (t: Tab) => {
         setLoading(true);
         setError('');
+        setRows([]); // 清空上一個分頁的資料，避免切換瞬間顯示錯誤內容
         try {
             const { db } = getFirebaseServices();
             let data: any[] = [];
@@ -50,22 +51,22 @@ export default function SystemsDataPage() {
                     break;
                 }
                 case 'society': {
-                    const snap = await getDocs(collection(db, 'guilds'));
+                    const snap = await getDocs(query(collection(db, 'guilds'), limit(100)));
                     data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
                     break;
                 }
                 case 'territory': {
-                    const snap = await getDocs(collection(db, 'territories'));
+                    const snap = await getDocs(query(collection(db, 'territories'), limit(100)));
                     data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
                     break;
                 }
                 case 'party': {
-                    const snap = await getDocs(collection(db, 'runtime_parties'));
+                    const snap = await getDocs(query(collection(db, 'runtime_parties'), limit(100)));
                     data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
                     break;
                 }
                 case 'player': {
-                    const snap = await getDocs(query(collection(db, 'players'), limit(100)));
+                    const snap = await getDocs(query(collection(db, 'players'), orderBy('lastOnline', 'desc'), limit(100)));
                     data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
                     break;
                 }
