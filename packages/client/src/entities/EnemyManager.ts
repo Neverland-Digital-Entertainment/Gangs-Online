@@ -77,6 +77,23 @@ export class EnemyManager {
     }
 
     /**
+     * Phase 21: 模型載入失敗時的膠囊體佔位模型
+     * 回傳與 ImportMeshAsync 相同形狀的結果（meshes + animationGroups）
+     */
+    private createPlaceholderModel(enemyId: string, isNPC: boolean): { meshes: BABYLON.AbstractMesh[]; animationGroups: BABYLON.AnimationGroup[] } {
+        const capsule = BABYLON.MeshBuilder.CreateCapsule(`placeholder_${enemyId}`, { height: 1.8, radius: 0.4 }, this.scene);
+        const mat = new BABYLON.StandardMaterial(`placeholder_mat_${enemyId}`, this.scene);
+        mat.diffuseColor = isNPC ? new BABYLON.Color3(0.3, 0.5, 1) : new BABYLON.Color3(0.9, 0.2, 0.2);
+        mat.emissiveColor = mat.diffuseColor.scale(0.4);
+        capsule.material = mat;
+        // 膠囊體原點在中心，往上抬半身高，落地時腳貼地
+        capsule.position.y = 0.9;
+        const root = new BABYLON.Mesh(`placeholder_root_${enemyId}`, this.scene);
+        capsule.parent = root;
+        return { meshes: [root, capsule], animationGroups: [] };
+    }
+
+    /**
      * 創建敵人或 NPC (Phase 9: 支援 NPC, Phase 16-2: 支援自定義模型)
      * @param enemyData - Colyseus Schema 對象（具有 onChange 和 listen 方法）
      */
@@ -93,17 +110,24 @@ export class EnemyManager {
         console.log(`📦 Model ID for ${enemyId}: raw="${enemyData.modelId}", processed="${modelId}", useDefault=${useDefaultModel}`);
 
         // 載入 3D 模型（使用跟 PlayerManager 相同的方式）
+        // Phase 21: 預設模型來自外部網址（models.babylonjs.com），載入失敗時改用
+        // 膠囊體佔位模型，確保實體永遠可見、可點擊（避免「隱形怪」圍攻玩家）
         let result;
 
         if (useDefaultModel) {
             // 使用預設模型（跟 PlayerManager 完全一樣的方式）
             console.log(`📦 Loading default model from ${modelConfig.baseUrl}${modelConfig.characterModel} for ${enemyId}`);
-            result = await BABYLON.SceneLoader.ImportMeshAsync(
-                "",
-                modelConfig.baseUrl,
-                modelConfig.characterModel,
-                this.scene
-            );
+            try {
+                result = await BABYLON.SceneLoader.ImportMeshAsync(
+                    "",
+                    modelConfig.baseUrl,
+                    modelConfig.characterModel,
+                    this.scene
+                );
+            } catch (error) {
+                console.warn(`⚠️ Default model failed for ${enemyId}, using capsule placeholder:`, error);
+                result = this.createPlaceholderModel(enemyId, isNPC);
+            }
         } else {
             // 嘗試載入自定義模型，失敗時使用預設模型
             try {
@@ -116,12 +140,17 @@ export class EnemyManager {
                 );
             } catch (error) {
                 console.warn(`⚠️ Failed to load custom model "${modelId}", falling back to default:`, error);
-                result = await BABYLON.SceneLoader.ImportMeshAsync(
-                    "",
-                    modelConfig.baseUrl,
-                    modelConfig.characterModel,
-                    this.scene
-                );
+                try {
+                    result = await BABYLON.SceneLoader.ImportMeshAsync(
+                        "",
+                        modelConfig.baseUrl,
+                        modelConfig.characterModel,
+                        this.scene
+                    );
+                } catch (fallbackError) {
+                    console.warn(`⚠️ Default model also failed for ${enemyId}, using capsule placeholder:`, fallbackError);
+                    result = this.createPlaceholderModel(enemyId, isNPC);
+                }
             }
         }
 
