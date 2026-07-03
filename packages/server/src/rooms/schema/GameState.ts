@@ -9,6 +9,11 @@ export class Item extends Schema implements IItem {
     @type("string") name: string = "";
     @type("string") type: ItemType = "consumable";
     @type("number") value: number = 0;
+
+    // Phase 21: 武器升級系統
+    @type("string") baseId: string = "";      // 靜態定義 ID（如 weapon_tang_sword / enhance_stone）
+    @type("number") enhanceLevel: number = 0; // 武器強化等級 +0 ~ +15
+    @type("number") failCount: number = 0;    // 連續強化失敗次數（保底用）
 }
 
 /**
@@ -64,6 +69,18 @@ export class Player extends Schema {
     @type("boolean") inPrison: boolean = false; // 是否在監獄中
     @type("number") prisonReleaseTime: number = 0; // 釋放時間戳
 
+    // Phase 21: 武器升級系統（裝備中武器的攻擊加成）
+    @type("number") attackBonus: number = 0;
+    @type("number") equippedWeaponIndex: number = -1; // 背包 index，-1 = 未裝備
+    @type("string") equippedWeaponName: string = "";
+
+    // Phase 21: 社團系統擴展
+    @type("string") societyRole: string = ""; // 話事人/坐館/紅棍/白紙扇/草鞋/四九仔
+    @type("number") contribution: number = 0; // 可用貢獻度
+
+    // Phase 21: 組隊系統
+    @type("string") partyId: string = "";
+
     // Blueprint Quest System (Phase 20)
     @type("string") activeBlueprintId: string = ""; // 當前藍圖任務 ID
     @type("string") activeBlueprintName: string = ""; // 當前任務名稱
@@ -101,6 +118,12 @@ export class Enemy extends Schema implements IEnemyData {
     @type("string") modelId: string = ""; // Phase 16-2: 自定義模型 ID，空字串時使用預設模型
     @type("string") dialogueTreeJson: string = ""; // Phase 16-2: 對話樹 JSON（序列化的 DialogueTree）
     @type("string") linkedShopId: string = ""; // Phase 16-3: 關聯商店 ID
+
+    // Phase 21: 佔領地盤系統（守衛）
+    @type("string") territoryId: string = "";   // 所屬地盤 ID（非守衛為空）
+    @type("number") guardLevel: number = 0;     // 守衛等級 1~10（非守衛為 0）
+    @type("string") ownerGuildId: string = "";  // 守衛所屬社團 ID
+    @type("string") ownerGuildName: string = "";
 }
 
 /**

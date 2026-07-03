@@ -54,6 +54,8 @@ export default {
   'nav.npcInstances': 'Instance Management',
   'nav.npcAppearances': 'Appearance Management',
   'nav.quest': 'Quest Management',
+  'nav.territory': 'Territory Editor',
+  'nav.systemsData': 'Systems Data',
   'nav.map': 'Map Management',
   'nav.mapEditor': 'Map Editor',
   'nav.mapAssets': 'Building Assets',

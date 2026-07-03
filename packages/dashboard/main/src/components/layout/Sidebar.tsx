@@ -20,6 +20,8 @@ import {
   Palette,
   Map as MapIcon,
   Building2,
+  Hexagon,
+  Database,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
@@ -120,6 +122,12 @@ const menuItems: MenuItem[] = [
         icon: Building2,
         permission: 'map.view',
       },
+      {
+        titleKey: 'nav.territory',
+        href: '/map/territory',
+        icon: Hexagon,
+        permission: 'map.view',
+      },
     ],
   },
   {
@@ -141,6 +149,11 @@ const menuItems: MenuItem[] = [
         permission: 'users.view',
       },
     ],
+  },
+  {
+    titleKey: 'nav.systemsData',
+    icon: Database,
+    href: '/systems',
   },
   {
     titleKey: 'nav.settings',
@@ -326,7 +339,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
           <ThemeToggle />
         </div>
         <div className="text-xs text-[var(--muted)] text-center">
-          v0.20.0
+          v0.21.0
         </div>
       </div>
     </>

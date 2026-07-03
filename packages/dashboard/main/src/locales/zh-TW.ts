@@ -54,6 +54,8 @@ export default {
   'nav.npcInstances': '實例管理',
   'nav.npcAppearances': '造型管理',
   'nav.quest': '任務管理',
+  'nav.territory': '地盤設置',
+  'nav.systemsData': '系統資料',
   'nav.map': '地圖管理',
   'nav.mapEditor': '地圖編輯器',
   'nav.mapAssets': '建築資產',

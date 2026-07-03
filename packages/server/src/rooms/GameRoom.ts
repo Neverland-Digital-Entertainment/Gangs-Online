@@ -18,10 +18,13 @@ import { guildService } from "../services/GuildService"; // Phase 13
 import { chatService } from "../services/ChatService"; // Phase 13
 import { EvilValueSystem } from "../systems/EvilValueSystem"; // Phase 14
 import { PrisonSystem } from "../systems/PrisonSystem"; // Phase 14
+import { coreSystems } from "../systems/CoreSystemsExtension"; // Phase 21: 武器升級/社團/地盤/組隊
 
 export class GameRoom extends Room<GameState> {
     maxClients = 50;
     firstPlayerSessionId: string | null = null; // Track first player for special advantage
+    // Phase 21: 死亡安全重生 — 已排程重生的玩家（避免重複排程）
+    private pendingRespawns = new Set<string>();
     private enemyManager!: EnemyManager; // 敵人管理系統
     private progressionSystem!: ProgressionSystem; // 進度系統 (Phase 7)
     private lootSystem!: LootSystem; // 戰利品系統 (Phase 8)
@@ -84,6 +87,30 @@ export class GameRoom extends Room<GameState> {
         // 設置 AI 更新迴圈（每 50ms 執行一次 = 20 FPS）
         this.setSimulationInterval((deltaTime) => {
             this.enemyManager.update(deltaTime);
+
+            // Phase 21: 地盤守衛 AI / 練功模式重生
+            coreSystems.update();
+
+            // Phase 21: 死亡安全重生 — 涵蓋所有死因（含巡邏 AI / 守衛擊殺，
+            // 這些路徑原本沒有重生排程，玩家會永久卡在 HP=0 無法移動）
+            this.state.players.forEach((player) => {
+                if (player.hp <= 0 && !this.pendingRespawns.has(player.sessionId)) {
+                    this.pendingRespawns.add(player.sessionId);
+                    this.clock.setTimeout(() => {
+                        this.pendingRespawns.delete(player.sessionId);
+                        const p = this.state.players.get(player.sessionId);
+                        if (p && p.hp <= 0) {
+                            p.hp = p.maxHp;
+                            p.inCombatWith = "";
+                            p.inCombatWithEnemy = "";
+                            // 原地重生（既有路徑的隨機座標在原點附近，遠離實際地圖）
+                            const client = this.clients.find((c) => c.sessionId === p.sessionId);
+                            client?.send("notification", "你被打倒了...已原地復活");
+                            console.log(`♻️ [SafetyRespawn] ${p.name} respawned in place`);
+                        }
+                    }, 4000);
+                }
+            });
 
             // Phase 14: 警察 AI 更新
             this.npcManager.updatePoliceAI(deltaTime);
@@ -166,6 +193,17 @@ export class GameRoom extends Room<GameState> {
                 if (!enemy) {
                     console.log(`❌ Attack failed: enemy ${payload.targetId} not found on server!`);
                     console.log(`Current enemies:`, Array.from(this.state.enemies.keys()));
+                    return;
+                }
+
+                // Phase 21: 地盤守衛攻擊規則（保護期檢查）
+                if (coreSystems.isGuard(payload.targetId)) {
+                    const blocked = coreSystems.canAttackGuard(attacker, payload.targetId);
+                    if (blocked) {
+                        client.send("notification", blocked);
+                        return;
+                    }
+                    this.handlePlayerVsEnemy(client, attacker, payload.targetId);
                     return;
                 }
 
@@ -420,6 +458,9 @@ export class GameRoom extends Room<GameState> {
                         newItem.name = loot.item.name;
                         newItem.type = loot.item.type;
                         newItem.value = loot.item.value;
+                        // Phase 21: 複製武器/材料欄位
+                        newItem.baseId = loot.item.baseId;
+                        newItem.enhanceLevel = loot.item.enhanceLevel;
                         player.inventory.push(newItem);
                         client.send("notification", `執到 ${loot.item.name}`);
                     }
@@ -723,14 +764,25 @@ export class GameRoom extends Room<GameState> {
                     const enemy = this.state.enemies.get(player.inCombatWithEnemy);
 
                     if (enemy && enemy.hp > 0) {
-                        // 玩家攻擊敵人
-                        const isDead = this.enemyManager.takeDamage(player.inCombatWithEnemy, GAME_CONSTANTS.ATTACK_DAMAGE);
-                        console.log(`🗡️ ${player.name} hits ${enemy.name} for ${GAME_CONSTANTS.ATTACK_DAMAGE} damage! HP: ${enemy.hp}/${enemy.maxHp}`);
+                        // 玩家攻擊敵人（Phase 21: 攻擊力含武器加成）
+                        const playerDamage = coreSystems.getPlayerDamage(player);
+                        const isDead = this.enemyManager.takeDamage(player.inCombatWithEnemy, playerDamage);
+                        console.log(`🗡️ ${player.name} hits ${enemy.name} for ${playerDamage} damage! HP: ${enemy.hp}/${enemy.maxHp}`);
 
                         if (isDead) {
                             // 敵人死亡
                             const deadEnemyId = player.inCombatWithEnemy; // 保存 ID 用於移除
                             console.log(`💀 Enemy ${deadEnemyId} was killed by ${player.name}`);
+
+                            // Phase 21: 地盤守衛擊殺走專屬結算（練功/佔領雙模式）
+                            if (coreSystems.isGuard(deadEnemyId)) {
+                                const guardClient = this.clients.find((c) => c.sessionId === player.sessionId);
+                                if (guardClient) {
+                                    coreSystems.handleGuardKill(guardClient, player, deadEnemyId);
+                                }
+                                player.inCombatWithEnemy = "";
+                                return;
+                            }
                             this.broadcast("chat", {
                                 sessionId: "SYSTEM",
                                 text: `${player.name} 擊敗了 ${enemy.name}！`,
@@ -747,6 +799,9 @@ export class GameRoom extends Room<GameState> {
                                     text: `🎉 ${player.name} 升職了！現在是 ${newTitle} (Lv${newLevel})`,
                                 });
                             }
+
+                            // Phase 21: 組隊經驗分享（範圍內隊員各得全額經驗）
+                            coreSystems.sharePartyXp(player, xpGained, enemy.x, enemy.z);
 
                             // Phase 8: 掉落戰利品
                             this.lootSystem.spawnLoot(enemy.x, enemy.z);
@@ -877,13 +932,21 @@ export class GameRoom extends Room<GameState> {
                 attacker.inCombatWithEnemy = enemyId;
                 console.log(`⚔️ Auto-combat started: ${attacker.name} vs ${enemy.name}`);
 
-                // 立即進行第一次攻擊
-                const isDead = this.enemyManager.takeDamage(enemyId, GAME_CONSTANTS.ATTACK_DAMAGE);
-                console.log(`🗡️ ${attacker.name} hits ${enemy.name} for ${GAME_CONSTANTS.ATTACK_DAMAGE} damage! HP: ${enemy.hp}/${enemy.maxHp}`);
+                // 立即進行第一次攻擊（Phase 21: 攻擊力含武器加成）
+                const playerDamage = coreSystems.getPlayerDamage(attacker);
+                const isDead = this.enemyManager.takeDamage(enemyId, playerDamage);
+                console.log(`🗡️ ${attacker.name} hits ${enemy.name} for ${playerDamage} damage! HP: ${enemy.hp}/${enemy.maxHp}`);
 
                 if (isDead) {
                     // 第一擊就擊殺
                     console.log(`💀 Enemy ${enemyId} was killed by ${attacker.name} (first strike)`);
+
+                    // Phase 21: 地盤守衛擊殺走專屬結算（練功/佔領雙模式）
+                    if (coreSystems.isGuard(enemyId)) {
+                        coreSystems.handleGuardKill(client, attacker, enemyId);
+                        attacker.inCombatWithEnemy = "";
+                        return;
+                    }
                     this.broadcast("chat", {
                         sessionId: "SYSTEM",
                         text: `${attacker.name} 秒殺了 ${enemy.name}！`,
@@ -899,6 +962,9 @@ export class GameRoom extends Room<GameState> {
                             text: `🎉 ${attacker.name} 升職了！現在是 ${newTitle} (Lv${newLevel})`,
                         });
                     }
+
+                    // Phase 21: 組隊經驗分享（範圍內隊員各得全額經驗）
+                    coreSystems.sharePartyXp(attacker, xpGained, enemy.x, enemy.z);
 
                     // Phase 8: 掉落戰利品
                     this.lootSystem.spawnLoot(enemy.x, enemy.z);
@@ -1061,6 +1127,11 @@ export class GameRoom extends Room<GameState> {
             this.questBlueprintManager.spawnQuestNPCs(this.npcManager);
             console.log("✅ [GameRoom] Quest Blueprint Manager initialized");
 
+            // Phase 21: 初始化核心系統擴展（武器升級/社團/地盤/組隊）
+            console.log("📦 [GameRoom] Initializing Core Systems Extension (Phase 21)...");
+            await coreSystems.initialize(this, this.progressionSystem);
+            console.log("✅ [GameRoom] Core Systems Extension initialized");
+
             console.log("✅ [GameRoom] All async systems initialized successfully!");
         } catch (error) {
             console.error("❌ [GameRoom] Failed to initialize async systems:", error);
@@ -1142,6 +1213,9 @@ export class GameRoom extends Room<GameState> {
             player.inCombatWithEnemy = "";
             console.log(`Returning player loaded: ${player.name} (UID: ${firebaseUid})`);
         }
+
+        // Phase 21: 載入社團職級與貢獻度
+        await coreSystems.onPlayerJoin(player);
 
         this.state.players.set(client.sessionId, player);
     }
@@ -1266,6 +1340,9 @@ export class GameRoom extends Room<GameState> {
             // Phase 20: 清除藍圖任務運行時狀態
             this.questBlueprintManager.clearPlayerState(client.sessionId);
         }
+
+        // Phase 21: 清理隊伍狀態
+        coreSystems.onPlayerLeave(client.sessionId, leavingPlayer);
 
         this.state.players.delete(client.sessionId);
     }
