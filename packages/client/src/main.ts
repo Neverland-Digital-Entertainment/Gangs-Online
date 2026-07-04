@@ -177,8 +177,12 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
         // 連接遊戲房間
         loadingScreen.updateText("正在連接遊戲房間...");
+        // Phase 21 安全修復：附上 Firebase ID Token，讓 server 驗證真實身份
+        // （原本 userId 由 client 自報，任何人可冒充任意 UID 連線，見 GameRoom.onAuth）
+        const idToken = await firebaseService.getIdToken();
         // Phase 12.1: 傳送 userId 和 characterName 到伺服器
         const room = await client.joinOrCreate("game_room", {
+            idToken,
             userId: userId,
             username: characterName || `玩家${userId.substring(0, 6)}`,
             isNewUser: isNewUser

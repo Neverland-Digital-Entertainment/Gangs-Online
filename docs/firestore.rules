@@ -97,9 +97,21 @@ service cloud.firestore {
     match /quest_blueprints/{id} { allow read: if true; allow write: if hasPerm('quest.edit'); }
 
     // ---- 玩家 / 公會（遊戲資料；伺服器 admin SDK 會繞過規則）----
-    // 開放已登入者讀寫，避免影響現有遊戲；如有需要可再收緊。
-    match /players/{id} { allow read: if true; allow write: if signedIn(); }
-    match /guilds/{id}  { allow read: if true; allow write: if signedIn(); }
+    // Phase 21 安全修復：遊戲客戶端完全不直接讀寫這兩個集合（角色資料/幫會資料
+    // 一律經由 Colyseus 伺服器的 admin SDK 存取，不受此規則影響）。
+    // 唯一會透過瀏覽器端 SDK 讀取的只有 Dashboard 的「系統資料」診斷頁，
+    // 故收緊為僅限有 systems.view 權限的後台帳號可讀，且完全禁止客戶端寫入
+    // （原本 write: if signedIn() 等同任何登入者都能竄改任意玩家的金錢/背包/
+    // 幫會資金——即使是遊戲內的匿名登入帳號也算 signedIn()，已被收緊修復）。
+    match /players/{id} { allow read: if hasPerm('systems.view'); allow write: if false; }
+    match /guilds/{id}  { allow read: if hasPerm('systems.view'); allow write: if false; }
+
+    // ---- 地盤設置（Phase 21：後台寫、遊戲讀由伺服器 admin SDK 完成，客戶端不直接讀）----
+    match /territories/{id} { allow read: if hasPerm('map.view'); allow write: if hasPerm('map.edit'); }
+
+    // ---- Phase 21 診斷資料（僅供 Dashboard 系統資料頁檢視）----
+    match /weapon_enhance_logs/{id} { allow read: if hasPerm('systems.view'); allow write: if false; }
+    match /runtime_parties/{id}     { allow read: if hasPerm('systems.view'); allow write: if false; }
 
     // 其餘集合預設拒絕用戶端寫入（伺服器 admin SDK 不受影響）。
     // 若遊戲客戶端需直接寫入其他集合，請在此補上對應規則。

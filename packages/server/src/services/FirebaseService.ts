@@ -80,3 +80,17 @@ export const getFieldValue = () => admin.firestore.FieldValue;
 export const isFirebaseInitialized = (): boolean => {
     return db !== null;
 };
+
+/**
+ * Phase 21 安全修復：驗證 Client 傳來的 Firebase ID Token
+ * 用於 GameRoom.onAuth，避免直接信任 client 自報的 userId（可被任意冒充）
+ * @returns 驗證通過的 Firebase UID；驗證失敗會 throw
+ */
+export const verifyIdToken = async (idToken: string): Promise<string> => {
+    if (!initialized) initializeFirebase();
+    if (admin.apps.length === 0) {
+        throw new Error("Firebase Admin 未初始化，無法驗證登入憑證");
+    }
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    return decoded.uid;
+};

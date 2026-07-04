@@ -239,6 +239,20 @@ export class FirebaseService {
     }
 
     /**
+     * Phase 21 安全修復：取得目前用戶的 Firebase ID Token
+     * 連線遊戲房間時需附上此 token，讓 server 驗證真實身份（見 GameRoom.onAuth）
+     */
+    async getIdToken(): Promise<string | null> {
+        if (!auth?.currentUser) return null;
+        try {
+            return await auth.currentUser.getIdToken();
+        } catch (error) {
+            console.error("[Firebase] Failed to get ID token:", error);
+            return null;
+        }
+    }
+
+    /**
      * 取得 Firebase App（供其他服務取用 Firestore 等）
      */
     getApp(): FirebaseApp | null {

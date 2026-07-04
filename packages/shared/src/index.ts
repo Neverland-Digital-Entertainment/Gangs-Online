@@ -246,6 +246,16 @@ export const GAME_CONSTANTS = {
     // Phase 15: 新玩家生成在旺角地圖的指定位置（Phase 21: 也做為「重置座標」的目標點）
     PLAYER_SPAWN_X: -835575.4,
     PLAYER_SPAWN_Z: -819658.9,
+
+    // Phase 21 安全修復：單次 move/set_position 訊息允許的最大位移距離
+    // 遊戲採「點擊移動」設計，client 一次只會送出畫面可視範圍內的座標（等角相機
+    // 縮放下視野對角線約 30 單位），故 100 已足夠寬容涵蓋任何合理的單次點擊；
+    // 超過此距離視為明顯的座標竄改（如直接呼叫 room.send 竄改座標）並拒絕。
+    MAX_SINGLE_MOVE_DISTANCE: 100,
+
+    // Phase 21 安全修復：聊天訊息長度上限與同一玩家的最短發言間隔（毫秒）
+    CHAT_MAX_LENGTH: 200,
+    CHAT_MIN_INTERVAL_MS: 500,
     ATTACK_RANGE: 3.0, // Meters
     ATTACK_DAMAGE: 30, // 提高玩家攻擊力（原本 10）
     ATTACK_INTERVAL: 1000, // Milliseconds between auto-attacks

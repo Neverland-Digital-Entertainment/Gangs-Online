@@ -21,6 +21,8 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   { key: 'npc', labelKey: 'nav.npc' },
   { key: 'quest', labelKey: 'nav.quest' },
   { key: 'users', labelKey: 'nav.users' },
+  // Phase 21 安全修復：系統資料診斷頁改為權限控管（原本任何登入者皆可讀取玩家/幫會原始資料）
+  { key: 'systems', labelKey: 'nav.systemsData' },
 ];
 
 export function perm(moduleKey: string, action: PermissionAction): string {

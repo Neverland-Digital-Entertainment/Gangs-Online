@@ -154,6 +154,7 @@ const menuItems: MenuItem[] = [
     titleKey: 'nav.systemsData',
     icon: Database,
     href: '/systems',
+    permission: 'systems.view',
   },
   {
     titleKey: 'nav.settings',

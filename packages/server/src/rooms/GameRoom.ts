@@ -9,7 +9,7 @@ import { ShopSystem } from "../systems/ShopSystem"; // Phase 9
 import { NPCManager } from "../systems/NPCManager"; // Phase 9
 import { QuestManager } from "../systems/QuestManager"; // Phase 10
 import { QuestBlueprintManager } from "../systems/QuestBlueprintManager"; // Phase 20
-import { initializeFirebase } from "../services/FirebaseService"; // Phase 12
+import { initializeFirebase, isFirebaseInitialized, verifyIdToken } from "../services/FirebaseService"; // Phase 12
 import { npcService } from "../services/NPCService"; // Phase 16-2
 import { shopService } from "../services/ShopService"; // Phase 16-3
 import { purchaseService } from "../services/PurchaseService"; // Phase 16-3
@@ -25,6 +25,21 @@ export class GameRoom extends Room<GameState> {
     firstPlayerSessionId: string | null = null; // Track first player for special advantage
     // Phase 21: 死亡安全重生 — 已排程重生的玩家（避免重複排程）
     private pendingRespawns = new Set<string>();
+    // Phase 21 安全修復：聊天防洗版 — 記錄各 sessionId 最後發言時間
+    private lastChatAt = new Map<string, number>();
+
+    /**
+     * Phase 21 安全修復：檢查單次移動座標是否合理
+     * 遊戲採點擊移動設計，client 一次只會送出畫面可視範圍內的座標；
+     * 拒絕非數字或超出合理距離的座標，避免直接竄改 move/set_position 訊息瞬移。
+     */
+    private isReasonableMove(player: Player, x: number, z: number): boolean {
+        if (typeof x !== "number" || typeof z !== "number" || !Number.isFinite(x) || !Number.isFinite(z)) {
+            return false;
+        }
+        const dist = Math.hypot(x - player.x, z - player.z);
+        return dist <= GAME_CONSTANTS.MAX_SINGLE_MOVE_DISTANCE;
+    }
     private enemyManager!: EnemyManager; // 敵人管理系統
     private progressionSystem!: ProgressionSystem; // 進度系統 (Phase 7)
     private lootSystem!: LootSystem; // 戰利品系統 (Phase 8)
@@ -148,15 +163,25 @@ export class GameRoom extends Room<GameState> {
                         return;
                     }
                 }
+                // Phase 21 安全修復：拒絕不合理的座標（非數字、或單次位移超出點擊移動的合理範圍）
+                if (!this.isReasonableMove(player, input.x, input.z)) {
+                    console.warn(`[GameRoom] ⚠️ 拒絕不合理的移動：${player.name} → (${input?.x}, ${input?.z})`);
+                    return;
+                }
                 player.x = input.x;
                 player.z = input.z;
             }
         });
 
-        // Phase 15: Handle set_position (客戶端載入地圖後設定起始位置)
+        // Phase 15: Handle set_position（客戶端載入地圖後設定起始位置；目前 client 未實際呼叫，保留以防未來使用）
         this.onMessage("set_position", (client, input: { x: number; z: number }) => {
             const player = this.state.players.get(client.sessionId);
             if (player) {
+                // Phase 21 安全修復：同 move，避免此訊息被用來繞過座標合理性檢查
+                if (!this.isReasonableMove(player, input?.x, input?.z)) {
+                    console.warn(`[GameRoom] ⚠️ 拒絕不合理的 set_position：${player.name} → (${input?.x}, ${input?.z})`);
+                    return;
+                }
                 console.log(`📍 [Phase 15] Setting player ${client.sessionId} position to (${input.x.toFixed(1)}, ${input.z.toFixed(1)})`);
                 player.x = input.x;
                 player.z = input.z;
@@ -245,10 +270,22 @@ export class GameRoom extends Room<GameState> {
             const player = this.state.players.get(client.sessionId);
             if (!player) return;
 
+            // Phase 21 安全修復：防洗版 — 同一玩家發言需間隔至少 CHAT_MIN_INTERVAL_MS
+            const now = Date.now();
+            const lastAt = this.lastChatAt.get(client.sessionId) || 0;
+            if (now - lastAt < GAME_CONSTANTS.CHAT_MIN_INTERVAL_MS) return;
+            this.lastChatAt.set(client.sessionId, now);
+
             // 支援舊格式（純字串）和新格式（物件）
-            const text = typeof payload === "string" ? payload : payload.text;
+            let text = typeof payload === "string" ? payload : payload.text;
             const chatType: ChatMessageType = typeof payload === "string" ? "GLOBAL" : (payload.type || "GLOBAL");
             const targetId = typeof payload === "string" ? undefined : payload.targetId;
+
+            // Phase 21 安全修復：長度上限（避免超長字串灌爆 Firestore 聊天紀錄）
+            if (typeof text !== "string" || text.trim().length === 0) return;
+            if (text.length > GAME_CONSTANTS.CHAT_MAX_LENGTH) {
+                text = text.slice(0, GAME_CONSTANTS.CHAT_MAX_LENGTH);
+            }
 
             const chatMessage: IChatMessage = {
                 senderId: player.firebaseUid || client.sessionId,
@@ -1138,9 +1175,39 @@ export class GameRoom extends Room<GameState> {
         }
     }
 
+    /**
+     * Phase 21 安全修復：驗證玩家身份
+     * 在 onJoin 之前執行，client 必須附上自己的 Firebase ID Token（options.idToken），
+     * server 用 Firebase Admin SDK 驗證後才取得「真正」的 UID，不再直接信任
+     * client 自報的 options.userId（原本任何人都能冒充任意 UID 連線並讀寫其存檔）。
+     *
+     * 本地開發若沒有設定 Firebase 服務帳號（isFirebaseInitialized() 為 false），
+     * 則退回信任 client 提供的 userId，方便未設定 Firebase 的本地測試；
+     * 一旦 Firebase 已初始化（正式環境一定會初始化），一律強制驗證。
+     */
+    async onAuth(client: Client, options: any): Promise<{ uid: string; verified: boolean }> {
+        if (!isFirebaseInitialized()) {
+            console.warn("[GameRoom] ⚠️ Firebase 未初始化，onAuth 退回信任 client 提供的 userId（僅限本地開發，正式環境不應發生）");
+            return { uid: options?.userId || "", verified: false };
+        }
+
+        const idToken = options?.idToken;
+        if (!idToken || typeof idToken !== "string") {
+            throw new Error("缺少登入憑證，請重新登入");
+        }
+        try {
+            const uid = await verifyIdToken(idToken);
+            return { uid, verified: true };
+        } catch (error) {
+            console.error("[GameRoom] ❌ ID Token 驗證失敗:", error);
+            throw new Error("登入已過期或無效，請重新登入");
+        }
+    }
+
     async onJoin(client: Client, options: any) {
-        // Phase 12.1: 取得 Firebase UID、角色名和新用戶標記
-        const firebaseUid = options.userId || "";
+        // Phase 21 安全修復：優先使用 onAuth 驗證過的 UID，不再直接信任 options.userId
+        // （options.userId 僅在本地開發、Firebase 未初始化時作為退回方案）
+        const firebaseUid = (client.auth as any)?.uid || options.userId || "";
         const characterName = options.username || "";
         const isNewUser = options.isNewUser === true;
 
@@ -1319,6 +1386,9 @@ export class GameRoom extends Room<GameState> {
     }
 
     async onLeave(client: Client, consented: boolean) {
+        // Phase 21 安全修復：清除聊天防洗版記錄，避免長期運行累積記憶體
+        this.lastChatAt.delete(client.sessionId);
+
         const leavingPlayer = this.state.players.get(client.sessionId);
 
         if (leavingPlayer) {
