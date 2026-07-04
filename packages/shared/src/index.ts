@@ -721,7 +721,7 @@ export interface IBPQuestRuntimeState {
 }
 
 // ==================== Phase 21: Core Gameplay Systems ====================
-export * from "./newSystems";
+export * from "./newSystems.js";
 
 /**
  * 遊戲版本（0.21.0 - Core Gameplay Systems：武器升級/社團/地盤/組隊）
