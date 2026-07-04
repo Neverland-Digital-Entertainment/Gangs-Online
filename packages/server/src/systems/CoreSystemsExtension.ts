@@ -331,12 +331,6 @@ export class CoreSystemsExtension {
             this.territory.hireGuard(client, player, payload.territoryId, payload.slot, payload.level);
         });
 
-        room.onMessage("territoryClaim", (client, payload: { territoryId: string }) => {
-            const player = getPlayer(client);
-            if (!player) return;
-            this.territory.claimTerritory(client, player, payload.territoryId);
-        });
-
         // ---------- 組隊 ----------
         room.onMessage("partyInvite", (client, payload: { target: string }) => {
             const player = getPlayer(client);

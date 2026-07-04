@@ -3,16 +3,19 @@
  *
  * 核心規則（依 GDD 3.x + 決策確認）：
  * - 地盤由 Dashboard 地盤設置模組建立（territories collection），初始一律中立無主
- * - 隨時可佔領（無排程開戰）：
+ * - 中立地盤預設有基礎守衛把守（固定 5 個 Lv1），不需玩家手動處理即可攻打
+ * - 換旗全自動、無需手動宣告佔領：擊敗地盤內全部守衛時，
+ *   若擊殺最後一名守衛的玩家有社團 → 自動換旗成為新持有者；
+ *   若沒有社團 → 地盤保持中立，守衛在一段時間後自動重新補滿
+ * - 隨時可攻打（無排程開戰）：
  *   - 持有社團成員攻擊自家守衛 = 練功模式：守衛會重生（30 秒），經驗加成（等級越高經驗越多），
  *     強化石掉落率較野外高，掉落金幣的 20% 歸社團資金
- *   - 非持有社團玩家攻擊守衛 = 佔領模式：守衛不重生，全部存活守衛被清空即換旗
- * - 換旗後 30 分鐘保護期（不可被攻擊/佔領）
- * - 守衛招聘制：每塊地盤固定 10 個守衛位，需個別付費招聘（社團資金），
- *   守衛等級 1~10，可招聘等級受社團等級限制（社團 Lv N 可招 Lv N*2）
+ *   - 非持有社團玩家攻擊守衛 = 佔領模式：守衛不重生，全部存活守衛被清空即依上述規則換旗/保持中立
+ * - 換旗後 30 分鐘保護期（不可被攻擊/佔領）；中立地盤無保護期，隨時可攻打
+ * - 守衛招聘制（社團持有的地盤專用）：每塊地盤固定 10 個守衛位，換旗後清空，
+ *   需社團個別付費招聘才會補上，守衛等級 1~10，可招聘等級受社團等級限制（社團 Lv N 可招 Lv N*2）
  * - 守衛駐守 AI：只在地盤範圍內追擊，離開範圍即回崗
  * - 地盤歸屬與守衛配置持久化到 Firebase（伺服器重啟不遺失）
- * - 中立或守衛全滅的地盤：社團成員站在地盤內可直接宣告佔領（claimTerritory）
  */
 import { Room, Client } from "colyseus";
 import { GameState, Player, Enemy, Loot, Item } from "../rooms/schema/GameState";
@@ -58,6 +61,11 @@ export class TerritorySystem {
                 t.guards.forEach((g) => {
                     if (g.alive) this.spawnGuardEnemy(t, g);
                 });
+            });
+
+            // 中立地盤（從未/不再被任何社團持有）預設要有基礎守衛把守，不需玩家手動處理
+            this.territories.forEach((t) => {
+                if (!t.ownerGuildId && t.guards.length === 0) this.seedNeutralGuards(t);
             });
 
             // 佔地計入社團貢獻（每小時）
@@ -125,6 +133,35 @@ export class TerritorySystem {
         const guard = territory.guards.find((g) => g.slot === slot);
         if (!guard) return null;
         return { territory, guard };
+    }
+
+    /**
+     * 補滿中立地盤的預設守衛（固定 5 個 Lv1）
+     * 用於：伺服器啟動時的初始播種、以及地盤被打回中立後的延遲補滿
+     */
+    private seedNeutralGuards(t: ITerritory): void {
+        for (let slot = 0; slot < CFG.NEUTRAL_GUARD_COUNT; slot++) {
+            const guard: ITerritoryGuard = {
+                slot,
+                level: CFG.NEUTRAL_GUARD_LEVEL,
+                alive: true,
+                hp: CFG.GUARD_HP_PER_LEVEL * CFG.NEUTRAL_GUARD_LEVEL,
+                maxHp: CFG.GUARD_HP_PER_LEVEL * CFG.NEUTRAL_GUARD_LEVEL,
+                respawnAt: 0,
+            };
+            t.guards.push(guard);
+            this.spawnGuardEnemy(t, guard);
+        }
+        this.persist(t);
+        console.log(`[Territory] ${t.name} 中立守衛已補滿（${CFG.NEUTRAL_GUARD_COUNT} x Lv${CFG.NEUTRAL_GUARD_LEVEL}）`);
+    }
+
+    /** 地盤打回中立後，延遲一段時間再重新補滿守衛（避免立刻被同一批人再次清空） */
+    private scheduleNeutralRestock(t: ITerritory): void {
+        this.room.clock.setTimeout(() => {
+            // 補滿前再次確認仍是中立且無守衛，避免與其間發生的佔領/招聘衝突
+            if (!t.ownerGuildId && t.guards.length === 0) this.seedNeutralGuards(t);
+        }, CFG.NEUTRAL_GUARD_RESTOCK_MS);
     }
 
     private spawnGuardEnemy(t: ITerritory, g: ITerritoryGuard): void {
@@ -329,16 +366,17 @@ export class TerritorySystem {
                 text: `⚑ 社團「${capturer.guildName}」佔領了地盤「${t.name}」！`,
             });
         } else {
-            // 無社團玩家清空守衛 → 地盤變回中立
+            // 無社團玩家清空守衛 → 地盤變回中立，一段時間後重新補滿基礎守衛
             t.ownerGuildId = "";
             t.ownerGuildName = "";
             t.protectionUntil = 0;
             t.guards = [];
-            messages.push(`${t.name} 的守衛已被清空，地盤變為無主狀態`);
+            messages.push(`${t.name} 的守衛已被清空，地盤變為無主狀態（守衛將於一段時間後重新駐守）`);
+            this.scheduleNeutralRestock(t);
         }
     }
 
-    // ==================== 招聘守衛 / 宣告佔領 ====================
+    // ==================== 招聘守衛 ====================
 
     /**
      * 招聘守衛（需 deploy_guards 權限：紅棍以上）
@@ -380,29 +418,6 @@ export class TerritorySystem {
         this.spawnGuardEnemy(t, guard);
         this.persist(t);
         client.send("notification", `已招聘 Lv${level} 守衛進駐 ${t.name} 守衛位 ${slot + 1}（花費社團資金 $${cost}）`);
-    }
-
-    /**
-     * 宣告佔領：地盤中立或守衛全滅、非保護期、玩家有社團且站在地盤內
-     */
-    claimTerritory(client: Client, player: Player, territoryId: string): void {
-        const t = this.territories.get(territoryId);
-        if (!t) { client.send("notification", "找不到該地盤"); return; }
-        if (!player.guildId) { client.send("notification", "需要加入社團才能佔領地盤"); return; }
-        if (t.ownerGuildId === player.guildId) { client.send("notification", "這已經是你們社團的地盤"); return; }
-        if (t.protectionUntil > Date.now()) {
-            const mins = Math.ceil((t.protectionUntil - Date.now()) / 60000);
-            client.send("notification", `此地盤在保護期內（剩餘 ${mins} 分鐘）`); return;
-        }
-        if (t.guards.some((g) => g.alive)) { client.send("notification", "此地盤還有守衛，先擊敗所有守衛！"); return; }
-        if (!TerritorySystem.pointInPolygon(player.x, player.z, t.vertices)) {
-            client.send("notification", "你必須站在地盤範圍內才能宣告佔領"); return;
-        }
-
-        const messages: string[] = [];
-        this.captureTerritory(t, player, messages);
-        this.persist(t);
-        messages.forEach((m) => client.send("notification", m));
     }
 
     // ==================== 查詢 / 持久化 ====================

@@ -221,6 +221,11 @@ export const TERRITORY_CONFIG = {
     MAX_GUARD_SLOTS: 10,                 // 全域固定值
     PROTECTION_DURATION_MS: 30 * 60 * 1000, // 換旗後 30 分鐘保護期
     MAX_GUARD_LEVEL: 10,
+    // 中立（從未/不再被任何社團持有）地盤的預設把守：固定 5 個 Lv1 守衛，
+    // 全滅時若擊殺者有社團 → 自動換旗；若無社團 → 保持中立，經過下列時間後重新補滿
+    NEUTRAL_GUARD_COUNT: 5,
+    NEUTRAL_GUARD_LEVEL: 1,
+    NEUTRAL_GUARD_RESTOCK_MS: 5 * 60 * 1000, // 5 分鐘
     // 招聘守衛費用（index = 守衛等級-1），從社團資金扣款
     GUARD_HIRE_COSTS: [1000, 2500, 5000, 8000, 12000, 17000, 23000, 30000, 40000, 50000],
     // 守衛屬性（依等級線性成長）

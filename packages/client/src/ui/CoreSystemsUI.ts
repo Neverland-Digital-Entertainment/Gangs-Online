@@ -479,20 +479,12 @@ export class CoreSystemsUI {
                 <b style="color:#FFD700;">${esc(t.name)}</b>${isCurrent ? "（你在此地盤內）" : ""}<br>
                 持有：${esc(t.ownerGuildName || "無主")}${isMine ? "（我的社團）" : ""}<br>
                 守衛：${Number(t.guardCount)} 存活 / ${Number(t.hiredGuardCount)} 已招聘 / ${Number(t.maxGuardSlots)} 位<br>
-                ${protectedNow ? `🛡️ 保護期剩 ${Math.ceil((t.protectionUntil - Date.now()) / 60000)} 分鐘<br>` : ""}
+                ${protectedNow ? `🛡️ 保護期剩 ${Math.ceil((t.protectionUntil - Date.now()) / 60000)} 分鐘<br>` :
+                    (!isMine && t.guardCount > 0 ? `擊敗全部守衛即可換旗（需有社團才能佔領）<br>` : "")}
             `;
 
-            // 宣告佔領（守衛全滅 / 中立、非保護期、在地盤內）
-            if (isCurrent && !isMine && t.guardCount === 0 && !protectedNow) {
-                const claimBtn = document.createElement("button");
-                claimBtn.style.cssText = BTN_STYLE;
-                claimBtn.textContent = "⚑ 宣告佔領";
-                claimBtn.onclick = () => {
-                    this.room.send("territoryClaim", { territoryId: t.id });
-                    setTimeout(() => this.room.send("territoryList"), 500);
-                };
-                box.appendChild(claimBtn);
-            }
+            // 換旗全自動：擊敗地盤內全部守衛，若擊殺者有社團即自動成為新持有者
+            // （無需手動宣告佔領，見 box 上方文字說明守衛數）
 
             // 招聘守衛（自家地盤）
             if (isMine && t.hiredGuardCount < t.maxGuardSlots) {
