@@ -243,6 +243,9 @@ export const GAME_CONSTANTS = {
     MAP_WIDTH: 100,
     MAP_HEIGHT: 100,
     PLAYER_SPEED: 0.2,
+    // Phase 15: 新玩家生成在旺角地圖的指定位置（Phase 21: 也做為「重置座標」的目標點）
+    PLAYER_SPAWN_X: -835575.4,
+    PLAYER_SPAWN_Z: -819658.9,
     ATTACK_RANGE: 3.0, // Meters
     ATTACK_DAMAGE: 30, // 提高玩家攻擊力（原本 10）
     ATTACK_INTERVAL: 1000, // Milliseconds between auto-attacks

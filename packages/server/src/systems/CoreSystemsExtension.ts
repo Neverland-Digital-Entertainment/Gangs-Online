@@ -357,6 +357,19 @@ export class CoreSystemsExtension {
             client.send("partyUpdate", player?.partyId ? this.party.getPartyInfo(player.partyId) : null);
         });
 
+        // ---------- 重置座標（角色卡在地圖外/掉出場景時自救用，只改自己座標，無作弊疑慮） ----------
+        room.onMessage("resetPosition", (client) => {
+            const player = room.state.players.get(client.sessionId);
+            if (!player) return;
+            player.x = GAME_CONSTANTS.PLAYER_SPAWN_X;
+            player.z = GAME_CONSTANTS.PLAYER_SPAWN_Z;
+            player.inCombatWith = "";
+            player.inCombatWithEnemy = "";
+            if (player.hp <= 0) player.hp = player.maxHp;
+            client.send("notification", "已將你傳送回地圖出生點");
+            console.log(`📍 [ResetPosition] ${player.name} teleported to spawn`);
+        });
+
         // ---------- 測試工具（測試套件：武器 + 強化石 + 金幣） ----------
         // 安全 gating：production 環境預設停用（除非明確設 ENABLE_TEST_TOOLS=true）
         const testToolsEnabled =

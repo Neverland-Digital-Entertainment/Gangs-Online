@@ -1188,8 +1188,8 @@ export class GameRoom extends Room<GameState> {
             // 新玩家：使用客戶端提供的角色名稱
             player.name = characterName || `玩家${client.sessionId.substring(0, 6)}`;
             // Phase 15: 新玩家生成在旺角地圖的指定位置
-            player.x = -835575.4;
-            player.z = -819658.9;
+            player.x = GAME_CONSTANTS.PLAYER_SPAWN_X;
+            player.z = GAME_CONSTANTS.PLAYER_SPAWN_Z;
             player.hp = 100;
             player.maxHp = 100;
             player.inCombatWith = "";

@@ -8,6 +8,7 @@
  * - T 鍵：地盤（列表/佔領/招聘守衛）
  * - K 鍵：發放測試套件（唐刀 + 強化石 x20 + $100,000）
  * - L 鍵 / 右上角按鈕：登出（切換帳號用）
+ * - R 鍵：重置座標（角色卡在地圖外時傳送回出生點）
  *
  * 全部使用 DOM 元素（與 QuestBlueprintUI 相同做法），聊天輸入框 focus 時不觸發快捷鍵。
  */
@@ -101,6 +102,24 @@ export class CoreSystemsUI {
         `;
         btn.onclick = () => this.logout();
         document.body.appendChild(btn);
+
+        // 重置座標：角色卡在地圖外/掉出場景時的自救按鈕
+        const resetBtn = document.createElement("button");
+        resetBtn.id = "core-reset-position-btn";
+        resetBtn.textContent = "📍 回到地圖 (R)";
+        resetBtn.style.cssText = `
+            position: fixed; top: 12px; right: 110px; z-index: 950;
+            background: #333; color: #FFD700; border: 1px solid #FFD700; border-radius: 6px;
+            padding: 5px 10px; cursor: pointer; font-size: 12px;
+            font-family: "Microsoft JhengHei", sans-serif;
+        `;
+        resetBtn.onclick = () => this.resetPosition();
+        document.body.appendChild(resetBtn);
+    }
+
+    /** 重置座標：角色卡在地圖外時傳送回出生點（只影響自己座標，無作弊疑慮） */
+    private resetPosition(): void {
+        this.room.send("resetPosition");
     }
 
     private createPanel(key: string, title: string): HTMLDivElement {
@@ -138,7 +157,7 @@ export class CoreSystemsUI {
             color: rgba(255,215,0,0.75); font-size: 11px; font-family: monospace;
             background: rgba(0,0,0,0.5); padding: 3px 8px; border-radius: 4px;
         `;
-        bar.textContent = "U:武器強化  G:社團  P:組隊  T:地盤  K:測試套件  N:生成測試怪  L:登出";
+        bar.textContent = "U:武器強化  G:社團  P:組隊  T:地盤  K:測試套件  N:生成測試怪  L:登出  R:回到地圖";
         document.body.appendChild(bar);
     }
 
@@ -188,6 +207,7 @@ export class CoreSystemsUI {
                 case "k": this.room.send("giveTestKit"); break;
                 case "n": this.room.send("spawnTestEnemies"); break;
                 case "l": this.logout(); break;
+                case "r": this.resetPosition(); break;
             }
         });
     }
