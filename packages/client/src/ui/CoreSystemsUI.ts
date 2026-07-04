@@ -7,6 +7,7 @@
  * - P 鍵：組隊（邀請/接受/離開）
  * - T 鍵：地盤（列表/佔領/招聘守衛）
  * - K 鍵：發放測試套件（唐刀 + 強化石 x20 + $100,000）
+ * - L 鍵 / 右上角按鈕：登出（切換帳號用）
  *
  * 全部使用 DOM 元素（與 QuestBlueprintUI 相同做法），聊天輸入框 focus 時不觸發快捷鍵。
  */
@@ -18,6 +19,7 @@ import {
     ITerritoryStatus,
     SocietyRole,
 } from "@gangs-online/shared";
+import { firebaseService } from "../services/FirebaseService";
 
 /** HTML escape：玩家名/社團名等使用者可控字串進入 innerHTML 前必須經過此函數（防 XSS） */
 const esc = (s: unknown): string =>
@@ -65,9 +67,41 @@ export class CoreSystemsUI {
         this.setupHotkeys();
         this.setupMessages();
         this.createHintBar();
+        this.createLogoutButton();
     }
 
     // ==================== 基礎 ====================
+
+    /** 登出（切換帳號）：離開房間 → Firebase 登出 → 重新整理頁面回到登入畫面 */
+    private async logout(): Promise<void> {
+        if (!confirm("確定要登出嗎？將回到登入畫面。")) return;
+        try {
+            this.room.leave();
+        } catch (e) {
+            console.warn("離開房間時發生錯誤（忽略，繼續登出）:", e);
+        }
+        try {
+            await firebaseService.logout();
+        } catch (e) {
+            console.error("登出失敗:", e);
+        } finally {
+            window.location.reload();
+        }
+    }
+
+    private createLogoutButton(): void {
+        const btn = document.createElement("button");
+        btn.id = "core-logout-btn";
+        btn.textContent = "🚪 登出 (L)";
+        btn.style.cssText = `
+            position: fixed; top: 12px; right: 20px; z-index: 950;
+            background: #333; color: #FFD700; border: 1px solid #FFD700; border-radius: 6px;
+            padding: 5px 10px; cursor: pointer; font-size: 12px;
+            font-family: "Microsoft JhengHei", sans-serif;
+        `;
+        btn.onclick = () => this.logout();
+        document.body.appendChild(btn);
+    }
 
     private createPanel(key: string, title: string): HTMLDivElement {
         const panel = document.createElement("div");
@@ -104,7 +138,7 @@ export class CoreSystemsUI {
             color: rgba(255,215,0,0.75); font-size: 11px; font-family: monospace;
             background: rgba(0,0,0,0.5); padding: 3px 8px; border-radius: 4px;
         `;
-        bar.textContent = "U:武器強化  G:社團  P:組隊  T:地盤  K:測試套件  N:生成測試怪";
+        bar.textContent = "U:武器強化  G:社團  P:組隊  T:地盤  K:測試套件  N:生成測試怪  L:登出";
         document.body.appendChild(bar);
     }
 
@@ -153,6 +187,7 @@ export class CoreSystemsUI {
                 case "t": this.toggle("territory"); break;
                 case "k": this.room.send("giveTestKit"); break;
                 case "n": this.room.send("spawnTestEnemies"); break;
+                case "l": this.logout(); break;
             }
         });
     }
