@@ -7,3 +7,7 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 18.18.0
+      # Phase 21: 目前 Render 部署是主要測試環境，開啟 K/N 測試指令（發測試套件/生測試怪）
+      # 正式上線前記得移除此行或改回 false
+      - key: ENABLE_TEST_TOOLS
+        value: "true"
