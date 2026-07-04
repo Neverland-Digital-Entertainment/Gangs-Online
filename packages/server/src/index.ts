@@ -11,12 +11,31 @@ const app = express();
 // Phase 21 安全修復：CORS 白名單（原本 cors() 沒有任何限制，任何網站都能呼叫此 API）。
 // 設定 CORS_ALLOWED_ORIGINS 環境變數（逗號分隔，如正式網域、Cloudflare Pages 網址）
 // 來鎖定允許的來源；尚未設定時暫時放行並印出警告，避免還沒設定就直接擋掉正式網站。
+// 支援萬用字元子網域，例如 "*.gangs-online.pages.dev" 可涵蓋 Cloudflare Pages
+// 每次部署都會產生的不同 hash 臨時網址（如 https://146a6b4e.gangs-online.pages.dev）
+// 以及 branch 別名網址，不需要每次部署都更新白名單。
 // 注意：此設定僅保護一般 HTTP API（如 /version），Colyseus 的 WebSocket 連線本身
 // 不受瀏覽器同源政策限制，真正的連線身份驗證請見 GameRoom.onAuth（Firebase ID Token）。
 const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+
+const isOriginAllowed = (origin: string): boolean => {
+    return allowedOrigins.some((pattern) => {
+        if (pattern.startsWith("*.")) {
+            // "*.gangs-online.pages.dev" 比對任何以 ".gangs-online.pages.dev" 結尾的 origin
+            const suffix = pattern.slice(1);
+            try {
+                const host = new URL(origin).host;
+                return host.endsWith(suffix.replace(/^https?:\/\//, ""));
+            } catch {
+                return false;
+            }
+        }
+        return origin === pattern;
+    });
+};
 
 app.use(cors({
     origin: (origin, callback) => {
@@ -26,7 +45,7 @@ app.use(cors({
             console.warn(`[CORS] ⚠️ 尚未設定 CORS_ALLOWED_ORIGINS，暫時放行來源: ${origin}（請盡快設定白名單）`);
             return callback(null, true);
         }
-        if (allowedOrigins.includes(origin)) return callback(null, true);
+        if (isOriginAllowed(origin)) return callback(null, true);
         console.warn(`[CORS] 拒絕不在白名單的來源: ${origin}`);
         return callback(new Error("Not allowed by CORS"));
     },
