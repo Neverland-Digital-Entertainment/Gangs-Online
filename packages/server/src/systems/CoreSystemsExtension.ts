@@ -366,6 +366,8 @@ export class CoreSystemsExtension {
             player.inCombatWith = "";
             player.inCombatWithEnemy = "";
             if (player.hp <= 0) player.hp = player.maxHp;
+            // 直接瞬移（不要讓 client 用一般移動的走路動畫慢慢過去）
+            client.send("teleportSelf", { x: player.x, z: player.z });
             client.send("notification", "已將你傳送回地圖出生點");
             console.log(`📍 [ResetPosition] ${player.name} teleported to spawn`);
         });

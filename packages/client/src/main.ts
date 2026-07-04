@@ -285,6 +285,13 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
             dialogueSystem.show(data.npcId, data.npcName, data.dialogueTree, linkedShopId);
         });
 
+        // Phase 21: 重置座標（角色卡在地圖外）— 直接瞬移，不要走路動畫
+        room.onMessage("teleportSelf", (data: { x: number; z: number }) => {
+            if (!mySessionId) return;
+            playerManager.teleportPlayer(mySessionId, data.x, data.z);
+            teleportCamera(camera, new BABYLON.Vector3(data.x, 0, data.z));
+        });
+
         // === Phase 13: 被踢出（帳號在其他地方登入）===
         room.onMessage("kicked", (data: { reason: string }) => {
             console.log("⚠️ Kicked:", data.reason);
