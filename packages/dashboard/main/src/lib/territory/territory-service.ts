@@ -83,4 +83,22 @@ export class TerritoryService {
         const { db } = getFirebaseServices();
         await deleteDoc(doc(db, COLLECTION, id));
     }
+
+    /**
+     * 測試用：把地盤重置為中立無主（清空擁有者/保護期/守衛位）。
+     * 注意：伺服器只在啟動時讀取一次地盤資料，此變更需要重啟遊戲伺服器
+     * 才會反映在遊戲內（重啟後 TerritorySystem 會自動偵測到中立地盤守衛
+     * 為空，補上預設的 5 個 Lv1 守衛）。
+     */
+    async resetToNeutral(id: string): Promise<void> {
+        const { db } = getFirebaseServices();
+        await updateDoc(doc(db, COLLECTION, id), {
+            ownerGuildId: '',
+            ownerGuildName: '',
+            protectionUntil: 0,
+            guards: [],
+            capturedAt: 0,
+            updatedAt: Date.now(),
+        });
+    }
 }

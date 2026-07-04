@@ -308,6 +308,34 @@ export default function TerritoryEditor({ canEdit = true }: { canEdit?: boolean 
         }
     }, [service, toast]);
 
+    /** 測試用：重置選取的領地為中立無主（清空擁有者/保護期/守衛） */
+    const resetSelectedToNeutral = useCallback(async () => {
+        const t = territoriesRef.current.find((x) => x.id === selectedIdRef.current);
+        if (!t) { toast('請先選取領地'); return; }
+        if (t.ownerGuildId === '' && (t.guards?.length || 0) === 0) {
+            toast(`「${t.name}」本來就是中立無主`); return;
+        }
+        if (!confirm(
+            `確定把「${t.name}」重置為中立無主嗎？\n` +
+            `（會清空目前擁有者、保護期與所有守衛位設定）\n\n` +
+            `注意：遊戲伺服器只在啟動時讀取地盤資料，此變更需要重啟遊戲伺服器\n` +
+            `才會反映在遊戲內；重啟後會自動補上預設的 5 個 Lv1 中立守衛。`
+        )) return;
+        try {
+            await service.resetToNeutral(t.id);
+            t.ownerGuildId = '';
+            t.ownerGuildName = '';
+            t.protectionUntil = 0;
+            t.guards = [];
+            t.capturedAt = 0;
+            setTerritories([...territoriesRef.current]);
+            toast(`已將「${t.name}」重置為中立無主（需重啟遊戲伺服器才會生效）`);
+        } catch (e) {
+            console.error(e);
+            toast('重置失敗');
+        }
+    }, [service, toast]);
+
     const toggleBuildings = useCallback(() => {
         setShowBuildings((prev) => {
             const next = !prev;
@@ -632,9 +660,19 @@ export default function TerritoryEditor({ canEdit = true }: { canEdit?: boolean 
                 <p className="text-xs text-[var(--muted)] mb-3">
                     地圖上點位太密集時，可從此列表選取。新領地一律中立無主，歸屬由遊戲內佔領機制決定。
                 </p>
-                <div className="flex gap-2 mb-3">
+                <div className="flex gap-2 mb-3 flex-wrap">
                     {canEdit && <button onClick={renameSelected} disabled={!selectedId} className="btn-light text-sm px-2 py-1">更名</button>}
                     {canEdit && <button onClick={deleteSelected} disabled={!selectedId} className="btn-light text-sm px-2 py-1 text-red-500">刪除</button>}
+                    {canEdit && (
+                        <button
+                            onClick={resetSelectedToNeutral}
+                            disabled={!selectedId}
+                            className="btn-light text-sm px-2 py-1 text-yellow-600"
+                            title="測試用：清空擁有者/保護期/守衛，重置為中立無主（需重啟遊戲伺服器才生效）"
+                        >
+                            🏳️ 重置為中立
+                        </button>
+                    )}
                     <button onClick={loadTerritories} className="btn-light text-sm px-2 py-1">重新整理</button>
                 </div>
                 {territories.map((t) => (
