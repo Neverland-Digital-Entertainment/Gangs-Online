@@ -233,6 +233,16 @@ export class CoreSystemsUI {
     // ==================== Server 訊息 ====================
 
     private setupMessages(): void {
+        // 修復：main.ts 既有的 "notification" 處理器只處理「執到 XXX」拾取訊息，
+        // 其餘文字（社團/地盤/組隊等系統的錯誤或成功提示）過去完全沒有畫面顯示，
+        // 只印在 console。Colyseus 允許同一訊息類型註冊多個監聽器，這裡補上
+        // 一個不影響拾取顯示的通用 toast，讓所有系統的提示都看得到。
+        this.room.onMessage("notification", (msg: string) => {
+            if (typeof msg === "string" && !msg.startsWith("執到")) {
+                this.notify(msg);
+            }
+        });
+
         this.room.onMessage("enhanceResult", (r: IEnhanceResult) => {
             this.notify(r.message);
             if (this.isVisible("inventory")) this.renderInventory();
