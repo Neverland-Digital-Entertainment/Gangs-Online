@@ -324,7 +324,7 @@ export class CoreSystemsUI {
         (info.members || []).forEach((m: any) => {
             const row = document.createElement("div");
             row.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #333;";
-            row.innerHTML = `<span>${esc(m.userId.substring(0, 8))}…　<b style="color:#FFD700;">${esc(m.role)}</b>　貢獻 ${Number(m.totalContribution)}</span>`;
+            row.innerHTML = `<span>${esc(m.name)}　<b style="color:#FFD700;">${esc(m.role)}</b>　貢獻 ${Number(m.totalContribution)}</span>`;
             if (m.role !== "話事人") {
                 const sel = document.createElement("select");
                 sel.style.cssText = "background:#222;color:#fff;border:1px solid #555;font-size:12px;";

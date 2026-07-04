@@ -33,6 +33,7 @@ import { TerritorySystem } from "./TerritorySystem";
 import { PartySystem } from "./PartySystem";
 import { ProgressionSystem } from "./ProgressionSystem";
 import { societyService } from "../services/SocietyService";
+import { guildService } from "../services/GuildService";
 import { savePlayer } from "../data/persistence";
 
 export class CoreSystemsExtension {
@@ -158,6 +159,12 @@ export class CoreSystemsExtension {
             const myRole = societyService.getMemberRole(doc, player.firebaseUid) || "四九仔";
             player.societyRole = myRole;
             player.contribution = doc.society.contributions?.[player.firebaseUid] || 0;
+
+            // 成員名稱：優先用線上玩家的即時名稱，離線玩家從 guildService（players collection）解析
+            const onlineNames = new Map<string, string>();
+            room.state.players.forEach((p) => { if (p.firebaseUid) onlineNames.set(p.firebaseUid, p.name); });
+            const guildWithNames = await guildService.getGuild(player.guildId);
+
             client.send("societyInfo", {
                 id: doc.id,
                 name: doc.name,
@@ -169,6 +176,7 @@ export class CoreSystemsExtension {
                 memberCount: doc.memberCount,
                 members: Object.entries(doc.members).map(([uid, m]) => ({
                     userId: uid,
+                    name: onlineNames.get(uid) || guildWithNames?.members[uid]?.name || `玩家${uid.substring(0, 6)}`,
                     role: normalizeSocietyRole(m.role),
                     joinTime: m.joinTime,
                     contribution: doc.society!.contributions?.[uid] || 0,
