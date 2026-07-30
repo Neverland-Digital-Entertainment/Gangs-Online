@@ -48,6 +48,7 @@ function toAsset(id: string, data: DocumentData): BuildingAsset {
     id,
     name: data.name,
     thumbnailUrl: data.thumbnailUrl ?? undefined,
+    kind: data.kind ?? undefined,
     category: data.category ?? undefined,
     defaultScale: data.defaultScale ?? undefined,
     tags: data.tags ?? undefined,

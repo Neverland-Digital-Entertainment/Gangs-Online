@@ -18,6 +18,7 @@
 | **P4** | 替換 / 新增：從資產庫挑模型放到地圖 | ✅ 已完成 |
 | **P5** | 客戶端 `MapOverrideSystem`：讀取並套用全部 override（含碰撞/遮擋修補） | ✅ 已完成 |
 | **P6** | 收尾：可編輯數值、啟用/停用 override、管理員權限 | ✅ 已完成 |
+| **P7** | 量產基礎：資產快取、遮擋群組 `groupId`、資產用途 `kind` | ✅ 已完成 |
 
 > 狀態圖例：⬜ 未開始 ／ 🔄 進行中 ／ ✅ 已完成
 >
@@ -272,6 +273,52 @@ Firestore: map_overrides          Firestore: building_assets
     `AuthProvider` + `AuthGate` 包住整個後台；側欄顯示登入帳號與登出
   - 已通過 `tsc --noEmit` 與 `next build`
   - 後續安全強化：應在 Firestore/Storage 規則層強制管理員（前端閘門僅第一層）
+
+- **2026-07-30** — P7 完成：量產資產的三項基礎（資產快取 / 遮擋群組 / 資產用途）。
+  為「同一款大廈在地圖上重複擺放數十至數百次」做準備，三者互相獨立：
+
+  **1. 資產快取（Firestore 讀取額度）**
+  - `MapOverrideSystem` 新增 `assetCache: Map<assetId, Promise<CachedAsset>>`，
+    同一份資產只下載一次；快取 Promise 本身令並行請求共用同一次下載，
+    失敗時移除快取項以便重試
+  - 原本每筆 override 都要 `getDoc`(metadata) + `getDocs`(全部 base64 分塊)。
+    以 2MB GLB（約 4 個分塊）計，每次擺放 5 個 document read，
+    擺 100 棟 = 每位玩家每次入地圖 500 個 read；免費額度 50,000/日
+    約 100 位玩家就用盡。改動後同款資產只算一次
+  - 新增 `clearAssetCache()` 供切換地圖時釋放
+
+  **2. 遮擋群組 `groupId`**
+  - `BuildingOcclusionSystem.addBuildingMesh(mesh, groupId?)` 加可選參數；
+    省略時維持原本以 mesh 名稱推導（`extractBuildingBaseName`）
+  - **修正既有 bug**：群組原本純以 mesh 名稱推導，而同一份資產的多個實例
+    mesh 名稱完全相同 → 全地圖同款大廈被併成一組，走到其中一棟後面會令
+    其餘同款大廈一齊變透明。`MapOverrideSystem` 現時一律傳入
+    `ov.groupId || ov.targetBuildingKey`（後者每筆唯一），預設各自獨立
+  - `MapOverride` 新增可選欄位 `groupId`；填相同值的實例會被當成同一棟大廈
+    一齊淡出，供「地舖層與上層樓層分開擺放」使用
+  - 後台 Inspector 新增「遮擋群組」輸入框（只對 replace / add 的資產實例顯示，
+    底圖大廈仍靠 mesh 名稱分組）。儲存時寫入空字串而非 `undefined`，
+    否則 `removeUndefinedFields` 會令使用者無法清除已設定的群組
+
+  **3. 資產用途 `kind`**
+  - `BuildingAsset` 新增可選欄位 `kind`：`building`（預設）/ `prop` / `decal`
+  - 客戶端依 kind 分流：
+
+    | kind | 可選取 | 方塊碰撞體 | 參與遮擋 | 深度偏移 |
+    |---|---|---|---|---|
+    | `building`（預設） | ✅ | ✅ | ✅ | — |
+    | `prop` | ✅ | ✅ | ❌ | — |
+    | `decal` | ❌ | ❌ | ❌ | ✅ `zOffset = -2` |
+
+  - `decal` 用於貼地平面（路面箭嘴、斑馬線、渠蓋等）：不可點選以免擋住
+    點擊地面移動、不加碰撞、不參與遮擋（否則玩家走過去時斑馬線會變透明）、
+    並套用 polygon offset 避免與路面 z-fighting
+  - 後台資產庫的上載與編輯表單新增「用途」選單
+  - **舊資料相容**：`kind` 留空一律當成 `building`，行為與改動前完全相同
+
+  - 已通過 client `tsc --noEmit` + `vite build`、dashboard `tsc --noEmit` + `next build`
+  - **待實測**：資產快取的效果需在真實 Firebase 環境以多個同款實例驗證；
+    `decal` 的深度偏移數值可能需按實際路面高度微調
 
 ### 地圖來源（同源 /maps）
 後台預設以同源 `/maps` 供應底圖，免第二個 server、無 CORS：

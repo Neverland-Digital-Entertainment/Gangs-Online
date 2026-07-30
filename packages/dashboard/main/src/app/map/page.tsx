@@ -45,6 +45,8 @@ export default function MapEditorPage() {
   const [selected, setSelected] = useState<MapObjectInfo | null>(null);
   const [gizmoMode, setGizmoMode] = useState<GizmoMode>('move');
   const [draftTransform, setDraftTransform] = useState<Transform | null>(null);
+  // null = 未編輯（沿用 override 上的值）；字串 = 使用者輸入的草稿
+  const [draftGroupId, setDraftGroupId] = useState<string | null>(null);
   const [objects, setObjects] = useState<MapObjectInfo[]>([]);
   const [focusNonce, setFocusNonce] = useState(0);
   const [applyNonce, setApplyNonce] = useState(0);
@@ -133,8 +135,14 @@ export default function MapEditorPage() {
     );
   }, [overrides, objects]);
 
-  // 是否有未儲存變更
-  const dirty = useMemo(() => {
+  const currentGroupId = draftGroupId ?? selectedOverride?.groupId ?? '';
+
+  const groupIdDirty =
+    draftGroupId !== null &&
+    draftGroupId.trim() !== (selectedOverride?.groupId ?? '');
+
+  // 是否有未儲存的 transform 變更
+  const transformDirty = useMemo(() => {
     if (!selected || !draftTransform) return false;
     const base = selectedOverride?.transform ?? {
       position: selected.position,
@@ -156,6 +164,8 @@ export default function MapEditorPage() {
     );
   }, [selected, draftTransform, selectedOverride]);
 
+  const dirty = transformDirty || groupIdDirty;
+
   // 供 gizmo 拖曳回呼比對目前選取（避免在 setState updater 內做副作用）
   const selectedKeyRef = useRef<string | null>(null);
   selectedKeyRef.current = selected?.key ?? null;
@@ -163,6 +173,7 @@ export default function MapEditorPage() {
   const handleSelect = useCallback((obj: MapObjectInfo | null) => {
     setSelected(obj);
     setDraftTransform(null);
+    setDraftGroupId(null);
     setSaveError(null);
     if (obj) setRightTab('inspector');
   }, []);
@@ -267,6 +278,9 @@ export default function MapEditorPage() {
           action,
           transform,
           isActive: true,
+          // 存空字串而非 undefined：undefined 會被過濾掉，
+          // 令使用者清空欄位時無法真正解除群組
+          groupId: currentGroupId.trim(),
         });
       } else {
         await mapOverrideService.create({
@@ -279,6 +293,7 @@ export default function MapEditorPage() {
       }
       await loadOverrides(chunkId);
       setDraftTransform(null);
+      setDraftGroupId(null);
     } catch (err) {
       console.error('儲存地圖編輯失敗:', err);
       setSaveError(t('map.editor.saveFailed'));
@@ -578,6 +593,8 @@ export default function MapEditorPage() {
                     dirty={dirty}
                     saving={saving}
                     error={saveError}
+                    groupId={currentGroupId}
+                    onGroupIdChange={setDraftGroupId}
                     onSave={handleSave}
                     onRemove={handleRemove}
                     onReset={handleReset}

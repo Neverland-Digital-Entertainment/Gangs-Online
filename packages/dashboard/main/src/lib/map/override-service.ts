@@ -43,6 +43,7 @@ function toMapOverride(id: string, data: Record<string, any>): MapOverride {
     assetId: data.assetId ?? undefined,
     transform: data.transform ?? undefined,
     isActive: data.isActive ?? true,
+    groupId: data.groupId || undefined,
     createdAt: data.createdAt?.toDate?.() || new Date(),
     updatedAt: data.updatedAt?.toDate?.() || new Date(),
     updatedBy: data.updatedBy ?? undefined,

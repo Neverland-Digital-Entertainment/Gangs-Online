@@ -43,6 +43,9 @@ interface BuildingInspectorProps {
   dirty: boolean;
   saving: boolean;
   error: string | null;
+  /** 遮擋群組（僅對替換/新增的資產實例有意義） */
+  groupId: string;
+  onGroupIdChange: (value: string) => void;
   onSave: () => void;
   onRemove: () => void;
   onReset: () => void;
@@ -135,6 +138,8 @@ export default function BuildingInspector({
   dirty,
   saving,
   error,
+  groupId,
+  onGroupIdChange,
   onSave,
   onRemove,
   onReset,
@@ -329,6 +334,24 @@ export default function BuildingInspector({
                 </p>
               </div>
             </div>
+
+            {/* 遮擋群組：只有資產實例才有意義（底圖大廈靠 mesh 名稱分組） */}
+            {isInstance && (
+              <div>
+                <label className="label">{t('map.editor.groupId')}</label>
+                <input
+                  type="text"
+                  className="input"
+                  value={groupId}
+                  disabled={readOnly}
+                  placeholder={t('map.editor.groupIdPlaceholder')}
+                  onChange={(e) => onGroupIdChange(e.target.value)}
+                />
+                <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                  {t('map.editor.groupIdHint')}
+                </p>
+              </div>
+            )}
           </>
         )}
 

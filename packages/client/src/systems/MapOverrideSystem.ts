@@ -9,6 +9,8 @@
  *
  * 資產 GLB 以 base64 分塊存在 Firestore building_assets/{id}/chunks，
  * 讀回重組成 object URL 再用 Babylon 載入（與後台一致）。
+ * 同一份資產只會下載一次（見 `assetCache`）——量產大廈時同款資產會在地圖上
+ * 重複出現數十至數百次，逐次重下會直接吃光 Firestore 讀取額度。
  *
  * 座標：override.transform 是「底圖 __root__ 之下的 local transform」，
  * 客戶端不平移地圖，故把資產容器掛在該 chunk 的 __root__ 下、套用 local
@@ -50,18 +52,53 @@ interface MapOverride {
     assetId?: string;
     transform?: OverrideTransform;
     isActive: boolean;
+    /** 遮擋群組。同一個值的實例會一齊淡出；省略則各自獨立 */
+    groupId?: string;
+}
+
+/**
+ * 資產用途。決定載入後的碰撞、可選取性與遮擋登記方式。
+ *   building（預設）：實心建築，有碰撞體、參與遮擋淡出
+ *   prop：街道物件，有碰撞體但不參與遮擋（不會令玩家身後的它變透明）
+ *   decal：貼地平面（路面箭嘴、斑馬線、渠蓋等），無碰撞、不可選取、
+ *          不參與遮擋，並套用 polygon offset 避免與路面 z-fighting
+ */
+type AssetKind = "building" | "prop" | "decal";
+
+/** 已從 Firestore 取回並快取的資產位元組 */
+interface CachedAsset {
+    bytes: Uint8Array;
+    mimeType: string;
+    kind: AssetKind;
 }
 
 const OVERRIDES_COLLECTION = "map_overrides";
 const ASSETS_COLLECTION = "building_assets";
 const CHUNKS_SUB = "chunks";
 
+/** 貼地平面的深度偏移，負值把面拉向鏡頭以壓過路面 */
+const DECAL_Z_OFFSET = -2;
+
 export class MapOverrideSystem {
     private scene: BABYLON.Scene;
     private db: Firestore | null = null;
 
+    /**
+     * assetId → 資產內容。同一份資產在地圖上擺 N 次只會下載一次。
+     *
+     * 快取的是 Promise 而非結果，令並行的請求共用同一次下載。
+     * 量產大廈時這是決定性的：每次擺放原本要讀 1 個 metadata 文件 +
+     * N 個 base64 分塊文件，100 次擺放就是幾百個 Firestore read。
+     */
+    private assetCache = new Map<string, Promise<CachedAsset | null>>();
+
     constructor(scene: BABYLON.Scene) {
         this.scene = scene;
+    }
+
+    /** 釋放資產快取（切換地圖時呼叫，避免長期佔住記憶體） */
+    clearAssetCache(): void {
+        this.assetCache.clear();
     }
 
     private getDb(): Firestore | null {
@@ -120,6 +157,7 @@ export class MapOverrideSystem {
                 assetId: data.assetId as string | undefined,
                 transform: data.transform as OverrideTransform | undefined,
                 isActive: (data.isActive as boolean) ?? true,
+                groupId: (data.groupId as string | undefined) || undefined,
             });
         });
         return out;
@@ -181,7 +219,10 @@ export class MapOverrideSystem {
                         root,
                         ov.assetId,
                         ov.transform,
-                        ov.targetBuildingKey
+                        ov.targetBuildingKey,
+                        // 未指定群組時以 override key 自成一組：key 每筆唯一，
+                        // 故同款資產的不同實例不會互相牽連
+                        ov.groupId || ov.targetBuildingKey
                     );
                 }
                 break;
@@ -195,7 +236,10 @@ export class MapOverrideSystem {
                         root,
                         ov.assetId,
                         ov.transform,
-                        ov.targetBuildingKey
+                        ov.targetBuildingKey,
+                        // 未指定群組時以 override key 自成一組：key 每筆唯一，
+                        // 故同款資產的不同實例不會互相牽連
+                        ov.groupId || ov.targetBuildingKey
                     );
                 }
                 break;
@@ -223,10 +267,18 @@ export class MapOverrideSystem {
         root: BABYLON.TransformNode | null,
         assetId: string,
         transform: OverrideTransform,
-        key: string
+        key: string,
+        groupId: string
     ): Promise<void> {
-        const url = await this.loadAssetObjectUrl(db, assetId);
-        if (!url) return;
+        const asset = await this.loadAsset(db, assetId);
+        if (!asset) return;
+
+        // 由快取的位元組即時做一個 object URL 給 Babylon 解析；
+        // 網絡讀取只在第一次發生，之後純本地。
+        const url = URL.createObjectURL(
+            new Blob([asset.bytes as unknown as BlobPart], { type: asset.mimeType })
+        );
+        const kind = asset.kind;
 
         try {
             const result = await BABYLON.SceneLoader.ImportMeshAsync(
@@ -257,11 +309,13 @@ export class MapOverrideSystem {
             // 設定建築 mesh 屬性（比照 ChunkLoaderSystem.setupBuildingMesh）並註冊遮擋。
             // 注意：視覺 mesh 不直接當碰撞體（詳細三角面會讓玩家卡住），改用乾淨方塊。
             const occlusion = sceneManager.getOcclusionSystem();
+            const isDecal = kind === "decal";
             for (const mesh of result.meshes) {
                 if (mesh.name === "__root__") continue;
-                mesh.isPickable = true;
+                // 貼地平面不可選取，否則會擋住點擊地面的移動操作
+                mesh.isPickable = !isDecal;
                 mesh.checkCollisions = false;
-                mesh.metadata = { ...mesh.metadata, type: "building", chunkId, overrideKey: key };
+                mesh.metadata = { ...mesh.metadata, type: kind, chunkId, overrideKey: key };
 
                 if (mesh.material) {
                     const cloned = mesh.material.clone(`${mesh.name}_mat`);
@@ -274,13 +328,19 @@ export class MapOverrideSystem {
                             cloned.alpha = 1.0;
                             cloned.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
                         }
+                        // 貼地平面與路面共面，需要 polygon offset 才不會閃爍
+                        if (isDecal) cloned.zOffset = DECAL_Z_OFFSET;
                     }
                 }
-                occlusion.addBuildingMesh(mesh);
+
+                // 只有建築參與遮擋淡出：props 與貼地平面不應該因為玩家走到
+                // 它們「後面」而變透明
+                if (kind === "building") occlusion.addBuildingMesh(mesh, groupId);
             }
 
-            // 建立貼合外框的隱形方塊碰撞體（隨 container 旋轉/縮放，移動更順）
-            this.addBoxCollider(container, key, chunkId);
+            // 建立貼合外框的隱形方塊碰撞體（隨 container 旋轉/縮放，移動更順）。
+            // 貼地平面是走得過的路面裝飾，不加碰撞。
+            if (!isDecal) this.addBoxCollider(container, key, chunkId);
         } finally {
             URL.revokeObjectURL(url);
         }
@@ -326,15 +386,35 @@ export class MapOverrideSystem {
     }
 
     /** 從 Firestore 讀回資產 GLB，重組成 object URL */
-    private async loadAssetObjectUrl(db: Firestore, assetId: string): Promise<string | null> {
+    /**
+     * 取得資產內容，同一個 assetId 只會真正下載一次。
+     *
+     * 快取 Promise 本身，令同時發出的請求共用一次下載；失敗則移除快取項，
+     * 讓下次呼叫可以重試，不會把一次網絡錯誤永久記住。
+     */
+    private loadAsset(db: Firestore, assetId: string): Promise<CachedAsset | null> {
+        const cached = this.assetCache.get(assetId);
+        if (cached) return cached;
+
+        const pending = this.fetchAsset(db, assetId).catch((err) => {
+            this.assetCache.delete(assetId);
+            throw err;
+        });
+        this.assetCache.set(assetId, pending);
+        return pending;
+    }
+
+    private async fetchAsset(db: Firestore, assetId: string): Promise<CachedAsset | null> {
         const assetSnap = await getDoc(doc(db, ASSETS_COLLECTION, assetId));
         if (!assetSnap.exists()) {
             console.warn(`[MapOverride] asset ${assetId} not found`);
             return null;
         }
-        const mimeType =
-            ((assetSnap.data() as Record<string, unknown>).mimeType as string) ||
-            "model/gltf-binary";
+        const data = assetSnap.data() as Record<string, unknown>;
+        const mimeType = (data.mimeType as string) || "model/gltf-binary";
+        const rawKind = data.kind as string | undefined;
+        const kind: AssetKind =
+            rawKind === "prop" || rawKind === "decal" ? rawKind : "building";
 
         const chunksSnap = await getDocs(
             query(collection(db, ASSETS_COLLECTION, assetId, CHUNKS_SUB), orderBy("index"))
@@ -348,7 +428,6 @@ export class MapOverrideSystem {
         const binary = atob(base64);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        const blob = new Blob([bytes], { type: mimeType });
-        return URL.createObjectURL(blob);
+        return { bytes, mimeType, kind };
     }
 }

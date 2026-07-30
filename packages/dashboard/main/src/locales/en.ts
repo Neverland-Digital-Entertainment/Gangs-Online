@@ -640,6 +640,10 @@ export default {
   'map.editor.changeAsset': 'Change asset',
   'map.editor.addBuilding': 'Add building',
   'map.editor.deleteBuilding': 'Delete this building',
+  'map.editor.groupId': 'Occlusion group',
+  'map.editor.groupIdPlaceholder': 'Empty = its own group',
+  'map.editor.groupIdHint':
+    'Objects sharing a value are treated as one building and fade out together when the player walks behind them. Use this when the ground floor and upper floors are placed as separate assets.',
   'map.list.title': 'Map Objects',
   'map.list.empty': 'No selectable objects in this chunk',
   'map.list.dblClickHint': 'Click to select, double-click to zoom in',
@@ -654,6 +658,16 @@ export default {
   'map.assets.uploadTitle': 'Upload new building',
   'map.assets.file': 'GLB file',
   'map.assets.name': 'Name',
+  'map.assets.kind': 'Usage',
+  'map.assets.kind.building': 'Building',
+  'map.assets.kind.prop': 'Street prop',
+  'map.assets.kind.decal': 'Ground decal',
+  'map.assets.kindHint.building':
+    'Solid building: has collision and fades out when the player walks behind it.',
+  'map.assets.kindHint.prop':
+    'Street prop: has collision but never fades out from occlusion.',
+  'map.assets.kindHint.decal':
+    'Ground decal (road arrows, crossings, manhole covers): no collision, not clickable, and depth-offset so it will not z-fight with the road surface.',
   'map.assets.category': 'Category',
   'map.assets.defaultScale': 'Default scale',
   'map.assets.tags': 'Tags',

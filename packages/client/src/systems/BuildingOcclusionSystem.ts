@@ -94,12 +94,23 @@ export class BuildingOcclusionSystem {
 
     /**
      * 新增建築物 mesh（同時登記分組，遮擋偵測才會生效）
+     *
+     * @param groupId 明確指定遮擋群組。省略時退回以 mesh 名稱推導
+     *   （`extractBuildingBaseName`）。
+     *
+     *   底圖大廈的 mesh 名稱天然唯一（政府資料的 ID），靠名稱推導沒有問題；
+     *   但後台擺放的資產是同一份 GLB 重複實例化，多個實例的 mesh 名稱完全相同，
+     *   靠名稱推導會把全地圖同款大廈併成一組 —— 走到其中一棟後面，其餘同款
+     *   大廈會一齊變透明。故 `MapOverrideSystem` 一律傳入唯一的 groupId。
+     *
+     *   反過來，把同一個 groupId 傳給多個實例，即可讓它們一齊淡出
+     *   （例如地舖層與上層樓層分開擺放，但要視為同一棟大廈）。
      */
-    addBuildingMesh(mesh: BABYLON.AbstractMesh): void {
+    addBuildingMesh(mesh: BABYLON.AbstractMesh, groupId?: string): void {
         if (!this.buildingMeshes.includes(mesh)) {
             this.buildingMeshes.push(mesh);
         }
-        const baseName = this.extractBuildingBaseName(mesh.name);
+        const baseName = groupId ?? this.extractBuildingBaseName(mesh.name);
         if (!this.buildingGroups.has(baseName)) {
             this.buildingGroups.set(baseName, []);
         }

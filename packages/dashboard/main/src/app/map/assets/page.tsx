@@ -19,12 +19,43 @@ import {
   MAX_ASSET_BYTES,
 } from '@/lib/map/asset-service';
 import { generateGlbThumbnail } from '@/lib/map/thumbnail';
-import type { BuildingAsset, BuildingAssetInput } from '@/types/map';
+import type { AssetKind, BuildingAsset, BuildingAssetInput } from '@/types/map';
+import { ASSET_KINDS } from '@/types/map';
 
 function formatSize(bytes?: number): string {
   if (!bytes) return '-';
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/** 資產用途選單：決定客戶端的碰撞、可選取性與遮擋行為 */
+function KindSelect({
+  value,
+  onChange,
+}: {
+  value: AssetKind;
+  onChange: (kind: AssetKind) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div>
+      <label className="label">{t('map.assets.kind')}</label>
+      <select
+        className="input"
+        value={value}
+        onChange={(e) => onChange(e.target.value as AssetKind)}
+      >
+        {ASSET_KINDS.map((k) => (
+          <option key={k} value={k}>
+            {t(`map.assets.kind.${k}`)}
+          </option>
+        ))}
+      </select>
+      <p className="text-xs text-[var(--muted-foreground)] mt-1">
+        {t(`map.assets.kindHint.${value}`)}
+      </p>
+    </div>
+  );
 }
 
 function parseTags(raw: string): string[] {
@@ -46,6 +77,7 @@ export default function BuildingAssetsPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState('');
+  const [kind, setKind] = useState<AssetKind>('building');
   const [category, setCategory] = useState('');
   const [defaultScale, setDefaultScale] = useState('1');
   const [tags, setTags] = useState('');
@@ -95,6 +127,7 @@ export default function BuildingAssetsPage() {
   function resetUploadForm() {
     setFile(null);
     setName('');
+    setKind('building');
     setCategory('');
     setDefaultScale('1');
     setTags('');
@@ -116,6 +149,7 @@ export default function BuildingAssetsPage() {
       setUploadStatus(t('map.assets.uploading'));
       const input: BuildingAssetInput = {
         name: name.trim() || file.name.replace(/\.glb$/i, ''),
+        kind,
         category: category.trim() || undefined,
         defaultScale: Number(defaultScale) || 1,
         tags: parseTags(tags),
@@ -213,6 +247,7 @@ export default function BuildingAssetsPage() {
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
+              <KindSelect value={kind} onChange={setKind} />
               <div>
                 <label className="label">{t('map.assets.category')}</label>
                 <input
@@ -409,6 +444,7 @@ function EditAssetModal({
 }) {
   const { t } = useI18n();
   const [name, setName] = useState(asset.name);
+  const [kind, setKind] = useState<AssetKind>(asset.kind ?? 'building');
   const [category, setCategory] = useState(asset.category ?? '');
   const [defaultScale, setDefaultScale] = useState(
     String(asset.defaultScale ?? 1)
@@ -421,6 +457,7 @@ function EditAssetModal({
       setSaving(true);
       await buildingAssetService.update(asset.id, {
         name: name.trim() || asset.name,
+        kind,
         category: category.trim() || undefined,
         defaultScale: Number(defaultScale) || 1,
         tags: parseTags(tags),
@@ -462,6 +499,7 @@ function EditAssetModal({
               onChange={(e) => setName(e.target.value)}
             />
           </div>
+          <KindSelect value={kind} onChange={setKind} />
           <div>
             <label className="label">{t('map.assets.category')}</label>
             <input

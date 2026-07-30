@@ -73,6 +73,12 @@ export interface MapOverride {
   assetId?: string;
   transform?: Transform;
   isActive: boolean;
+  /**
+   * 遮擋群組。填同一個值的實例，會被客戶端當成同一棟大廈一齊淡出
+   * （例如地舖層與上層樓層分開擺放）。
+   * 留空 = 自成一組，與其他實例互不影響。
+   */
+  groupId?: string;
   createdAt: Date;
   updatedAt: Date;
   updatedBy?: string;
@@ -87,6 +93,7 @@ export interface MapOverrideInput {
   assetId?: string;
   transform?: Transform;
   isActive?: boolean;
+  groupId?: string;
 }
 
 /**
@@ -95,11 +102,24 @@ export interface MapOverrideInput {
  * 因免費方案無 Firebase Storage，GLB 以 base64 分塊存在子集合
  * building_assets/{id}/chunks/{index}；縮圖以 data URL 存在本文件。
  */
+/**
+ * 資產用途。決定客戶端載入後的碰撞、可選取性與遮擋登記方式。
+ *   building（預設）：實心建築，有碰撞體、參與遮擋淡出
+ *   prop：街道物件，有碰撞體但不參與遮擋
+ *   decal：貼地平面（路面箭嘴、斑馬線、渠蓋等），無碰撞、不可選取、
+ *          不參與遮擋，並自動套用深度偏移避免與路面 z-fighting
+ */
+export type AssetKind = 'building' | 'prop' | 'decal';
+
+export const ASSET_KINDS: AssetKind[] = ['building', 'prop', 'decal'];
+
 export interface BuildingAsset {
   id: string;
   name: string;
   /** 縮圖 data URL（base64，直接存文件） */
   thumbnailUrl?: string;
+  /** 用途；舊資料留空時客戶端一律當成 building */
+  kind?: AssetKind;
   category?: string;
   defaultScale?: number;
   tags?: string[];
@@ -116,6 +136,7 @@ export interface BuildingAsset {
 /** 建立 / 更新 building_assets 的可編輯欄位 */
 export interface BuildingAssetInput {
   name: string;
+  kind?: AssetKind;
   category?: string;
   defaultScale?: number;
   tags?: string[];
