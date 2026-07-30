@@ -69,6 +69,8 @@ export default function MapEditorPage() {
 
   const [overrides, setOverrides] = useState<MapOverride[]>([]);
   const [assets, setAssets] = useState<BuildingAsset[]>([]);
+  // 未載完資產清單前唔可以判定孤兒 override，否則會全部誤報
+  const [assetsLoaded, setAssetsLoaded] = useState(false);
   const [picker, setPicker] = useState<'replace' | 'add' | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -80,7 +82,10 @@ export default function MapEditorPage() {
     loadManifest();
     buildingAssetService
       .getAll()
-      .then(setAssets)
+      .then((list) => {
+        setAssets(list);
+        setAssetsLoaded(true);
+      })
       .catch((err) => console.error('載入建築資產失敗:', err));
   }, []);
 
@@ -147,15 +152,43 @@ export default function MapEditorPage() {
    * Firestore 逐塊取回本身就慢，這個警告幾乎一定會閃出嚟。現時改為只列出
    * 編輯器明確回報失敗的 key。
    */
+  /**
+   * 孤兒 override：引用的資產已經喺資產庫被刪除。
+   *
+   * 刪除資產只會清走 `building_assets` 文件同 chunks，唔會掂 `map_overrides`，
+   * 所以引用它的編輯會留低。編輯器載入時取到空的 GLB → 解析失敗 → 該物件
+   * 永遠唔會出現喺場景，並持續報「已儲存但未顯示」。遊戲端則係
+   * `assetSnap.exists()` 為 false，直接略過，該位置變空白。
+   *
+   * 這裡直接以資產清單比對，唔使等載入失敗先知，訊息亦準確得多。
+   */
+  const orphanInstances = useMemo(() => {
+    if (!assetsLoaded) return [];
+    return overrides.filter(
+      (o) =>
+        o.isActive &&
+        (o.action === 'add' || o.action === 'replace') &&
+        !!o.assetId &&
+        !assetsById[o.assetId]
+    );
+  }, [assetsLoaded, overrides, assetsById]);
+
+  const orphanKeys = useMemo(
+    () => new Set(orphanInstances.map((o) => o.targetBuildingKey)),
+    [orphanInstances]
+  );
+
   const failedInstances = useMemo(
     () =>
       overrides.filter(
         (o) =>
           o.isActive &&
           (o.action === 'add' || o.action === 'replace') &&
-          instanceStatus.failed[o.targetBuildingKey] !== undefined
+          instanceStatus.failed[o.targetBuildingKey] !== undefined &&
+          // 孤兒另有更準確的訊息，唔重複報
+          !orphanKeys.has(o.targetBuildingKey)
       ),
-    [overrides, instanceStatus]
+    [overrides, instanceStatus, orphanKeys]
   );
 
   const loadingInstanceCount = instanceStatus.loading.length;
@@ -252,6 +285,25 @@ export default function MapEditorPage() {
   function handleTransformInput(tr: Transform) {
     setDraftTransform(tr);
     setApplyNonce((n) => n + 1);
+  }
+
+  /** 刪除引用已失效資產的 override（資產已被移除，留住只會一直報錯） */
+  async function handleCleanOrphans() {
+    if (orphanInstances.length === 0) return;
+    try {
+      setSaving(true);
+      setSaveError(null);
+      for (const o of orphanInstances) {
+        await mapOverrideService.delete(o.id);
+      }
+      await loadOverrides(chunkId);
+      setSelected(null);
+    } catch (err) {
+      console.error('清理失效編輯失敗:', err);
+      setSaveError(t('map.editor.saveFailed'));
+    } finally {
+      setSaving(false);
+    }
   }
 
   function toggleChecked(key: string) {
@@ -747,6 +799,42 @@ export default function MapEditorPage() {
                             String(loadingInstanceCount)
                           )}
                         </p>
+                      )}
+
+                      {orphanInstances.length > 0 && (
+                        <div className="card bg-red-50 dark:bg-red-900/20 mb-3">
+                          <div className="card-body py-2 text-sm text-red-700 dark:text-red-300">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                              <div className="min-w-0">
+                                <p className="font-medium">
+                                  {t('map.list.orphanAsset')}
+                                </p>
+                                <ul className="list-disc list-inside">
+                                  {orphanInstances.map((o) => (
+                                    <li key={o.id} className="break-words font-mono text-xs">
+                                      {o.targetBuildingKey}
+                                    </li>
+                                  ))}
+                                </ul>
+                                {canEdit && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-danger mt-2"
+                                    onClick={handleCleanOrphans}
+                                    disabled={saving}
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-1" />
+                                    {t('map.list.cleanOrphans').replace(
+                                      '{count}',
+                                      String(orphanInstances.length)
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       )}
 
                       {failedInstances.length > 0 && (

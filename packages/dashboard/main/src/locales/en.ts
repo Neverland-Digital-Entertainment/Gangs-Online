@@ -651,6 +651,9 @@ export default {
   'map.group.notGroupable':
     'Only objects replaced or added from the asset library can be grouped',
   'map.list.loadingInstances': 'Loading {count} asset instance(s)…',
+  'map.list.orphanAsset':
+    'These edits reference an asset that was deleted from the library. They can never render, and the spot will be blank in game:',
+  'map.list.cleanOrphans': 'Delete these {count} stale edit(s)',
   'map.editor.groupId': 'Occlusion group',
   'map.editor.groupIdPlaceholder': 'Empty = its own group',
   'map.editor.groupIdHint':
