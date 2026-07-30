@@ -19,6 +19,7 @@
 | **P5** | 客戶端 `MapOverrideSystem`：讀取並套用全部 override（含碰撞/遮擋修補） | ✅ 已完成 |
 | **P6** | 收尾：可編輯數值、啟用/停用 override、管理員權限 | ✅ 已完成 |
 | **P7** | 量產基礎：資產快取、遮擋群組 `groupId`、資產用途 `kind` | ✅ 已完成 |
+| **P8** | 編輯器可用性：列表多選編組、載入誤報、縮圖、刪除保護 | ✅ 已完成 |
 
 > 狀態圖例：⬜ 未開始 ／ 🔄 進行中 ／ ✅ 已完成
 >
@@ -319,6 +320,41 @@ Firestore: map_overrides          Firestore: building_assets
   - 已通過 client `tsc --noEmit` + `vite build`、dashboard `tsc --noEmit` + `next build`
   - **待實測**：資產快取的效果需在真實 Firebase 環境以多個同款實例驗證；
     `decal` 的深度偏移數值可能需按實際路面高度微調
+
+- **2026-07-30** — P8：編輯器可用性四項修正。
+
+  **1. 列表多選 + 遮擋群組管理**
+  - 物件列表每行加勾選框（只有資產實例可勾，底圖大廈靠 mesh 名稱分組）
+  - 選取後可「建立群組」（自動產生不重複名稱）、「移出群組」
+  - 群組面板列出所有群組與成員數，可重新命名（改名 = 更新全部成員的
+    `groupId`）或解散；行內顯示所屬群組徽章
+
+  **2. 「已儲存但未在場景顯示」誤報**
+  - 成因：`reconcileInstances()` 只在整個迴圈跑完才呼叫一次 `emitObjects()`，
+    但資產要逐塊從 Firestore 取回，載入期間所有實例都不在 `objects` 裡
+    → 被判定為載入失敗。實際上只是仍在載入
+  - 修正：成功載入即逐個 `emitObjects()`，列表隨進度填入；新增
+    `onInstanceStatusChange` 回報 loading / failed，警告只列出編輯器明確
+    回報失敗的項目，並顯示真正的錯誤訊息；載入中改以進度文字呈現
+
+  **3. 資產庫縮圖一片灰色**
+  - 成因：`generateGlbThumbnail` 連續呼叫四次 `scene.render()`，但 shader
+    編譯與貼圖上傳都是非同步的，同一個 tick 內材質未 ready，Babylon 會
+    略過該 mesh，結果只擷取到 `clearColor`
+  - 修正：先 `await scene.whenReadyAsync()`（10 秒上限），再跨
+    `requestAnimationFrame` 渲染數幀才擷圖
+
+  **4. 阻止刪除仍在使用的資產**
+  - `MapOverrideService.getByAsset(assetId)` 查出所有引用該資產的 override
+  - 資產庫刪除前先檢查，仍在使用則擋下並顯示使用處數量與所屬 chunk
+  - 原本可直接刪除，客戶端之後會找不到資產，該位置變成空白且只在
+    console 留下警告，很難追查
+
+  **另**：後台 `loadGlbObjectUrl` 補上與客戶端相同的 GLB 快取
+  （同一資產只下載一次），這也是編輯器載入慢、進而觸發第 2 項誤報的主因。
+
+  - 已通過 dashboard `tsc --noEmit` 與 `next build`
+  - **待實測**：縮圖修正需以真實 GLB 確認；群組操作需在真實 Firebase 環境驗證
 
 ### 地圖來源（同源 /maps）
 後台預設以同源 `/maps` 供應底圖，免第二個 server、無 CORS：

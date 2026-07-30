@@ -51,6 +51,18 @@ export interface MapObjectInfo {
   boundingSize: { x: number; y: number; z: number };
 }
 
+/**
+ * 資產實例的載入狀況（執行期資料）。
+ * 用於區分「仍在載入」與「真正載入失敗」——兩者都會令物件暫時不在場景中，
+ * 但只有後者才值得向使用者示警。
+ */
+export interface InstanceStatus {
+  /** 正在載入中的 override key */
+  loading: string[];
+  /** override key → 失敗原因 */
+  failed: Record<string, string>;
+}
+
 // ---- 持久化資料模型（P2 起使用） ----
 
 export type OverrideAction = 'delete' | 'transform' | 'replace' | 'add';

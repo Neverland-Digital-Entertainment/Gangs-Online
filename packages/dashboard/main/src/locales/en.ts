@@ -640,6 +640,17 @@ export default {
   'map.editor.changeAsset': 'Change asset',
   'map.editor.addBuilding': 'Add building',
   'map.editor.deleteBuilding': 'Delete this building',
+  'map.group.defaultName': 'Group',
+  'map.group.create': 'Create group',
+  'map.group.ungroup': 'Remove from group',
+  'map.group.dissolve': 'Dissolve group',
+  'map.group.rename': 'Rename',
+  'map.group.selected': '{count} selected',
+  'map.group.clearSelection': 'Clear selection',
+  'map.group.selectHint': 'Select to add to a group',
+  'map.group.notGroupable':
+    'Only objects replaced or added from the asset library can be grouped',
+  'map.list.loadingInstances': 'Loading {count} asset instance(s)…',
   'map.editor.groupId': 'Occlusion group',
   'map.editor.groupIdPlaceholder': 'Empty = its own group',
   'map.editor.groupIdHint':
@@ -658,6 +669,8 @@ export default {
   'map.assets.uploadTitle': 'Upload new building',
   'map.assets.file': 'GLB file',
   'map.assets.name': 'Name',
+  'map.assets.deleteInUse':
+    'Cannot delete: this asset is still used in {count} place(s) on the map ({chunks}). Remove them in the map editor first, otherwise those spots will be blank in game.',
   'map.assets.kind': 'Usage',
   'map.assets.kind.building': 'Building',
   'map.assets.kind.prop': 'Street prop',

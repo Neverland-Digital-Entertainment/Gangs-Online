@@ -24,6 +24,7 @@ import {
   classifyMeshName,
   type BuildingAsset,
   type GizmoMode,
+  type InstanceStatus,
   type MapObjectInfo,
   type MapOverride,
   type Transform,
@@ -43,6 +44,8 @@ interface MapEditor3DProps {
   onTransformChange: (key: string, transform: Transform) => void;
   onInstancePlaced?: (key: string, transform: Transform) => void;
   onObjectsChange?: (objects: MapObjectInfo[]) => void;
+  /** 回報資產實例的載入狀況，供上層區分「仍在載入」與「真正失敗」 */
+  onInstanceStatusChange?: (status: InstanceStatus) => void;
   onLoadingChange?: (loading: boolean) => void;
   onError?: (message: string | null) => void;
 }
@@ -114,6 +117,7 @@ export default function MapEditor3D({
   onTransformChange,
   onInstancePlaced,
   onObjectsChange,
+  onInstanceStatusChange,
   onLoadingChange,
   onError,
 }: MapEditor3DProps) {
@@ -141,6 +145,9 @@ export default function MapEditor3D({
   const onTransformRef = useRef(onTransformChange);
   const onInstancePlacedRef = useRef(onInstancePlaced);
   const onObjectsRef = useRef(onObjectsChange);
+  const onInstanceStatusRef = useRef(onInstanceStatusChange);
+  /** key → 失敗原因。只有真正載入失敗才會留在這裡 */
+  const failedKeysRef = useRef<Map<string, string>>(new Map());
   const onLoadingRef = useRef(onLoadingChange);
   const onErrorRef = useRef(onError);
   const overridesRef = useRef(overrides);
@@ -149,6 +156,7 @@ export default function MapEditor3D({
   onTransformRef.current = onTransformChange;
   onInstancePlacedRef.current = onInstancePlaced;
   onObjectsRef.current = onObjectsChange;
+  onInstanceStatusRef.current = onInstanceStatusChange;
   onLoadingRef.current = onLoadingChange;
   onErrorRef.current = onError;
   overridesRef.current = overrides;
@@ -161,6 +169,13 @@ export default function MapEditor3D({
 
   function emitObjects() {
     onObjectsRef.current?.(Array.from(objectsRef.current.values()));
+  }
+
+  function emitInstanceStatus() {
+    onInstanceStatusRef.current?.({
+      loading: Array.from(loadingKeysRef.current),
+      failed: Object.fromEntries(failedKeysRef.current),
+    });
   }
 
   function frameNode(node: BABYLON.TransformNode) {
@@ -474,6 +489,7 @@ export default function MapEditor3D({
     rec.container.dispose();
     instanceByKeyRef.current.delete(key);
     objectsRef.current.delete(key);
+    failedKeysRef.current.delete(key);
   }
 
   async function reconcileInstances() {
@@ -504,6 +520,7 @@ export default function MapEditor3D({
       }
       if (loadingKeysRef.current.has(key)) continue;
       loadingKeysRef.current.add(key);
+      emitInstanceStatus();
 
       let url: string | null = null;
       try {
@@ -599,12 +616,20 @@ export default function MapEditor3D({
           assetId,
         });
         objectsRef.current.set(key, finalInfo);
+        failedKeysRef.current.delete(key);
         setInstancesVersion((v) => v + 1);
+        // 逐個回報，令列表隨載入進度即時填入，而非等全部載完才一次過出現
+        emitObjects();
       } catch (err) {
         console.error('[MapEditor3D] failed to load asset instance', key, err);
+        failedKeysRef.current.set(
+          key,
+          err instanceof Error ? err.message : String(err)
+        );
       } finally {
         if (url) URL.revokeObjectURL(url);
         loadingKeysRef.current.delete(key);
+        emitInstanceStatus();
       }
     }
 

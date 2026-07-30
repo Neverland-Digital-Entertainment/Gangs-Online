@@ -86,8 +86,17 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+/** 已下載並快取的資產位元組 */
+interface CachedGlb {
+  bytes: Uint8Array;
+  mimeType: string;
+}
+
 export class BuildingAssetService {
   private static instance: BuildingAssetService;
+
+  /** assetId → GLB 內容。快取 Promise 本身，令並行請求共用同一次下載 */
+  private glbCache = new Map<string, Promise<CachedGlb>>();
 
   private constructor() {
     getFirebaseServices();
@@ -199,9 +208,30 @@ export class BuildingAssetService {
 
   /**
    * 載入資產 GLB，重組成可餵給 Babylon 的 object URL。
-   * 供地圖編輯器（P4）與遊戲客戶端（P5）使用。呼叫端用完應 URL.revokeObjectURL。
+   * 供地圖編輯器（P4）使用。呼叫端用完應 URL.revokeObjectURL。
+   *
+   * 同一份資產只會真正從 Firestore 下載一次（見 glbCache）：地圖上同款大廈
+   * 重複出現時，逐次重下會令編輯器載入極慢，並吃光 Firestore 讀取額度。
    */
   async loadGlbObjectUrl(id: string): Promise<string> {
+    const { bytes, mimeType } = await this.loadGlbBytes(id);
+    const blob = new Blob([bytes as unknown as BlobPart], { type: mimeType });
+    return URL.createObjectURL(blob);
+  }
+
+  /** 取得資產位元組，附快取；失敗會移除快取項以便重試 */
+  private loadGlbBytes(id: string): Promise<CachedGlb> {
+    const cached = this.glbCache.get(id);
+    if (cached) return cached;
+    const pending = this.fetchGlbBytes(id).catch((err) => {
+      this.glbCache.delete(id);
+      throw err;
+    });
+    this.glbCache.set(id, pending);
+    return pending;
+  }
+
+  private async fetchGlbBytes(id: string): Promise<CachedGlb> {
     const { db } = getFirebaseServices();
     const assetSnap = await getDoc(doc(db, COLLECTION_NAME, id));
     const mimeType =
@@ -215,10 +245,17 @@ export class BuildingAssetService {
     );
     let base64 = '';
     for (const d of chunksSnap.docs) base64 += d.data().data as string;
+    if (!base64) {
+      throw new Error(`asset ${id} has no GLB data`);
+    }
 
-    const bytes = base64ToUint8Array(base64);
-    const blob = new Blob([bytes as unknown as BlobPart], { type: mimeType });
-    return URL.createObjectURL(blob);
+    return { bytes: base64ToUint8Array(base64), mimeType };
+  }
+
+  /** 清除 GLB 快取（資產被改動或刪除後呼叫） */
+  invalidateGlbCache(id?: string): void {
+    if (id) this.glbCache.delete(id);
+    else this.glbCache.clear();
   }
 }
 

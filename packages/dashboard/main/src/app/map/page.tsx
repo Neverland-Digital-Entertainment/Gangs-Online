@@ -4,13 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import {
   AlertCircle,
+  Edit,
   Eye,
   EyeOff,
+  Folder,
+  FolderPlus,
   Info,
   ListTree,
   Loader2,
   Map as MapIcon,
   Plus,
+  Trash2,
 } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
 import { useAuth } from '@/contexts/auth-context';
@@ -20,6 +24,7 @@ import { buildingAssetService } from '@/lib/map/asset-service';
 import type {
   BuildingAsset,
   GizmoMode,
+  InstanceStatus,
   MapManifest,
   MapObjectInfo,
   MapOverride,
@@ -52,6 +57,15 @@ export default function MapEditorPage() {
   const [applyNonce, setApplyNonce] = useState(0);
   const [rightTab, setRightTab] = useState<'inspector' | 'list'>('list');
   const [showRemoved, setShowRemoved] = useState(false);
+
+  // 列表多選（用於一次過把多件物件編成同一個遮擋群組）
+  const [checkedKeys, setCheckedKeys] = useState<Set<string>>(new Set());
+  const [renamingGroup, setRenamingGroup] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const [instanceStatus, setInstanceStatus] = useState<InstanceStatus>({
+    loading: [],
+    failed: {},
+  });
 
   const [overrides, setOverrides] = useState<MapOverride[]>([]);
   const [assets, setAssets] = useState<BuildingAsset[]>([]);
@@ -125,15 +139,55 @@ export default function MapEditorPage() {
     for (const o of overrides) map[o.targetBuildingKey] = o;
     return map;
   }, [overrides]);
-  const missingInstances = useMemo(() => {
-    const keys = new Set(objects.map((o) => o.key));
-    return overrides.filter(
-      (o) =>
-        o.isActive &&
-        (o.action === 'add' || o.action === 'replace') &&
-        !keys.has(o.targetBuildingKey)
-    );
-  }, [overrides, objects]);
+  /**
+   * 真正載入失敗的資產實例。
+   *
+   * 之前是以「override 存在但不在 objects 裡」判斷，但 objects 要等全部實例
+   * 載完先一次過回報，所以載入期間所有實例都會被誤報為失敗 —— 資產由
+   * Firestore 逐塊取回本身就慢，這個警告幾乎一定會閃出嚟。現時改為只列出
+   * 編輯器明確回報失敗的 key。
+   */
+  const failedInstances = useMemo(
+    () =>
+      overrides.filter(
+        (o) =>
+          o.isActive &&
+          (o.action === 'add' || o.action === 'replace') &&
+          instanceStatus.failed[o.targetBuildingKey] !== undefined
+      ),
+    [overrides, instanceStatus]
+  );
+
+  const loadingInstanceCount = instanceStatus.loading.length;
+
+  /** 可編組的物件：只有資產實例有遮擋群組概念 */
+  const groupableKeys = useMemo(
+    () =>
+      new Set(
+        overrides
+          .filter(
+            (o) => o.isActive && (o.action === 'add' || o.action === 'replace')
+          )
+          .map((o) => o.targetBuildingKey)
+      ),
+    [overrides]
+  );
+
+  /** groupId → 成員 override */
+  const groups = useMemo(() => {
+    const map = new Map<string, MapOverride[]>();
+    for (const o of overrides) {
+      if (!o.groupId) continue;
+      if (!map.has(o.groupId)) map.set(o.groupId, []);
+      map.get(o.groupId)!.push(o);
+    }
+    return map;
+  }, [overrides]);
+
+  const checkedGroupable = useMemo(
+    () => Array.from(checkedKeys).filter((k) => groupableKeys.has(k)),
+    [checkedKeys, groupableKeys]
+  );
 
   const currentGroupId = draftGroupId ?? selectedOverride?.groupId ?? '';
 
@@ -198,6 +252,64 @@ export default function MapEditorPage() {
   function handleTransformInput(tr: Transform) {
     setDraftTransform(tr);
     setApplyNonce((n) => n + 1);
+  }
+
+  function toggleChecked(key: string) {
+    setCheckedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  /** 把一批 override 的遮擋群組設為 groupId（空字串 = 解除群組） */
+  async function setGroupFor(keys: string[], groupId: string) {
+    const targets = overrides.filter((o) => keys.includes(o.targetBuildingKey));
+    if (targets.length === 0) return;
+    try {
+      setSaving(true);
+      setSaveError(null);
+      for (const o of targets) {
+        await mapOverrideService.update(o.id, { groupId });
+      }
+      await loadOverrides(chunkId);
+    } catch (err) {
+      console.error('設定遮擋群組失敗:', err);
+      setSaveError(t('map.editor.saveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCreateGroup() {
+    if (checkedGroupable.length === 0) return;
+    // 產生不與現有群組重複的預設名稱，之後可改名
+    let n = 1;
+    let name = `${t('map.group.defaultName')} ${n}`;
+    while (groups.has(name)) {
+      n += 1;
+      name = `${t('map.group.defaultName')} ${n}`;
+    }
+    await setGroupFor(checkedGroupable, name);
+    setCheckedKeys(new Set());
+  }
+
+  async function handleUngroupSelected() {
+    if (checkedGroupable.length === 0) return;
+    await setGroupFor(checkedGroupable, '');
+    setCheckedKeys(new Set());
+  }
+
+  async function handleRenameGroup(oldName: string) {
+    const next = renameDraft.trim();
+    setRenamingGroup(null);
+    if (!next || next === oldName) return;
+    const members = groups.get(oldName) ?? [];
+    await setGroupFor(
+      members.map((o) => o.targetBuildingKey),
+      next
+    );
   }
 
   async function handleToggleActive() {
@@ -513,6 +625,7 @@ export default function MapEditorPage() {
                     onTransformChange={handleTransformChange}
                     onInstancePlaced={handleInstancePlaced}
                     onObjectsChange={handleObjectsChange}
+                    onInstanceStatusChange={setInstanceStatus}
                     onLoadingChange={setViewerLoading}
                     onError={setViewerError}
                   />
@@ -626,25 +739,145 @@ export default function MapEditorPage() {
                         </button>
                       </div>
 
-                      {missingInstances.length > 0 && (
+                      {loadingInstanceCount > 0 && (
+                        <p className="text-xs text-[var(--muted-foreground)] mb-3 flex items-center gap-2">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+                          {t('map.list.loadingInstances').replace(
+                            '{count}',
+                            String(loadingInstanceCount)
+                          )}
+                        </p>
+                      )}
+
+                      {failedInstances.length > 0 && (
                         <div className="card bg-amber-50 dark:bg-amber-900/20 mb-3">
                           <div className="card-body py-2 text-sm text-amber-700 dark:text-amber-300">
                             <div className="flex items-start gap-2">
                               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                              <div>
+                              <div className="min-w-0">
                                 <p className="font-medium">{t('map.list.loadFailed')}</p>
                                 <ul className="list-disc list-inside">
-                                  {missingInstances.map((o) => (
-                                    <li key={o.id}>
+                                  {failedInstances.map((o) => (
+                                    <li key={o.id} className="break-words">
                                       {(o.assetId && assetsById[o.assetId]?.name) ||
-                                        o.targetBuildingKey}{' '}
-                                      ({t(`map.status.${o.action === 'add' ? 'added' : 'replaced'}`)})
+                                        o.targetBuildingKey}
+                                      {': '}
+                                      <span className="font-mono text-xs">
+                                        {instanceStatus.failed[o.targetBuildingKey]}
+                                      </span>
                                     </li>
                                   ))}
                                 </ul>
                               </div>
                             </div>
                           </div>
+                        </div>
+                      )}
+
+                      {/* 遮擋群組 */}
+                      {(groups.size > 0 || checkedGroupable.length > 0) && (
+                        <div className="mb-3 space-y-2">
+                          {checkedGroupable.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-2 text-sm">
+                              <span className="text-[var(--muted-foreground)]">
+                                {t('map.group.selected').replace(
+                                  '{count}',
+                                  String(checkedGroupable.length)
+                                )}
+                              </span>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-primary"
+                                onClick={handleCreateGroup}
+                                disabled={saving || !canEdit}
+                              >
+                                <FolderPlus className="w-4 h-4 mr-1" />
+                                {t('map.group.create')}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline"
+                                onClick={handleUngroupSelected}
+                                disabled={saving || !canEdit}
+                              >
+                                {t('map.group.ungroup')}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-light"
+                                onClick={() => setCheckedKeys(new Set())}
+                              >
+                                {t('map.group.clearSelection')}
+                              </button>
+                            </div>
+                          )}
+
+                          {Array.from(groups.entries()).map(([name, members]) => (
+                            <div
+                              key={name}
+                              className="flex items-center gap-2 text-sm px-2 py-1 rounded bg-[var(--sidebar-hover)]"
+                            >
+                              {renamingGroup === name ? (
+                                <>
+                                  <input
+                                    autoFocus
+                                    className="input input-sm flex-1"
+                                    value={renameDraft}
+                                    onChange={(e) => setRenameDraft(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') void handleRenameGroup(name);
+                                      if (e.key === 'Escape') setRenamingGroup(null);
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-primary"
+                                    onClick={() => void handleRenameGroup(name)}
+                                    disabled={saving}
+                                  >
+                                    {t('map.assets.save')}
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <Folder className="w-4 h-4 flex-shrink-0 text-blue-500" />
+                                  <span className="truncate flex-1">{name}</span>
+                                  <span className="text-xs text-[var(--muted-foreground)] flex-shrink-0">
+                                    {members.length}
+                                  </span>
+                                  {canEdit && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm btn-light"
+                                        title={t('map.group.rename')}
+                                        onClick={() => {
+                                          setRenamingGroup(name);
+                                          setRenameDraft(name);
+                                        }}
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm btn-light text-red-500"
+                                        title={t('map.group.dissolve')}
+                                        onClick={() =>
+                                          void setGroupFor(
+                                            members.map((m) => m.targetBuildingKey),
+                                            ''
+                                          )
+                                        }
+                                        disabled={saving}
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       )}
 
@@ -671,31 +904,55 @@ export default function MapEditorPage() {
                               ov && (ov.action === 'add' || ov.action === 'replace') && ov.assetId
                                 ? assetsById[ov.assetId]?.name ?? o.meshName
                                 : o.meshName;
+                            const groupable = groupableKeys.has(o.key);
                             return (
-                              <button
+                              <div
                                 key={o.key}
-                                type="button"
-                                onClick={() => selectFromList(o)}
-                                onDoubleClick={() => focusFromList(o)}
-                                title={t('map.list.dblClickHint')}
-                                className={`w-full flex items-center justify-between gap-3 px-2 py-2 text-left hover:bg-[var(--sidebar-hover)] ${
+                                className={`w-full flex items-center gap-2 px-2 hover:bg-[var(--sidebar-hover)] ${
                                   selected?.key === o.key
                                     ? 'bg-[var(--sidebar-hover)] ring-1 ring-blue-500'
                                     : ''
                                 }`}
                               >
-                                <span className="flex items-center gap-2 min-w-0">
-                                  <span className="text-sm text-[var(--foreground)] truncate">
-                                    {displayName}
+                                {/* 只有資產實例可以編組，底圖大廈靠 mesh 名稱分組 */}
+                                <input
+                                  type="checkbox"
+                                  className="flex-shrink-0"
+                                  checked={checkedKeys.has(o.key)}
+                                  disabled={!groupable || !canEdit}
+                                  title={
+                                    groupable
+                                      ? t('map.group.selectHint')
+                                      : t('map.group.notGroupable')
+                                  }
+                                  onChange={() => toggleChecked(o.key)}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => selectFromList(o)}
+                                  onDoubleClick={() => focusFromList(o)}
+                                  title={t('map.list.dblClickHint')}
+                                  className="flex-1 min-w-0 flex items-center justify-between gap-3 py-2 text-left"
+                                >
+                                  <span className="flex items-center gap-2 min-w-0">
+                                    <span className="text-sm text-[var(--foreground)] truncate">
+                                      {displayName}
+                                    </span>
+                                    <span className="badge badge-gray text-xs flex-shrink-0">
+                                      {t(`map.objectType.${o.type}`)}
+                                    </span>
+                                    {ov?.groupId && (
+                                      <span className="badge badge-gray text-xs flex-shrink-0 flex items-center gap-1">
+                                        <Folder className="w-3 h-3" />
+                                        {ov.groupId}
+                                      </span>
+                                    )}
                                   </span>
-                                  <span className="badge badge-gray text-xs flex-shrink-0">
-                                    {t(`map.objectType.${o.type}`)}
+                                  <span className="text-xs text-[var(--muted-foreground)] flex-shrink-0">
+                                    {t(`map.status.${status}`)}
                                   </span>
-                                </span>
-                                <span className="text-xs text-[var(--muted-foreground)] flex-shrink-0">
-                                  {t(`map.status.${status}`)}
-                                </span>
-                              </button>
+                                </button>
+                              </div>
                             );
                           })}
                         </div>

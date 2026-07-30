@@ -74,8 +74,21 @@ export async function generateGlbThumbnail(
     );
     dir.intensity = 0.7;
 
-    // 渲染幾幀讓材質/貼圖就緒
-    for (let i = 0; i < 4; i++) scene.render();
+    // 等場景真正就緒才渲染。
+    // 之前只是連續呼叫 scene.render() 四次，但 shader 編譯與貼圖上傳都是非同步的，
+    // 同一個 tick 內連續渲染時材質尚未 ready，Babylon 會直接略過該 mesh，
+    // 結果只擷取到 clearColor —— 即縮圖一片灰色。
+    await Promise.race([
+      scene.whenReadyAsync(),
+      new Promise<void>((resolve) => setTimeout(resolve, 10000)),
+    ]);
+
+    // 就緒後跨 frame 再渲染幾次，讓貼圖與光照穩定下來
+    for (let i = 0; i < 3; i++) {
+      scene.render();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+    scene.render();
 
     // 用 JPEG 壓縮，縮圖以 data URL 存進 Firestore 文件，須夠小
     const blob = await new Promise<Blob | null>((resolve) =>

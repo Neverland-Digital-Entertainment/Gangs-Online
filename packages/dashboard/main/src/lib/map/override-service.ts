@@ -76,6 +76,19 @@ export class MapOverrideService {
     return snapshot.docs.map((d) => toMapOverride(d.id, d.data()));
   }
 
+  /**
+   * 取得所有引用某個資產的 override（跨全部 chunk）。
+   * 用於阻止刪除仍在地圖上使用的資產 —— 一旦刪除，客戶端載入時
+   * 會找不到資產，該位置變成空白且只在 console 留下警告。
+   */
+  async getByAsset(assetId: string): Promise<MapOverride[]> {
+    const { db } = getFirebaseServices();
+    const ref = collection(db, COLLECTION_NAME);
+    const q = query(ref, where('assetId', '==', assetId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => toMapOverride(d.id, d.data()));
+  }
+
   async create(input: MapOverrideInput): Promise<string> {
     const { db } = getFirebaseServices();
     const now = Timestamp.now();
