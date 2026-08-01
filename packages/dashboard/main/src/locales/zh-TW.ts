@@ -650,6 +650,7 @@ export default {
   'map.group.clearSelection': '取消選取',
   'map.group.selectHint': '勾選以加入群組',
   'map.group.notGroupable': '只有從資產庫替換／新增的物件可以編組',
+  'map.list.selectHint': 'Ctrl 加選 · Shift 範圍 · 雙擊聚焦',
   'map.list.loadingInstances': '正在載入 {count} 個資產實例…',
   'map.list.orphanAsset':
     '以下編輯引用的資產已經喺資產庫被刪除，永遠無法顯示，遊戲中該位置亦會變成空白：',

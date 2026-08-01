@@ -650,6 +650,7 @@ export default {
   'map.group.selectHint': 'Select to add to a group',
   'map.group.notGroupable':
     'Only objects replaced or added from the asset library can be grouped',
+  'map.list.selectHint': 'Ctrl to add · Shift for range · double-click to focus',
   'map.list.loadingInstances': 'Loading {count} asset instance(s)…',
   'map.list.orphanAsset':
     'These edits reference an asset that was deleted from the library. They can never render, and the spot will be blank in game:',
