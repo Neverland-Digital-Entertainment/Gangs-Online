@@ -450,9 +450,12 @@ export class MapOverrideSystem {
             meshes.push(node);
         }
 
-        // 令樣板完全唔參與渲染/揀選/遮擋 raycast；master mesh 本身唔算任何擺放，
-        // 只係用嚟 createInstance()。
-        root.setEnabled(false);
+        // 樣板靠上面逐個 mesh 的 `isVisible = false` / `isPickable = false` 隱藏，
+        // **唔可以**對 root 呼叫 `setEnabled(false)`：Babylon 的
+        // `InstancedMesh.isEnabled()` 會一路查到 source mesh 及其祖先，樣板一旦
+        // disable，所有由它 createInstance() 出來的實例都會被踢出 active meshes，
+        // 結果係全部擺放的資產完全唔會渲染（實測：畫面全黑）。
+        // Phase 0 驗證用的正是 `isVisible = false`，此處必須與驗證配方一致。
 
         return { root, meshes, kind: asset.kind };
     }

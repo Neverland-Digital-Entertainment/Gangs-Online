@@ -207,3 +207,28 @@ instance（alpha=1）視覺上仍是完全不透明，符合遮擋淡出「只�
 
 Phase 2 使用**規格書主策略**（container + 每 assetId 一個 master +
 createInstance），不需要 fallback（clone-per-group）。
+
+### ⚠️ 覆核發現：樣板**唔可以** `setEnabled(false)`（已修正）
+
+Phase 2 初版實作用咗 `templateRoot.setEnabled(false)` 隱藏樣板，**與 Phase 0
+實際驗證嘅配方（`source.isVisible = false`）唔同**，而呢個差異係致命嘅。
+
+原因：Babylon 的 `InstancedMesh.isEnabled()` 會一路查到 source mesh 及其
+祖先。樣板 root 一旦 disable，所有由它 `createInstance()` 出來的實例都會被
+判定為 disabled、踢出 active meshes —— **全部擺放的資產完全唔會渲染**。
+
+三組對照實驗（同一測試場景，只改樣板隱藏方式）：
+
+| 配置 | 結果 | 截圖 |
+|---|---|---|
+| `source.isVisible = false`（Phase 0 原驗證） | 20 個 instance 正常渲染，index 10 獨立變暗 | `shot_isVisible.png`（3806 bytes） |
+| 加 `templateRoot.setEnabled(false)`（Phase 2 初版實作） | **畫面全黑，零個 instance 渲染** | `shot_setEnabled.png`（1378 bytes，純黑壓縮率極高） |
+| 有 templateRoot 但唔 disable（修正後） | 20 個 instance 正常渲染，index 10 獨立變暗 | `shot_fixed.png`（3806 bytes） |
+
+**修正**：移除兩處 `root.setEnabled(false)`
+（`MapOverrideSystem.buildTemplate` 與 `MapEditor3D` 的樣板建立），改為只靠
+逐個 mesh 的 `isVisible = false` + `isPickable = false` 隱藏樣板 —— 即與
+Phase 0 驗證配方完全一致。兩處都已加註解說明不可回退。
+
+**教訓**：驗證配方與生產實作必須逐項對齊；隱藏樣板的方式本身就是配方的一
+部分，不是可以自由替換的實作細節。

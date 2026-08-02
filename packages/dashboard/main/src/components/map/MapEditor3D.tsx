@@ -341,8 +341,10 @@ export default function MapEditor3D({
         node.isPickable = false;
         meshes.push(node);
       }
-      // 樣板全隱藏、唔佔任何擺放，只用嚟 createInstance()
-      root.setEnabled(false);
+      // 樣板靠上面逐個 mesh 的 isVisible/isPickable = false 隱藏，只用嚟
+      // createInstance()。**唔可以**對 root 呼叫 setEnabled(false)：Babylon 的
+      // InstancedMesh.isEnabled() 會查到 source mesh 及其祖先，樣板一 disable
+      // 就會令所有實例唔渲染（實測畫面全黑）。與 Phase 0 驗證配方保持一致。
       return { root, meshes };
     })().catch((err) => {
       cache.delete(assetId);
