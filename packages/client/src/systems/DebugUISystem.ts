@@ -17,6 +17,7 @@ export class DebugUISystem {
     private mapTrianglesElement: HTMLElement | null = null;
     private charTrianglesElement: HTMLElement | null = null;
     private drawCallsElement: HTMLElement | null = null;
+    private assetElement: HTMLElement | null = null;
     private posXElement: HTMLElement | null = null;
     private posZElement: HTMLElement | null = null;
     private isVisible: boolean = true;
@@ -27,6 +28,48 @@ export class DebugUISystem {
         this.createUI();
         this.startUpdate();
         this.setupDebugCommand();
+    }
+
+    /**
+     * 更新「後台擺放資產」狀態列。
+     *
+     * 上面的三角形統計只計 `BABYLON.Mesh`，而擺放的資產是 `InstancedMesh`
+     * （不是 Mesh 的子類），結構上永遠數不到，所以 "Other Tris" 是 0 既不
+     * 代表成功也不代表失敗。這一列直接數 instance 本身，並標出兩種失敗：
+     *   - 一個 instance 都沒有 → 載入階段就失敗了，與遮擋無關
+     *   - 有 instance 但沒有一個會渲染 → 樣板 root 被 disable
+     *     （InstancedMesh.isEnabled() 會一路查到 source mesh 及其祖先）
+     */
+    private updateAssetStatus(): void {
+        if (!this.assetElement) return;
+
+        let total = 0;
+        let rendered = 0;
+        let faded = 0;
+        for (const mesh of this.scene.meshes) {
+            if (!(mesh instanceof BABYLON.InstancedMesh)) continue;
+            total++;
+            if (mesh.isEnabled() && mesh.isVisible) rendered++;
+            const color = mesh.instancedBuffers?.color as BABYLON.Color4 | undefined;
+            if (color && color.a < 0.99) faded++;
+        }
+
+        if (total === 0) {
+            this.assetElement.style.color = "#ff8866";
+            this.assetElement.textContent = "Assets: 0（未載入任何擺放資產）";
+            return;
+        }
+
+        if (rendered === 0) {
+            this.assetElement.style.color = "#ff8866";
+            this.assetElement.textContent =
+                `Assets: ${total}, 渲染 0 ⚠️ 樣板被 disable`;
+            return;
+        }
+
+        this.assetElement.style.color = faded > 0 ? "#66ff99" : "#ffcc66";
+        this.assetElement.textContent =
+            `Assets: ${rendered}/${total} 渲染, ${faded} 淡出`;
     }
 
     /**
@@ -195,6 +238,15 @@ export class DebugUISystem {
         this.posZElement.style.color = "#88ccff";
         this.posZElement.textContent = "Z: --";
 
+        // 後台擺放資產（instancing）狀態 —— 三角形面板數不到 InstancedMesh，
+        // 所以擺放的大廈有沒有渲染、有沒有淡出，只能在這裡直接看
+        this.assetElement = document.createElement("div");
+        this.assetElement.style.marginTop = "6px";
+        this.assetElement.style.paddingTop = "6px";
+        this.assetElement.style.borderTop = "1px solid #555";
+        this.assetElement.style.color = "#ffcc66";
+        this.assetElement.textContent = "Assets: --";
+
         // 組裝 UI
         this.container.appendChild(this.fpsElement);
         this.container.appendChild(this.mapTrianglesElement);
@@ -202,6 +254,7 @@ export class DebugUISystem {
         this.container.appendChild(this.drawCallsElement);
         this.container.appendChild(this.posXElement);
         this.container.appendChild(this.posZElement);
+        this.container.appendChild(this.assetElement);
 
         document.body.appendChild(this.container);
 
@@ -284,6 +337,8 @@ export class DebugUISystem {
         if (this.drawCallsElement) {
             this.drawCallsElement.textContent = `Draw Calls: ~${activeMeshes}`;
         }
+
+        this.updateAssetStatus();
 
         // Player Position
         if (this.posXElement) {

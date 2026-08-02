@@ -1,4 +1,5 @@
 import * as BABYLON from "@babylonjs/core";
+import { debugVerbose } from "../config";
 import * as GUI from "@babylonjs/gui";
 import { IEnemyData, EntityType } from "@gangs-online/shared";
 import { UISystem } from "../systems/UISystem";
@@ -46,7 +47,7 @@ export class EnemyManager {
      */
     setGroundMeshes(meshes: BABYLON.AbstractMesh[]): void {
         this.groundMeshes = meshes;
-        console.log(`🌍 [EnemyManager] Ground meshes set: ${meshes.length}`);
+        if (debugVerbose) console.log(`🌍 [EnemyManager] Ground meshes set: ${meshes.length}`);
     }
 
     /**
@@ -100,14 +101,14 @@ export class EnemyManager {
     async createEnemy(enemyData: any, enemyId: string): Promise<EnemyEntity> {
         const entityType = enemyData.type || "enemy";
         const isNPC = entityType === "npc";
-        console.log(`${isNPC ? '👔' : '🧟'} Creating ${isNPC ? 'NPC' : 'enemy'}: ${enemyId}`);
+        if (debugVerbose) console.log(`${isNPC ? '👔' : '🧟'} Creating ${isNPC ? 'NPC' : 'enemy'}: ${enemyId}`);
 
         // Phase 16-2: 使用自定義模型或預設模型
         const modelId = enemyData.modelId || "";
         // 檢查是否為空字符串、undefined 或字符串 "undefined"
         const useDefaultModel = !modelId || modelId.trim() === "" || modelId === "undefined";
 
-        console.log(`📦 Model ID for ${enemyId}: raw="${enemyData.modelId}", processed="${modelId}", useDefault=${useDefaultModel}`);
+        if (debugVerbose) console.log(`📦 Model ID for ${enemyId}: raw="${enemyData.modelId}", processed="${modelId}", useDefault=${useDefaultModel}`);
 
         // 載入 3D 模型（使用跟 PlayerManager 相同的方式）
         // Phase 21: 預設模型來自外部網址（models.babylonjs.com），載入失敗時改用
@@ -116,7 +117,7 @@ export class EnemyManager {
 
         if (useDefaultModel) {
             // 使用預設模型（跟 PlayerManager 完全一樣的方式）
-            console.log(`📦 Loading default model from ${modelConfig.baseUrl}${modelConfig.characterModel} for ${enemyId}`);
+            if (debugVerbose) console.log(`📦 Loading default model from ${modelConfig.baseUrl}${modelConfig.characterModel} for ${enemyId}`);
             try {
                 result = await BABYLON.SceneLoader.ImportMeshAsync(
                     "",
@@ -131,7 +132,7 @@ export class EnemyManager {
         } else {
             // 嘗試載入自定義模型，失敗時使用預設模型
             try {
-                console.log(`📦 Loading custom model "${modelId}" for ${enemyId}`);
+                if (debugVerbose) console.log(`📦 Loading custom model "${modelId}" for ${enemyId}`);
                 result = await BABYLON.SceneLoader.ImportMeshAsync(
                     "",
                     "/models/",
@@ -167,10 +168,10 @@ export class EnemyManager {
         root.ellipsoidOffset = new BABYLON.Vector3(0, 1.0, 0); // 跟 PlayerManager 一樣
 
         // Debug: Log complete model info including Y position
-        console.log(`✅ ${isNPC ? 'NPC' : 'Enemy'} model loaded: id="${enemyId}"`);
-        console.log(`   Position: (${root.position.x.toFixed(1)}, ${root.position.y.toFixed(1)}, ${root.position.z.toFixed(1)}) [groundY=${groundY.toFixed(1)}]`);
-        console.log(`   Scale: ${root.scaling.x}, visibility=${root.visibility}, isEnabled=${root.isEnabled()}`);
-        console.log(`   meshCount=${result.meshes.length}`);
+        if (debugVerbose) console.log(`✅ ${isNPC ? 'NPC' : 'Enemy'} model loaded: id="${enemyId}"`);
+        if (debugVerbose) console.log(`   Position: (${root.position.x.toFixed(1)}, ${root.position.y.toFixed(1)}, ${root.position.z.toFixed(1)}) [groundY=${groundY.toFixed(1)}]`);
+        if (debugVerbose) console.log(`   Scale: ${root.scaling.x}, visibility=${root.visibility}, isEnabled=${root.isEnabled()}`);
+        if (debugVerbose) console.log(`   meshCount=${result.meshes.length}`);
 
         // 設置 metadata 以便點擊偵測
         root.metadata = {
@@ -236,7 +237,7 @@ export class EnemyManager {
             });
         }
 
-        console.log(`✅ ${isNPC ? 'NPC' : 'Enemy'} created: ${enemyId}`);
+        if (debugVerbose) console.log(`✅ ${isNPC ? 'NPC' : 'Enemy'} created: ${enemyId}`);
         return entity;
     }
 
@@ -249,7 +250,7 @@ export class EnemyManager {
             entity.mesh.dispose();
             entity.ui.container.dispose();
             this.enemies.delete(enemyId);
-            console.log(`🗑️ Enemy removed: ${enemyId}`);
+            if (debugVerbose) console.log(`🗑️ Enemy removed: ${enemyId}`);
         }
     }
 

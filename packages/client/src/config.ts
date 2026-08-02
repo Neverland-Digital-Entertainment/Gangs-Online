@@ -10,6 +10,15 @@ export const config: GameConfig = {
 };
 
 /**
+ * 詳細 log 開關。
+ *
+ * NPC / 敵人每隻生成時會印近十行（模型 ID、載入路徑、座標、縮放、mesh 數…），
+ * 場景一多就會把真正重要的訊息（override 套用結果、連線錯誤）沖走。
+ * 預設關閉；要追模型載入問題時設 `VITE_DEBUG_VERBOSE=true` 重新 build 即可。
+ */
+export const debugVerbose = import.meta.env.VITE_DEBUG_VERBOSE === "true";
+
+/**
  * 3D模型配置
  */
 export const modelConfig = {
