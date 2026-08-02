@@ -651,6 +651,8 @@ export default {
   'map.group.ungroup': 'Remove from group',
   'map.group.dissolve': 'Dissolve group',
   'map.group.rename': 'Rename',
+  'map.group.name': 'Group name',
+  'map.group.dissolveHint': 'Dissolving only clears the grouping; the buildings inside are not deleted.',
   'map.group.selected': '{count} selected',
   'map.group.clearSelection': 'Clear selection',
   'map.group.selectHint': 'Select to add to a group',

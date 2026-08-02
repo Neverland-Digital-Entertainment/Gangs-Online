@@ -652,6 +652,8 @@ export default {
   'map.group.ungroup': '移出群組',
   'map.group.dissolve': '解散群組',
   'map.group.rename': '重新命名',
+  'map.group.name': '群組名稱',
+  'map.group.dissolveHint': '解散只會取消群組關係，唔會刪除入面嘅大廈。',
   'map.group.selected': '已選 {count} 項',
   'map.group.clearSelection': '取消選取',
   'map.group.selectHint': '勾選以加入群組',

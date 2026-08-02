@@ -59,7 +59,8 @@ export default function MapEditorPage() {
 
   // 列表多選（用於一次過把多件物件編成同一個遮擋群組）
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-  const [renamingGroup, setRenamingGroup] = useState<string | null>(null);
+  // 選取中的遮擋群組（下方 Inspector 顯示其設定）
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [instanceStatus, setInstanceStatus] = useState<InstanceStatus>({
     loading: [],
@@ -221,6 +222,37 @@ export default function MapEditorPage() {
     return map;
   }, [overrides]);
 
+  /**
+   * 交畀 outliner 的物件清單。
+   *
+   * 停用（隱藏）的資產實例會被編輯器 dispose，於是從 `objects` 消失 ——
+   * 連帶喺樹上都搵唔返，等於再也開唔返。這裡為它們補一個「幽靈」列，
+   * 令它們保持可見、可用眼睛切換返顯示。底圖物件冇這個問題，因為它們
+   * 是底圖 GLB 的節點，隱藏只是加一筆 delete override。
+   */
+  const outlinerObjects = useMemo(() => {
+    const known = new Set(objects.map((o) => o.key));
+    const ghosts: MapObjectInfo[] = overrides
+      .filter(
+        (o) =>
+          !o.isActive &&
+          (o.action === 'add' || o.action === 'replace') &&
+          !known.has(o.targetBuildingKey)
+      )
+      .map((o) => ({
+        meshName:
+          (o.assetId && assetsById[o.assetId]?.name) || o.targetBuildingKey,
+        chunkId: o.chunkId,
+        type: 'building' as const,
+        key: o.targetBuildingKey,
+        position: o.transform?.position ?? { x: 0, y: 0, z: 0 },
+        rotation: o.transform?.rotation ?? { x: 0, y: 0, z: 0 },
+        scale: o.transform?.scale ?? { x: 1, y: 1, z: 1 },
+        boundingSize: { x: 0, y: 0, z: 0 },
+      }));
+    return ghosts.length > 0 ? [...objects, ...ghosts] : objects;
+  }, [objects, overrides, assetsById]);
+
   const selectedGroupable = useMemo(
     () => Array.from(selectedKeys).filter((k) => groupableKeys.has(k)),
     [selectedKeys, groupableKeys]
@@ -342,8 +374,8 @@ export default function MapEditorPage() {
 
   async function handleRenameGroup(oldName: string) {
     const next = renameDraft.trim();
-    setRenamingGroup(null);
     if (!next || next === oldName) return;
+    setActiveGroup(next);
     const members = groups.get(oldName) ?? [];
     await setGroupFor(
       members.map((o) => o.targetBuildingKey),
@@ -388,7 +420,8 @@ export default function MapEditorPage() {
   /** Outliner 已算好新的選取；這裡只負責記錄並把 active 交畀 Inspector */
   function handleOutlinerSelection(keys: string[], activeKey: string) {
     setSelectedKeys(new Set(keys));
-    const obj = objects.find((o) => o.key === activeKey) ?? null;
+    setActiveGroup(null);
+    const obj = outlinerObjects.find((o) => o.key === activeKey) ?? null;
     setSelected(obj);
     setDraftTransform(null);
     setDraftGroupId(null);
@@ -474,6 +507,17 @@ export default function MapEditorPage() {
     setSaveError(null);
     setObjects([]);
   }
+
+  // 有未儲存變更就自動存檔。gizmo 拖曳期間會連續觸發，debounce 令它只在
+  // 停手之後存一次；使用者唔會再因為忘記撳「儲存」而白做。
+  useEffect(() => {
+    if (!dirty || !canEdit || saving) return;
+    const timer = setTimeout(() => {
+      void handleSave();
+    }, 800);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty, canEdit, saving, draftTransform, draftGroupId]);
 
   async function handleSave() {
     if (!selected) return;
@@ -807,14 +851,16 @@ export default function MapEditorPage() {
             <div className="flex flex-col h-[70vh] min-h-[420px] gap-3">
               <div className="card flex-1 min-h-0 flex flex-col">
                   <div className="card-body flex flex-col min-h-0">
-                      <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-                        <ListTree className="w-5 h-5 text-[var(--muted-foreground)]" />
-                        <h2 className="text-base font-semibold text-[var(--foreground)]">
-                          {t('map.list.title')}
-                        </h2>
-                        <span className="text-xs text-[var(--muted-foreground)] ml-auto">
+                      <div className="mb-3 flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                          <ListTree className="w-5 h-5 text-[var(--muted-foreground)]" />
+                          <h2 className="text-base font-semibold text-[var(--foreground)]">
+                            {t('map.list.title')}
+                          </h2>
+                        </div>
+                        <p className="text-xs text-[var(--muted-foreground)] mt-1">
                           {t('map.list.selectHint')}
-                        </span>
+                        </p>
                       </div>
 
                       {loadingInstanceCount > 0 && (
@@ -926,84 +972,26 @@ export default function MapEditorPage() {
                             </div>
                           )}
 
-                          {Array.from(groups.entries()).map(([name, members]) => (
-                            <div
-                              key={name}
-                              className="flex items-center gap-2 text-sm px-2 py-1 rounded bg-[var(--sidebar-hover)]"
-                            >
-                              {renamingGroup === name ? (
-                                <>
-                                  <input
-                                    autoFocus
-                                    className="input input-sm flex-1"
-                                    value={renameDraft}
-                                    onChange={(e) => setRenameDraft(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') void handleRenameGroup(name);
-                                      if (e.key === 'Escape') setRenamingGroup(null);
-                                    }}
-                                  />
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm btn-primary"
-                                    onClick={() => void handleRenameGroup(name)}
-                                    disabled={saving}
-                                  >
-                                    {t('map.assets.save')}
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <Folder className="w-4 h-4 flex-shrink-0 text-blue-500" />
-                                  <span className="truncate flex-1">{name}</span>
-                                  <span className="text-xs text-[var(--muted-foreground)] flex-shrink-0">
-                                    {members.length}
-                                  </span>
-                                  {canEdit && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        className="btn btn-sm btn-light"
-                                        title={t('map.group.rename')}
-                                        onClick={() => {
-                                          setRenamingGroup(name);
-                                          setRenameDraft(name);
-                                        }}
-                                      >
-                                        <Edit className="w-3.5 h-3.5" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="btn btn-sm btn-light text-red-500"
-                                        title={t('map.group.dissolve')}
-                                        onClick={() =>
-                                          void setGroupFor(
-                                            members.map((m) => m.targetBuildingKey),
-                                            ''
-                                          )
-                                        }
-                                        disabled={saving}
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    </>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          ))}
                         </div>
                       )}
 
                       <div className="flex-1 min-h-0 overflow-y-auto -mx-2">
                         <MapOutliner
                           chunkId={chunkId}
-                          objects={objects}
+                          objects={outlinerObjects}
                           overrideByKey={overrideByKey}
                           assetsById={assetsById}
                           activeKey={selected?.key ?? null}
                           selectedKeys={selectedKeys}
                           canEdit={canEdit}
+                          activeGroup={activeGroup}
+                          onSelectGroup={(name) => {
+                            setActiveGroup(name);
+                            if (name) {
+                              setRenameDraft(name);
+                              setSelected(null);
+                            }
+                          }}
                           onSelectionChange={handleOutlinerSelection}
                           onFocus={focusFromList}
                           onToggleVisible={handleToggleVisible}
@@ -1014,6 +1002,71 @@ export default function MapEditorPage() {
 
               {/* Inspector 直接接喺樹下面，選中即見，唔使切分頁 */}
               <div className="flex-shrink-0 max-h-[45%] overflow-y-auto">
+                {activeGroup ? (
+                  <div className="card">
+                    <div className="card-body space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Folder className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                        <h2 className="text-lg font-semibold text-[var(--foreground)] truncate">
+                          {activeGroup}
+                        </h2>
+                        <span className="text-xs text-[var(--muted-foreground)] ml-auto">
+                          {(groups.get(activeGroup)?.length ?? 0)}
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="label">{t('map.group.name')}</label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={renameDraft}
+                          disabled={!canEdit || saving}
+                          onChange={(e) => setRenameDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') void handleRenameGroup(activeGroup);
+                          }}
+                        />
+                        <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                          {t('map.editor.groupIdHint')}
+                        </p>
+                      </div>
+
+                      {canEdit && (
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            className="btn btn-primary w-full"
+                            disabled={saving || renameDraft.trim() === activeGroup}
+                            onClick={() => void handleRenameGroup(activeGroup)}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            {t('map.group.rename')}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-light w-full text-red-500"
+                            disabled={saving}
+                            onClick={() => {
+                              const members = groups.get(activeGroup) ?? [];
+                              setActiveGroup(null);
+                              void setGroupFor(
+                                members.map((m) => m.targetBuildingKey),
+                                ''
+                              );
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            {t('map.group.dissolve')}
+                          </button>
+                          <p className="text-xs text-[var(--muted-foreground)]">
+                            {t('map.group.dissolveHint')}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
                 <BuildingInspector
                   object={selected}
                   readOnly={!canEdit}
@@ -1039,6 +1092,7 @@ export default function MapEditorPage() {
                   onTransformInput={handleTransformInput}
                   onToggleActive={handleToggleActive}
                 />
+                )}
               </div>
             </div>
           </div>

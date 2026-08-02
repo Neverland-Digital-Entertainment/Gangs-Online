@@ -46,6 +46,9 @@ interface MapOutlinerProps {
   /** 主選取：Inspector 顯示的那一個 */
   activeKey: string | null;
   selectedKeys: Set<string>;
+  /** 目前選取的遮擋群組（下方 Inspector 顯示其設定） */
+  activeGroup: string | null;
+  onSelectGroup: (name: string | null) => void;
   canEdit: boolean;
   /** 由 outliner 計算好新的選取（它掌握顯示順序，範圍選取要靠它） */
   onSelectionChange: (keys: string[], activeKey: string) => void;
@@ -101,6 +104,8 @@ export default function MapOutliner({
   assetsById,
   activeKey,
   selectedKeys,
+  activeGroup,
+  onSelectGroup,
   canEdit,
   onSelectionChange,
   onFocus,
@@ -232,19 +237,39 @@ export default function MapOutliner({
       {rows.map((row) => {
         if (row.kind === 'branch') {
           const isCollapsed = collapsed.has(row.id);
+          const isGroup = row.icon === 'group';
+          const groupName = isGroup ? row.label : null;
+          const groupActive = !!groupName && activeGroup === groupName;
           return (
             <button
               key={row.id}
               type="button"
-              onClick={() => toggleBranch(row.id)}
+              // 群組：點擊選取（下方 Inspector 出改名等設定）；類型分桶：點擊摺疊
+              onClick={() =>
+                isGroup && groupName
+                  ? onSelectGroup(groupActive ? null : groupName)
+                  : toggleBranch(row.id)
+              }
               style={{ paddingLeft: `${row.depth * 12}px` }}
-              className="w-full flex items-center gap-1.5 py-1 pr-2 text-left hover:bg-[var(--sidebar-hover)]"
+              className={`w-full flex items-center gap-1.5 py-1 pr-2 text-left ${
+                groupActive ? 'bg-blue-600/40' : 'hover:bg-[var(--sidebar-hover)]'
+              }`}
             >
-              {isCollapsed ? (
-                <ChevronRight className="w-3.5 h-3.5 flex-shrink-0 text-[var(--muted-foreground)]" />
-              ) : (
-                <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-[var(--muted-foreground)]" />
-              )}
+              <span
+                role="button"
+                tabIndex={-1}
+                className="flex-shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleBranch(row.id);
+                }}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="w-3.5 h-3.5 text-[var(--muted-foreground)]" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5 text-[var(--muted-foreground)]" />
+                )}
+              </span>
               {row.icon === 'group' && !isCollapsed ? (
                 <FolderOpen className="w-4 h-4 flex-shrink-0 text-amber-500" />
               ) : (
