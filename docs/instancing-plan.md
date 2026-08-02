@@ -108,11 +108,34 @@ Fallback 都要照樣行 Phase 1–3，只係 Phase 2 嘅實例化策略唔同�
 
 ## 驗收
 
-- [ ] Phase 0 結論寫入本文件，附成功配方或 fallback 決定
-- [ ] client + dashboard `tsc --noEmit` 及 build 全綠
-- [ ] Playwright 驗證 script 通過（像素級檢查）
-- [ ] 逐 Phase 一個 commit，訊息講清楚做咗乜、點驗證
-- [ ] 未實測項目喺 commit message 同本文件標明
+- [x] Phase 0 結論寫入本文件，附成功配方或 fallback 決定
+- [x] client + dashboard `tsc --noEmit` 及 build 全綠
+- [x] Playwright 驗證 script 通過（像素級檢查）
+- [x] 逐 Phase 一個 commit，訊息講清楚做咗乜、點驗證
+- [x] 未實測項目喺 commit message 同本文件標明（見下）
+
+## 未實測項目（需要真實環境）
+
+以下項目只做到 typecheck + 生產 build 通過，**未在真實瀏覽器 + 真實
+Firestore 資料下實測**，交接時請留意：
+
+- Phase 1/2：真正在後台放大量（過百）同款資產實例，量度實際 draw call
+  是否如預期下降（可用瀏覽器 GPU/Spector.js 或 Babylon Inspector 的
+  statistics 面板確認）。
+- Phase 2：客戶端遊戲內，玩家走到「後台擺放的資產」後方時，遮擋淡出是否
+  正確只令該群組變透明，其餘同款實例維持不透明（Phase 0 已用合成場景
+  證明機制本身正確，但未接上真實 `BuildingOcclusionSystem.update()` 射線
+  偵測流程驗證端對端）。
+- Phase 2：編輯器（MapEditor3D）gizmo 拖曳、雙擊聚焦、點擊揀選是否對
+  InstancedMesh 正常運作（metadata 映射邏輯已寫好，未手動操作驗證）。
+- Phase 3：實際發佈快照 + 客戶端讀取快照的端對端流程（需要登入後台
+  帳號、有 `map.edit` 權限、真實地圖資料）；>900KB 分片寫入/讀取路徑
+  未有超大資料集實測，只有程式碼比照現有 `building_assets` 分塊模式
+  審視。
+- Phase 3：`groupId`/刪除/停用等既有功能與快照的交互（快照只在「發佈」
+  時產生一次快照，之後對 `map_overrides` 的編輯需要重新發佈先會反映到
+  客戶端；此行為符合規劃「發佈快照」的設計原意，但未有使用者測試流程
+  驗證體感是否符合預期）。
 
 ## 驗證結果
 
