@@ -167,3 +167,35 @@ export function classifyMeshName(name: string): MapObjectType {
 export function buildObjectKey(chunkId: string, meshName: string): string {
   return `${chunkId}:${meshName}`;
 }
+
+// ---- 發佈快照（Phase 3） ----
+
+/**
+ * `map_snapshots/{mapName}` 內的單一項目，短 key 慳 Firestore 空間。
+ * 只收 `isActive` 的 override。
+ */
+export interface MapOverrideSnapshotItem {
+  /** targetBuildingKey */
+  k: string;
+  /** chunkId */
+  c: string;
+  /** action */
+  a: OverrideAction;
+  /** assetId（replace / add） */
+  id?: string;
+  /** transform */
+  t?: Transform;
+  /** groupId（遮擋群組） */
+  g?: string;
+}
+
+/** `map_snapshots/{mapName}` 文件本身（不含分片時 items 直接內嵌） */
+export interface MapSnapshotDoc {
+  version: number;
+  publishedAt: Date;
+  publishedBy?: string;
+  itemCount: number;
+  /** true 代表 items 分散在 `map_snapshots/{mapName}/parts/{n}` 子集合 */
+  chunked: boolean;
+  items?: MapOverrideSnapshotItem[];
+}

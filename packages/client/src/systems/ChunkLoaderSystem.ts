@@ -64,6 +64,11 @@ export class ChunkLoaderSystem {
     private loadedChunks: Map<string, LoadedChunk> = new Map();
     private loadingChunks: Set<string> = new Set();
 
+    /** 取得已載入的 manifest（供 MapOverrideSystem Phase 3 讀取 mapName） */
+    getManifest(): MapManifest | null {
+        return this.manifest;
+    }
+
     // 所有地形和建築的彙總（供其他系統使用）
     private allTerrainMeshes: BABYLON.AbstractMesh[] = [];
     private allBuildingMeshes: BABYLON.AbstractMesh[] = [];

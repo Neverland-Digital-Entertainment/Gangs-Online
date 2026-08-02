@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import {
   AlertCircle,
+  CheckCircle2,
   Edit,
   Folder,
   FolderPlus,
@@ -13,6 +14,7 @@ import {
   Map as MapIcon,
   Plus,
   Trash2,
+  UploadCloud,
 } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
 import { useAuth } from '@/contexts/auth-context';
@@ -39,7 +41,7 @@ const MapEditor3D = dynamic(() => import('@/components/map/MapEditor3D'), {
 
 export default function MapEditorPage() {
   const { t } = useI18n();
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const canEdit = hasPermission('map.edit');
   const [manifest, setManifest] = useState<MapManifest | null>(null);
   const [manifestLoading, setManifestLoading] = useState(true);
@@ -74,6 +76,11 @@ export default function MapEditorPage() {
 
   const [viewerLoading, setViewerLoading] = useState(false);
   const [viewerError, setViewerError] = useState<string | null>(null);
+
+  // 發佈快照（Phase 3）
+  const [publishing, setPublishing] = useState(false);
+  const [publishMessage, setPublishMessage] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   useEffect(() => {
     loadManifest();
@@ -432,6 +439,34 @@ export default function MapEditorPage() {
     }
   }
 
+  /** 發佈快照（Phase 3）：把目前地圖所有啟用中的 override 寫成 1 個快照文件 */
+  async function handlePublish() {
+    if (!mapName) return;
+    if (!window.confirm(t('map.editor.publishConfirm'))) return;
+    try {
+      setPublishing(true);
+      setPublishError(null);
+      setPublishMessage(null);
+      const result = await mapOverrideService.publishSnapshot(
+        mapName,
+        user?.email ?? undefined
+      );
+      setPublishMessage(
+        t('map.editor.publishSuccess')
+          .replace('{count}', String(result.itemCount))
+          .replace(
+            '{chunked}',
+            result.chunked ? t('map.editor.publishSuccessChunkedSuffix') : ''
+          )
+      );
+    } catch (err) {
+      console.error('發佈地圖快照失敗:', err);
+      setPublishError(t('map.editor.publishFailed'));
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   function changeChunk(id: string) {
     setChunkId(id);
     setSelected(null);
@@ -639,9 +674,44 @@ export default function MapEditorPage() {
               <Plus className="w-4 h-4 mr-2" />
               {t('map.editor.addBuilding')}
             </button>
+            <button
+              className="btn btn-outline"
+              onClick={handlePublish}
+              disabled={publishing || !canEdit}
+              hidden={!canEdit}
+              title={t('map.editor.publish')}
+            >
+              {publishing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <UploadCloud className="w-4 h-4 mr-2" />
+              )}
+              {publishing ? t('map.editor.publishing') : t('map.editor.publish')}
+            </button>
           </div>
         )}
       </div>
+
+      {publishMessage && (
+        <div className="card bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 mb-6">
+          <div className="card-body py-3">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-green-800 dark:text-green-200">{publishMessage}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {publishError && (
+        <div className="card bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 mb-6">
+          <div className="card-body py-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-800 dark:text-red-200">{publishError}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Manifest 載入失敗 */}
       {manifestError && (

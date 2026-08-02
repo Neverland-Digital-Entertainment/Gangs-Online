@@ -88,6 +88,8 @@ interface TemplateEntry {
 const OVERRIDES_COLLECTION = "map_overrides";
 const ASSETS_COLLECTION = "building_assets";
 const CHUNKS_SUB = "chunks";
+const SNAPSHOT_COLLECTION = "map_snapshots";
+const SNAPSHOT_PARTS_SUB = "parts";
 
 /** 貼地平面的深度偏移，負值把面拉向鏡頭以壓過路面 */
 const DECAL_Z_OFFSET = -2;
@@ -140,7 +142,13 @@ export class MapOverrideSystem {
         return this.db;
     }
 
-    /** 對所有已載入 chunks 套用 overrides */
+    /**
+     * 對所有已載入 chunks 套用 overrides。
+     *
+     * Phase 3：先試讀 1 個發佈快照（`map_snapshots/{mapName}`），成功就用
+     * 快照套用（1 read 取代逐 chunk 查詢）；快照不存在或讀取失敗，退回
+     * 舊有的逐 chunk `map_overrides` 查詢，行為與 Phase 3 之前完全一致。
+     */
     async apply(sceneManager: SceneManager): Promise<void> {
         const db = this.getDb();
         if (!db) {
@@ -148,6 +156,24 @@ export class MapOverrideSystem {
             return;
         }
 
+        const mapName = sceneManager.getChunkLoader().getManifest()?.mapName;
+        if (mapName) {
+            let snapshotItems: MapOverride[] | null = null;
+            try {
+                snapshotItems = await this.fetchSnapshot(db, mapName);
+            } catch (err) {
+                console.error(
+                    "[MapOverride] snapshot fetch failed, falling back to per-chunk query:",
+                    err
+                );
+            }
+            if (snapshotItems) {
+                await this.applyFromSnapshot(db, sceneManager, snapshotItems);
+                return;
+            }
+        }
+
+        console.log("[MapOverride] no snapshot, falling back to per-chunk map_overrides query");
         const loaded = sceneManager.getChunkLoader().getLoadedChunks();
         for (const [chunkId, chunk] of loaded) {
             let overrides: MapOverride[];
@@ -171,6 +197,70 @@ export class MapOverrideSystem {
             }
             console.log(`[MapOverride] ${chunkId}: applied ${applied}/${overrides.length} override(s)`);
         }
+    }
+
+    /**
+     * 讀取發佈快照。不存在回傳 null（呼叫端會退回逐 chunk 查詢）。
+     * 快照只收 `isActive` 的 override，故轉換回來的項目一律 `isActive: true`。
+     */
+    private async fetchSnapshot(db: Firestore, mapName: string): Promise<MapOverride[] | null> {
+        const snap = await getDoc(doc(db, SNAPSHOT_COLLECTION, mapName));
+        if (!snap.exists()) return null;
+
+        const data = snap.data() as Record<string, unknown>;
+        let rawItems: Array<Record<string, unknown>>;
+        if (data.chunked) {
+            const partsSnap = await getDocs(
+                collection(db, SNAPSHOT_COLLECTION, mapName, SNAPSHOT_PARTS_SUB)
+            );
+            const parts = partsSnap.docs
+                .map((d) => d.data() as Record<string, unknown>)
+                .sort((a, b) => ((a.index as number) ?? 0) - ((b.index as number) ?? 0));
+            rawItems = parts.flatMap(
+                (p) => (p.items as Array<Record<string, unknown>> | undefined) ?? []
+            );
+        } else {
+            rawItems = (data.items as Array<Record<string, unknown>> | undefined) ?? [];
+        }
+
+        return rawItems.map((it) => ({
+            id: `${it.c as string}:${it.k as string}`,
+            chunkId: it.c as string,
+            targetBuildingKey: it.k as string,
+            action: it.a as MapOverride["action"],
+            assetId: it.id as string | undefined,
+            transform: it.t as OverrideTransform | undefined,
+            isActive: true,
+            groupId: (it.g as string | undefined) || undefined,
+        }));
+    }
+
+    /**
+     * 套用快照裡的項目。
+     * delete/transform 只對「已載入」的 chunk 有意義（要找到既有節點）；
+     * add/replace 一律套用——chunk root 搵到就掛上去，搵唔到就掛 scene
+     * （客戶端不做 floating origin，chunk root 本身就是世界原點，兩者座標
+     * 系一致，見檔案頂的說明）。
+     */
+    private async applyFromSnapshot(
+        db: Firestore,
+        sceneManager: SceneManager,
+        items: MapOverride[]
+    ): Promise<void> {
+        const loaded = sceneManager.getChunkLoader().getLoadedChunks();
+        let applied = 0;
+        for (const ov of items) {
+            const chunk = loaded.get(ov.chunkId);
+            if ((ov.action === "delete" || ov.action === "transform") && !chunk) continue;
+            const root = chunk ? this.findChunkRoot(chunk) : null;
+            try {
+                await this.applyOne(db, sceneManager, ov.chunkId, root, ov);
+                applied++;
+            } catch (err) {
+                console.error(`[MapOverride] snapshot apply failed`, ov, err);
+            }
+        }
+        console.log(`[MapOverride] snapshot: applied ${applied}/${items.length} override(s)`);
     }
 
     private async fetchOverrides(db: Firestore, chunkId: string): Promise<MapOverride[]> {
