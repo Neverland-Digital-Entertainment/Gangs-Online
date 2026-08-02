@@ -114,28 +114,21 @@ Fallback 都要照樣行 Phase 1–3，只係 Phase 2 嘅實例化策略唔同�
 - [x] 逐 Phase 一個 commit，訊息講清楚做咗乜、點驗證
 - [x] 未實測項目喺 commit message 同本文件標明（見下）
 
-## 未實測項目（需要真實環境）
+## 實測結果（2026-08-02，真實瀏覽器 + 真實 Firestore）
 
-以下項目只做到 typecheck + 生產 build 通過，**未在真實瀏覽器 + 真實
-Firestore 資料下實測**，交接時請留意：
+**全部通過。** 使用者以兩個測試 box（同一資產、擺放於不同位置、編成同一群組）
+在遊戲客戶端與後台編輯器完成端對端驗證：
 
-- Phase 1/2：真正在後台放大量（過百）同款資產實例，量度實際 draw call
-  是否如預期下降（可用瀏覽器 GPU/Spector.js 或 Babylon Inspector 的
-  statistics 面板確認）。
-- Phase 2：客戶端遊戲內，玩家走到「後台擺放的資產」後方時，遮擋淡出是否
-  正確只令該群組變透明，其餘同款實例維持不透明（Phase 0 已用合成場景
-  證明機制本身正確，但未接上真實 `BuildingOcclusionSystem.update()` 射線
-  偵測流程驗證端對端）。
-- Phase 2：編輯器（MapEditor3D）gizmo 拖曳、雙擊聚焦、點擊揀選是否對
-  InstancedMesh 正常運作（metadata 映射邏輯已寫好，未手動操作驗證）。
-- Phase 3：實際發佈快照 + 客戶端讀取快照的端對端流程（需要登入後台
-  帳號、有 `map.edit` 權限、真實地圖資料）；>900KB 分片寫入/讀取路徑
-  未有超大資料集實測，只有程式碼比照現有 `building_assets` 分塊模式
-  審視。
-- Phase 3：`groupId`/刪除/停用等既有功能與快照的交互（快照只在「發佈」
-  時產生一次快照，之後對 `map_overrides` 的編輯需要重新發佈先會反映到
-  客戶端；此行為符合規劃「發佈快照」的設計原意，但未有使用者測試流程
-  驗證體感是否符合預期）。
+- ✅ 資產在遊戲中正確渲染，位置與編輯器一致
+- ✅ 只有玩家實際走到後方的那一組會半透明，其餘同款實例維持不透明
+  —— 群組語意與規劃完全一致
+- ✅ 編輯器 gizmo 拖曳、雙擊聚焦、點擊揀選對 instance 正常運作
+- ✅ 發佈快照 → 客戶端讀取的流程可用（`Published 37 edit(s).`）
+
+仍未實測：
+- 大量（過百）實例下的實際 draw call 下降幅度，未用 Spector.js／Babylon
+  Inspector 量度過數字
+- 快照 >900KB 的分片寫入／讀取路徑（需要超大資料集）
 
 ## 驗證結果
 
@@ -203,10 +196,40 @@ instance（alpha=1）視覺上仍是完全不透明，符合遮擋淡出「只�
 安排問題，不影響結論：只要 master 與 instance 不同座標重疊，
 `scene.pick` 可正確分辨個別 instance（inst10 的結果已證明）。
 
-### 決策
+### 決策（已於實測後推翻，見下節）
 
-Phase 2 使用**規格書主策略**（container + 每 assetId 一個 master +
-createInstance），不需要 fallback（clone-per-group）。
+Phase 2 原本使用規格書主策略（container + 每 assetId 一個 master +
+createInstance + per-instance vertex color alpha）。
+
+### ⚠️ 實測推翻：per-instance vertex color 在真實 glTF 資產上失效
+
+Phase 0 的像素測試通過，但**換上真實 Blender 匯出的 GLB 就完全失效**：
+擺放的大廈在遊戲中渲染成**純黑**，而且**完全不透明**，儘管 debug 面板
+顯示每個 instance 都已寫入淡出 alpha。
+
+成因：per-instance alpha 的配方要在樣板 mesh 上開
+`useVertexColors = true` + `hasVertexAlpha = true`，這會令 shader 加入
+`VERTEXCOLOR` define，基礎顏色會**乘以 vertex color 屬性**。Blender 匯出的
+glTF 幾何根本沒有 vertex color 資料，在真實 PBR 材質上該屬性解析為黑色
+→ 大廈變黑；同時寫入的 alpha 沒有傳到輸出 → 不透明。一個成因同時解釋
+兩個徵狀。
+
+Phase 0 之所以通過，是因為它用手寫 PBRMaterial + `CreateBox`。
+**合成材質通過 ≠ 真實 glTF 材質通過** —— 這是當時驗證設計的盲點。
+
+**最終方案（採用規格書的 fallback）**：樣板改為**每個遮擋群組一份**
+（快取鍵 `assetId::groupId`），淡出改寫 source mesh 的 `material.alpha`
+—— 即底圖大廈自 Phase 15 沿用至今、久經驗證的同一條路徑。因為 instance
+共用 source 的材質，寫一次剛好淡出整組、不影響其他組。
+
+代價：GLB 下載／解析仍是一次、幾何仍然共用，只是材質物件由「每資產
+一份」變成「每群組一份」，draw call 同樣由每群組一個承擔（擺一百棟分十組
+＝ 10 個 draw call，仍遠優於原本每次擺放一個）。
+
+**教訓**：驗證環境要盡量貼近真實資產。合成場景只能證明 API 機制存在，
+不能證明它在專案實際的材質／幾何條件下成立。
+
+
 
 ### ⚠️ 覆核發現：樣板**唔可以** `setEnabled(false)`（已修正）
 
