@@ -56,8 +56,11 @@ export class DebugUISystem {
             if (mesh instanceof BABYLON.InstancedMesh) {
                 total++;
                 if (mesh.isEnabled() && mesh.isVisible) rendered++;
-                const color = mesh.instancedBuffers?.color as BABYLON.Color4 | undefined;
-                if (color && color.a < 0.99) faded++;
+                const srcMat = mesh.sourceMesh.material as
+                    | BABYLON.PBRMaterial
+                    | BABYLON.StandardMaterial
+                    | null;
+                if (srcMat && srcMat.alpha < 0.99) faded++;
                 continue;
             }
             if (

@@ -389,14 +389,23 @@ export class MapOverrideSystem {
      * per-instance alpha 配方要求：material 一定要係共用嗰份先至用到
      * `instancedBuffers.color`。
      */
-    private getOrCreateTemplate(assetId: string, asset: CachedAsset): Promise<TemplateEntry | null> {
-        const cached = this.templateCache.get(assetId);
+    private getOrCreateTemplate(
+        assetId: string,
+        groupId: string,
+        asset: CachedAsset
+    ): Promise<TemplateEntry | null> {
+        // 每個遮擋群組一份樣板（因此一份材質）。遮擋淡出改的是 material.alpha，
+        // 而 instance 共用樣板的材質，所以「同一份材質 = 同一個淡出單位」——
+        // 這正好就是群組的語意。GLB 位元組與貼圖仍然只下載/解析一次
+        // （assetCache 層），重複的只有材質物件本身。
+        const cacheKey = `${assetId}::${groupId}`;
+        const cached = this.templateCache.get(cacheKey);
         if (cached) return cached;
-        const pending = this.buildTemplate(assetId, asset).catch((err) => {
-            this.templateCache.delete(assetId);
+        const pending = this.buildTemplate(cacheKey, asset).catch((err) => {
+            this.templateCache.delete(cacheKey);
             throw err;
         });
-        this.templateCache.set(assetId, pending);
+        this.templateCache.set(cacheKey, pending);
         return pending;
     }
 
@@ -428,23 +437,16 @@ export class MapOverrideSystem {
                         cloned instanceof BABYLON.PBRMaterial ||
                         cloned instanceof BABYLON.StandardMaterial
                     ) {
-                        // Phase 0 驗證配方：per-instance alpha 需要材質開
-                        // alpha blend，唔可以再靠逐 mesh clone 出獨立材質
-                        // 去改 alpha（instance 共用同一份材質，改極都係
-                        // 全部一齊變）。`useVertexColors`/`hasVertexAlpha`
-                        // 係 mesh 而非 material 的屬性，喺下面設定。
-                        cloned.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-                        cloned.forceDepthWrite = true;
+                        // 與底圖大廈一致：平時完全不透明，遮擋時才由
+                        // BuildingOcclusionSystem 切換 alpha 與 transparencyMode。
+                        cloned.alpha = 1.0;
+                        cloned.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
                     }
                     // 貼地平面與路面共面，需要 polygon offset 才不會閃爍
                     if (isDecal) cloned.zOffset = DECAL_Z_OFFSET;
                 }
             }
 
-            node.hasVertexAlpha = true;
-            node.useVertexColors = true;
-            node.registerInstancedBuffer(BABYLON.VertexBuffer.ColorKind, 4);
-            node.instancedBuffers.color = new BABYLON.Color4(1, 1, 1, 1);
             node.isVisible = false;
             node.isPickable = false;
             meshes.push(node);
@@ -475,7 +477,7 @@ export class MapOverrideSystem {
         if (!asset) return;
 
         const kind = asset.kind;
-        const template = await this.getOrCreateTemplate(assetId, asset);
+        const template = await this.getOrCreateTemplate(assetId, groupId, asset);
         if (!template) return;
 
         const container = new BABYLON.TransformNode(`override_${key}`, this.scene);
@@ -492,7 +494,6 @@ export class MapOverrideSystem {
             instance.parent = container;
             instance.isPickable = !isDecal;
             instance.checkCollisions = false;
-            instance.instancedBuffers.color = new BABYLON.Color4(1, 1, 1, 1);
             instance.metadata = { ...instance.metadata, type: kind, chunkId, overrideKey: key };
 
             // 只有建築參與遮擋淡出：props 與貼地平面不應該因為玩家走到

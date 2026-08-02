@@ -239,23 +239,24 @@ export class BuildingOcclusionSystem {
      * material.alpha 路徑（行為完全不變）。
      */
     private setMeshAlpha(mesh: BABYLON.AbstractMesh, alpha: number): void {
-        if (mesh instanceof BABYLON.InstancedMesh && mesh.instancedBuffers?.color) {
-            const c = mesh.instancedBuffers.color as BABYLON.Color4;
-            mesh.instancedBuffers.color = new BABYLON.Color4(c.r, c.g, c.b, alpha);
-            return;
-        }
+        // 擺放的資產是 InstancedMesh，本身冇材質，材質在 source mesh 上。
+        // MapOverrideSystem 為「每個遮擋群組」建立獨立樣板（因此獨立材質），
+        // 所以改 source 的 material.alpha 只會影響同一群組的實例。
+        const target: BABYLON.AbstractMesh =
+            mesh instanceof BABYLON.InstancedMesh ? mesh.sourceMesh : mesh;
 
-        if (!mesh.material) return;
+        if (!target.material) return;
+        const mesh_ = target;
 
         // 設定透明度
-        if (mesh.material instanceof BABYLON.PBRMaterial) {
-            mesh.material.alpha = alpha;
-            mesh.material.transparencyMode = alpha < 1.0
+        if (mesh_.material instanceof BABYLON.PBRMaterial) {
+            mesh_.material.alpha = alpha;
+            mesh_.material.transparencyMode = alpha < 1.0
                 ? BABYLON.Material.MATERIAL_ALPHABLEND
                 : BABYLON.Material.MATERIAL_OPAQUE;
-        } else if (mesh.material instanceof BABYLON.StandardMaterial) {
-            mesh.material.alpha = alpha;
-            mesh.material.transparencyMode = alpha < 1.0
+        } else if (mesh_.material instanceof BABYLON.StandardMaterial) {
+            mesh_.material.alpha = alpha;
+            mesh_.material.transparencyMode = alpha < 1.0
                 ? BABYLON.Material.MATERIAL_ALPHABLEND
                 : BABYLON.Material.MATERIAL_OPAQUE;
         }
