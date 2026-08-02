@@ -604,7 +604,7 @@ export default {
   'map.inspector.type': '類型',
   'map.inspector.chunk': '所屬區塊',
   'map.inspector.key': '識別碼',
-  'map.inspector.position': '位置（世界座標）',
+  'map.inspector.position': '位置（區塊內座標）',
   'map.inspector.rotation': '旋轉（弧度）',
   'map.inspector.rotationDeg': '旋轉（度）',
   'map.inspector.scale': '縮放',

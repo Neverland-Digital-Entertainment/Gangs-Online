@@ -562,6 +562,18 @@ export default function MapEditor3D({
     const scene = sceneRef.current;
     if (!scene) return;
 
+    // 底圖 chunk 未載完就唔可以擺放資產。
+    //
+    // override 由 Firestore 載入、底圖 GLB 由 HTTP 載入，兩者各自非同步，
+    // 邊個快邊個先到。若 override 先到，container 會因為搵唔到 chunk root
+    // 而冇 parent —— 儲存的「chunk 內座標」就會被當成世界座標，物件飛到
+    // 地圖以外（雙擊聚焦時鏡頭去到一片虛空，但 Inspector 的數值睇落正常）。
+    // 而且之後 chunk 載完亦唔會補回 parent，因為調和邏輯見到 assetId 冇變
+    // 就只會更新 transform。
+    //
+    // 直接跳過即可：底圖載入完成後會再呼叫一次 reconcileInstances()。
+    if (!chunkRootRef.current) return;
+
     const desired = new Map<string, MapOverride>();
     for (const o of overridesRef.current) {
       if (o.isActive && (o.action === 'replace' || o.action === 'add') && o.assetId) {

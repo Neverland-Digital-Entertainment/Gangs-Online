@@ -603,7 +603,7 @@ export default {
   'map.inspector.type': 'Type',
   'map.inspector.chunk': 'Chunk',
   'map.inspector.key': 'Key',
-  'map.inspector.position': 'Position (world)',
+  'map.inspector.position': 'Position (chunk-local)',
   'map.inspector.rotation': 'Rotation (radians)',
   'map.inspector.rotationDeg': 'Rotation (deg)',
   'map.inspector.scale': 'Scale',
