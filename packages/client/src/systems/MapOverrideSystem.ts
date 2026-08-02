@@ -71,6 +71,20 @@ interface CachedAsset {
     kind: AssetKind;
 }
 
+/**
+ * Phase 2：同一個 assetId 的「隱藏樣板」——真正的幾何 master，永遠
+ * `setEnabled(false)`，本身不算任何一次擺放。所有擺放（包括第一次）都
+ * 用 `createInstance()` 產生 InstancedMesh，故刪除任何一次擺放都只是
+ * dispose 該 instance，不會影響其他擺放，亦唔需要「升格」邏輯。
+ */
+interface TemplateEntry {
+    /** 樣板根節點（隱藏），dispose 時連同 meshes 一併清走 */
+    root: BABYLON.TransformNode;
+    /** 可 createInstance() 的 master mesh（每個 primitive 一個） */
+    meshes: BABYLON.Mesh[];
+    kind: AssetKind;
+}
+
 const OVERRIDES_COLLECTION = "map_overrides";
 const ASSETS_COLLECTION = "building_assets";
 const CHUNKS_SUB = "chunks";
@@ -91,6 +105,9 @@ export class MapOverrideSystem {
      */
     private assetCache = new Map<string, Promise<CachedAsset | null>>();
 
+    /** assetId → 隱藏樣板（Phase 2）。同一份資產在地圖上擺 N 次只建立一份幾何。 */
+    private templateCache = new Map<string, Promise<TemplateEntry | null>>();
+
     constructor(scene: BABYLON.Scene) {
         this.scene = scene;
     }
@@ -105,6 +122,14 @@ export class MapOverrideSystem {
                 });
         }
         this.assetCache.clear();
+
+        for (const pending of this.templateCache.values()) {
+            // dispose 樣板 root 會連 master meshes 一齊清走；
+            // 但要留意：master 一旦有 instance 存活，dispose master 會令 instance 一齊消失。
+            // 此處只在切換地圖（整個 scene 內容都會被清）時呼叫，時機安全。
+            pending.then((tpl) => tpl?.root.dispose()).catch(() => {});
+        }
+        this.templateCache.clear();
     }
 
     private getDb(): Firestore | null {
@@ -265,6 +290,83 @@ export class MapOverrideSystem {
         node.scaling.set(t.scale.x, t.scale.y, t.scale.z);
     }
 
+    /**
+     * 取得（並在需要時建立）某 assetId 的隱藏樣板。
+     *
+     * 樣板本身 `setEnabled(false)`，永遠不算任何一次擺放；每次擺放都對
+     * 樣板 master mesh 呼叫 `createInstance()`。材質（含 alpha blend 設定）
+     * 只喺呢度 clone 一次，之後所有 instance 共用——即係 Phase 0 驗證嘅
+     * per-instance alpha 配方要求：material 一定要係共用嗰份先至用到
+     * `instancedBuffers.color`。
+     */
+    private getOrCreateTemplate(assetId: string, asset: CachedAsset): Promise<TemplateEntry | null> {
+        const cached = this.templateCache.get(assetId);
+        if (cached) return cached;
+        const pending = this.buildTemplate(assetId, asset).catch((err) => {
+            this.templateCache.delete(assetId);
+            throw err;
+        });
+        this.templateCache.set(assetId, pending);
+        return pending;
+    }
+
+    private async buildTemplate(assetId: string, asset: CachedAsset): Promise<TemplateEntry> {
+        const instantiated = asset.container.instantiateModelsToScene(
+            (sourceName) => sourceName,
+            false
+        );
+
+        const root = new BABYLON.TransformNode(`template_${assetId}`, this.scene);
+
+        const assetRoot: BABYLON.Node | undefined = instantiated.rootNodes.find(
+            (n) => n.name === "__root__"
+        );
+        const topNodes = assetRoot ? [...assetRoot.getChildren()] : instantiated.rootNodes;
+        for (const n of topNodes) n.parent = root;
+        if (assetRoot) assetRoot.dispose();
+
+        const isDecal = asset.kind === "decal";
+        const meshes: BABYLON.Mesh[] = [];
+        for (const node of root.getChildMeshes(false)) {
+            if (node.name === "__root__" || !(node instanceof BABYLON.Mesh)) continue;
+
+            if (node.material) {
+                const cloned = node.material.clone(`${node.name}_tmpl_mat`);
+                if (cloned) {
+                    node.material = cloned;
+                    if (
+                        cloned instanceof BABYLON.PBRMaterial ||
+                        cloned instanceof BABYLON.StandardMaterial
+                    ) {
+                        // Phase 0 驗證配方：per-instance alpha 需要材質開
+                        // alpha blend，唔可以再靠逐 mesh clone 出獨立材質
+                        // 去改 alpha（instance 共用同一份材質，改極都係
+                        // 全部一齊變）。`useVertexColors`/`hasVertexAlpha`
+                        // 係 mesh 而非 material 的屬性，喺下面設定。
+                        cloned.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+                        cloned.forceDepthWrite = true;
+                    }
+                    // 貼地平面與路面共面，需要 polygon offset 才不會閃爍
+                    if (isDecal) cloned.zOffset = DECAL_Z_OFFSET;
+                }
+            }
+
+            node.hasVertexAlpha = true;
+            node.useVertexColors = true;
+            node.registerInstancedBuffer(BABYLON.VertexBuffer.ColorKind, 4);
+            node.instancedBuffers.color = new BABYLON.Color4(1, 1, 1, 1);
+            node.isVisible = false;
+            node.isPickable = false;
+            meshes.push(node);
+        }
+
+        // 令樣板完全唔參與渲染/揀選/遮擋 raycast；master mesh 本身唔算任何擺放，
+        // 只係用嚟 createInstance()。
+        root.setEnabled(false);
+
+        return { root, meshes, kind: asset.kind };
+    }
+
     /** 載入資產 GLB 並掛到 chunk root 下，套用 transform + 建築屬性 */
     private async spawnAsset(
         db: Firestore,
@@ -280,61 +382,32 @@ export class MapOverrideSystem {
         if (!asset) return;
 
         const kind = asset.kind;
-
-        // Phase 1：GLB 已在 loadAsset 階段解析成 AssetContainer 並快取，
-        // 這裡只做「實例化」（instantiateModelsToScene 深度複製節點/mesh，
-        // 不再重新解析 GLB／重新解碼貼圖）。
-        const instantiated = asset.container.instantiateModelsToScene(
-            (sourceName) => sourceName,
-            false
-        );
+        const template = await this.getOrCreateTemplate(assetId, asset);
+        if (!template) return;
 
         const container = new BABYLON.TransformNode(`override_${key}`, this.scene);
         container.rotationQuaternion = BABYLON.Quaternion.Identity();
         if (root) container.parent = root;
 
-        // 把資產 __root__ 的直接子節點整棵子樹掛到 container，再 dispose 空 __root__
-        const assetRoot: BABYLON.Node | undefined = instantiated.rootNodes.find(
-            (n) => n.name === "__root__"
-        );
-        const topNodes = assetRoot ? [...assetRoot.getChildren()] : instantiated.rootNodes;
-        for (const n of topNodes) n.parent = container;
-        if (assetRoot) assetRoot.dispose();
-
-        this.applyTransform(container, transform);
-
-        // 設定建築 mesh 屬性（比照 ChunkLoaderSystem.setupBuildingMesh）並註冊遮擋。
-        // 注意：視覺 mesh 不直接當碰撞體（詳細三角面會讓玩家卡住），改用乾淨方塊。
+        // 對樣板每個 master mesh 建立一個 instance，掛到本次擺放的 container 下。
+        // instance 沿用 master 的 local transform（相對於各自 parent 的偏移），
+        // 改掛去新 container 後仍然對齊，因為兩者的相對偏移語意完全一致。
         const occlusion = sceneManager.getOcclusionSystem();
         const isDecal = kind === "decal";
-        const allMeshes = container.getChildMeshes(false);
-        for (const mesh of allMeshes) {
-            if (mesh.name === "__root__") continue;
-            // 貼地平面不可選取，否則會擋住點擊地面的移動操作
-            mesh.isPickable = !isDecal;
-            mesh.checkCollisions = false;
-            mesh.metadata = { ...mesh.metadata, type: kind, chunkId, overrideKey: key };
-
-            if (mesh.material) {
-                const cloned = mesh.material.clone(`${mesh.name}_mat`);
-                if (cloned) {
-                    mesh.material = cloned;
-                    if (
-                        cloned instanceof BABYLON.PBRMaterial ||
-                        cloned instanceof BABYLON.StandardMaterial
-                    ) {
-                        cloned.alpha = 1.0;
-                        cloned.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
-                    }
-                    // 貼地平面與路面共面，需要 polygon offset 才不會閃爍
-                    if (isDecal) cloned.zOffset = DECAL_Z_OFFSET;
-                }
-            }
+        for (const masterMesh of template.meshes) {
+            const instance = masterMesh.createInstance(`${masterMesh.name}_${key}`);
+            instance.parent = container;
+            instance.isPickable = !isDecal;
+            instance.checkCollisions = false;
+            instance.instancedBuffers.color = new BABYLON.Color4(1, 1, 1, 1);
+            instance.metadata = { ...instance.metadata, type: kind, chunkId, overrideKey: key };
 
             // 只有建築參與遮擋淡出：props 與貼地平面不應該因為玩家走到
             // 它們「後面」而變透明
-            if (kind === "building") occlusion.addBuildingMesh(mesh, groupId);
+            if (kind === "building") occlusion.addBuildingMesh(instance, groupId);
         }
+
+        this.applyTransform(container, transform);
 
         // 建立貼合外框的隱形方塊碰撞體（隨 container 旋轉/縮放，移動更順）。
         // 貼地平面是走得過的路面裝飾，不加碰撞。

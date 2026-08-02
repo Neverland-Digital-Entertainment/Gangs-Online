@@ -230,8 +230,21 @@ export class BuildingOcclusionSystem {
 
     /**
      * 設定單個 mesh 的透明度
+     *
+     * Phase 2（量產大廈 instancing）：MapOverrideSystem 擺放的資產同款會
+     * 共用同一份材質（InstancedMesh），若像底圖大廈咁樣直接改
+     * `material.alpha`，會令全地圖同款資產一齊變透明。故先判斷是否
+     * instance（有已註冊的 `instancedBuffers.color`），是就改寫該
+     * instance 專屬的 vertex color alpha；否則行返底圖大廈原有的
+     * material.alpha 路徑（行為完全不變）。
      */
     private setMeshAlpha(mesh: BABYLON.AbstractMesh, alpha: number): void {
+        if (mesh instanceof BABYLON.InstancedMesh && mesh.instancedBuffers?.color) {
+            const c = mesh.instancedBuffers.color as BABYLON.Color4;
+            mesh.instancedBuffers.color = new BABYLON.Color4(c.r, c.g, c.b, alpha);
+            return;
+        }
+
         if (!mesh.material) return;
 
         // 設定透明度
