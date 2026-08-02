@@ -131,6 +131,13 @@ export default function MapEditor3D({
   const nodeByKeyRef = useRef<Map<string, BABYLON.TransformNode>>(new Map());
   const originalByKeyRef = useRef<Map<string, Transform>>(new Map());
   const instanceByKeyRef = useRef<Map<string, InstanceRec>>(new Map());
+  /**
+   * assetId → 已解析的 AssetContainer（Phase 1）。
+   * 場景在整個元件生命週期只建立一次（見下面「建立引擎與場景」的
+   * useEffect([])），故快取可以安全跟住場景存活；卸載時一併 dispose。
+   * 同款資產在地圖上擺 N 次只會解析一次 GLB（含貼圖解碼）。
+   */
+  const containerCacheRef = useRef<Map<string, Promise<BABYLON.AssetContainer>>>(new Map());
   const objectsRef = useRef<Map<string, MapObjectInfo>>(new Map());
   const loadingKeysRef = useRef<Set<string>>(new Set());
   const highlightedRef = useRef<BABYLON.Mesh[]>([]);
@@ -285,8 +292,38 @@ export default function MapEditor3D({
       originalByKeyRef.current.clear();
       instanceByKeyRef.current.clear();
       objectsRef.current.clear();
+      for (const pending of containerCacheRef.current.values()) {
+        pending.then((c) => c.dispose()).catch(() => {});
+      }
+      containerCacheRef.current.clear();
     };
   }, []);
+
+  /** 取得（並快取）指定資產的 AssetContainer；同一 assetId 只解析一次 GLB */
+  function getOrLoadContainer(assetId: string): Promise<BABYLON.AssetContainer> {
+    const cache = containerCacheRef.current;
+    const cached = cache.get(assetId);
+    if (cached) return cached;
+    const pending = (async () => {
+      const url = await buildingAssetService.loadGlbObjectUrl(assetId);
+      try {
+        return await BABYLON.SceneLoader.LoadAssetContainerAsync(
+          '',
+          url,
+          sceneRef.current!,
+          undefined,
+          '.glb'
+        );
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    })().catch((err) => {
+      cache.delete(assetId);
+      throw err;
+    });
+    cache.set(assetId, pending);
+    return pending;
+  }
 
   // ---- 載入 / 切換 chunk ----
   useEffect(() => {
@@ -522,12 +559,16 @@ export default function MapEditor3D({
       loadingKeysRef.current.add(key);
       emitInstanceStatus();
 
-      let url: string | null = null;
       try {
-        url = await buildingAssetService.loadGlbObjectUrl(assetId);
+        // Phase 1：GLB 只解析一次（見 getOrLoadContainer），這裡用
+        // instantiateModelsToScene 深度複製節點/mesh，不再重新下載/解碼。
+        const assetContainer = await getOrLoadContainer(assetId);
         if (!sceneRef.current) break;
-        const result = await BABYLON.SceneLoader.ImportMeshAsync('', '', url, scene, undefined, '.glb');
+        const instantiated = assetContainer.instantiateModelsToScene((n) => n, false);
         if (!sceneRef.current) break;
+        const instMeshes = instantiated.rootNodes.flatMap((n) =>
+          n instanceof BABYLON.AbstractMesh ? [n, ...n.getChildMeshes(false)] : n.getChildMeshes(false)
+        );
 
         const container = new BABYLON.TransformNode(`inst_${key}`, scene);
         container.rotationQuaternion = BABYLON.Quaternion.Identity();
@@ -545,7 +586,7 @@ export default function MapEditor3D({
         };
 
         // 設定 metadata / 可點選
-        for (const m of result.meshes) {
+        for (const m of instMeshes) {
           m.metadata = { ...(m.metadata as object), imported: true, instanceKey: key };
           if (m.name === '__root__') continue;
           m.isPickable = true;
@@ -554,12 +595,10 @@ export default function MapEditor3D({
 
         // 把資產 __root__ 的「直接子節點」整棵子樹搬到 container，再 dispose 空的 __root__
         // （注意：必須搬子節點，不能只搬個別 mesh，否則 dispose __root__ 會連幾何一起刪掉）
-        const assetRoot: BABYLON.Node | undefined =
-          (result.meshes.find((m) => m.name === '__root__') as BABYLON.Node | undefined) ??
-          (result.transformNodes?.find((n) => n.name === '__root__') as BABYLON.Node | undefined);
-        const topNodes = assetRoot
-          ? [...assetRoot.getChildren()]
-          : result.meshes.filter((m) => !m.parent && m.name !== '__root__');
+        const assetRoot: BABYLON.Node | undefined = instantiated.rootNodes.find(
+          (n) => n.name === '__root__'
+        );
+        const topNodes = assetRoot ? [...assetRoot.getChildren()] : instantiated.rootNodes;
         for (const n of topNodes) n.parent = container;
         if (assetRoot) assetRoot.dispose();
 
@@ -612,7 +651,7 @@ export default function MapEditor3D({
 
         instanceByKeyRef.current.set(key, {
           container,
-          meshes: result.meshes.filter((m) => m.name !== '__root__'),
+          meshes: instMeshes.filter((m) => m.name !== '__root__'),
           assetId,
         });
         objectsRef.current.set(key, finalInfo);
@@ -627,7 +666,6 @@ export default function MapEditor3D({
           err instanceof Error ? err.message : String(err)
         );
       } finally {
-        if (url) URL.revokeObjectURL(url);
         loadingKeysRef.current.delete(key);
         emitInstanceStatus();
       }

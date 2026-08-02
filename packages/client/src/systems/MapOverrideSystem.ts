@@ -65,10 +65,9 @@ interface MapOverride {
  */
 type AssetKind = "building" | "prop" | "decal";
 
-/** 已從 Firestore 取回並快取的資產位元組 */
+/** 已從 Firestore 取回並解析好的資產（Phase 1：快取 AssetContainer，唔再重複解析 GLB） */
 interface CachedAsset {
-    bytes: Uint8Array;
-    mimeType: string;
+    container: BABYLON.AssetContainer;
     kind: AssetKind;
 }
 
@@ -98,6 +97,13 @@ export class MapOverrideSystem {
 
     /** 釋放資產快取（切換地圖時呼叫，避免長期佔住記憶體） */
     clearAssetCache(): void {
+        for (const pending of this.assetCache.values()) {
+            pending
+                .then((asset) => asset?.container.dispose())
+                .catch(() => {
+                    /* 下載失敗的項目已無 container 需要 dispose */
+                });
+        }
         this.assetCache.clear();
     }
 
@@ -273,77 +279,66 @@ export class MapOverrideSystem {
         const asset = await this.loadAsset(db, assetId);
         if (!asset) return;
 
-        // 由快取的位元組即時做一個 object URL 給 Babylon 解析；
-        // 網絡讀取只在第一次發生，之後純本地。
-        const url = URL.createObjectURL(
-            new Blob([asset.bytes as unknown as BlobPart], { type: asset.mimeType })
-        );
         const kind = asset.kind;
 
-        try {
-            const result = await BABYLON.SceneLoader.ImportMeshAsync(
-                "",
-                "",
-                url,
-                this.scene,
-                undefined,
-                ".glb"
-            );
+        // Phase 1：GLB 已在 loadAsset 階段解析成 AssetContainer 並快取，
+        // 這裡只做「實例化」（instantiateModelsToScene 深度複製節點/mesh，
+        // 不再重新解析 GLB／重新解碼貼圖）。
+        const instantiated = asset.container.instantiateModelsToScene(
+            (sourceName) => sourceName,
+            false
+        );
 
-            const container = new BABYLON.TransformNode(`override_${key}`, this.scene);
-            container.rotationQuaternion = BABYLON.Quaternion.Identity();
-            if (root) container.parent = root;
+        const container = new BABYLON.TransformNode(`override_${key}`, this.scene);
+        container.rotationQuaternion = BABYLON.Quaternion.Identity();
+        if (root) container.parent = root;
 
-            // 把資產 __root__ 的直接子節點整棵子樹掛到 container，再 dispose 空 __root__
-            const assetRoot: BABYLON.Node | undefined =
-                (result.meshes.find((m) => m.name === "__root__") as BABYLON.Node | undefined) ??
-                (result.transformNodes?.find((n) => n.name === "__root__") as BABYLON.Node | undefined);
-            const topNodes = assetRoot
-                ? [...assetRoot.getChildren()]
-                : result.meshes.filter((m) => !m.parent && m.name !== "__root__");
-            for (const n of topNodes) n.parent = container;
-            if (assetRoot) assetRoot.dispose();
+        // 把資產 __root__ 的直接子節點整棵子樹掛到 container，再 dispose 空 __root__
+        const assetRoot: BABYLON.Node | undefined = instantiated.rootNodes.find(
+            (n) => n.name === "__root__"
+        );
+        const topNodes = assetRoot ? [...assetRoot.getChildren()] : instantiated.rootNodes;
+        for (const n of topNodes) n.parent = container;
+        if (assetRoot) assetRoot.dispose();
 
-            this.applyTransform(container, transform);
+        this.applyTransform(container, transform);
 
-            // 設定建築 mesh 屬性（比照 ChunkLoaderSystem.setupBuildingMesh）並註冊遮擋。
-            // 注意：視覺 mesh 不直接當碰撞體（詳細三角面會讓玩家卡住），改用乾淨方塊。
-            const occlusion = sceneManager.getOcclusionSystem();
-            const isDecal = kind === "decal";
-            for (const mesh of result.meshes) {
-                if (mesh.name === "__root__") continue;
-                // 貼地平面不可選取，否則會擋住點擊地面的移動操作
-                mesh.isPickable = !isDecal;
-                mesh.checkCollisions = false;
-                mesh.metadata = { ...mesh.metadata, type: kind, chunkId, overrideKey: key };
+        // 設定建築 mesh 屬性（比照 ChunkLoaderSystem.setupBuildingMesh）並註冊遮擋。
+        // 注意：視覺 mesh 不直接當碰撞體（詳細三角面會讓玩家卡住），改用乾淨方塊。
+        const occlusion = sceneManager.getOcclusionSystem();
+        const isDecal = kind === "decal";
+        const allMeshes = container.getChildMeshes(false);
+        for (const mesh of allMeshes) {
+            if (mesh.name === "__root__") continue;
+            // 貼地平面不可選取，否則會擋住點擊地面的移動操作
+            mesh.isPickable = !isDecal;
+            mesh.checkCollisions = false;
+            mesh.metadata = { ...mesh.metadata, type: kind, chunkId, overrideKey: key };
 
-                if (mesh.material) {
-                    const cloned = mesh.material.clone(`${mesh.name}_mat`);
-                    if (cloned) {
-                        mesh.material = cloned;
-                        if (
-                            cloned instanceof BABYLON.PBRMaterial ||
-                            cloned instanceof BABYLON.StandardMaterial
-                        ) {
-                            cloned.alpha = 1.0;
-                            cloned.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
-                        }
-                        // 貼地平面與路面共面，需要 polygon offset 才不會閃爍
-                        if (isDecal) cloned.zOffset = DECAL_Z_OFFSET;
+            if (mesh.material) {
+                const cloned = mesh.material.clone(`${mesh.name}_mat`);
+                if (cloned) {
+                    mesh.material = cloned;
+                    if (
+                        cloned instanceof BABYLON.PBRMaterial ||
+                        cloned instanceof BABYLON.StandardMaterial
+                    ) {
+                        cloned.alpha = 1.0;
+                        cloned.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
                     }
+                    // 貼地平面與路面共面，需要 polygon offset 才不會閃爍
+                    if (isDecal) cloned.zOffset = DECAL_Z_OFFSET;
                 }
-
-                // 只有建築參與遮擋淡出：props 與貼地平面不應該因為玩家走到
-                // 它們「後面」而變透明
-                if (kind === "building") occlusion.addBuildingMesh(mesh, groupId);
             }
 
-            // 建立貼合外框的隱形方塊碰撞體（隨 container 旋轉/縮放，移動更順）。
-            // 貼地平面是走得過的路面裝飾，不加碰撞。
-            if (!isDecal) this.addBoxCollider(container, key, chunkId);
-        } finally {
-            URL.revokeObjectURL(url);
+            // 只有建築參與遮擋淡出：props 與貼地平面不應該因為玩家走到
+            // 它們「後面」而變透明
+            if (kind === "building") occlusion.addBuildingMesh(mesh, groupId);
         }
+
+        // 建立貼合外框的隱形方塊碰撞體（隨 container 旋轉/縮放，移動更順）。
+        // 貼地平面是走得過的路面裝飾，不加碰撞。
+        if (!isDecal) this.addBoxCollider(container, key, chunkId);
     }
 
     /** 依 container 的世界包圍盒建立貼合外框的方塊碰撞體（移動更順） */
@@ -428,6 +423,22 @@ export class MapOverrideSystem {
         const binary = atob(base64);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        return { bytes, mimeType, kind };
+
+        // 只喺呢度解析一次 GLB → AssetContainer。之後每次擺放用
+        // instantiateModelsToScene（Phase 1）或 createInstance（Phase 2）
+        // 深度複製，唔再重新下載/重新解碼貼圖。
+        const url = URL.createObjectURL(new Blob([bytes as unknown as BlobPart], { type: mimeType }));
+        try {
+            const container = await BABYLON.SceneLoader.LoadAssetContainerAsync(
+                "",
+                url,
+                this.scene,
+                undefined,
+                ".glb"
+            );
+            return { container, kind };
+        } finally {
+            URL.revokeObjectURL(url);
+        }
     }
 }
