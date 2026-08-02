@@ -443,7 +443,9 @@ export default function MapEditorPage() {
    * （實例本身就係 override，刪除 override 等於整件物件消失）。
    */
   async function handleToggleVisible(key: string) {
-    const obj = objects.find((o) => o.key === key);
+    // 要喺 outlinerObjects 搵：已停用的實例唔喺 objects 入面（已被 dispose），
+    // 只以「幽靈列」形式存在，之前喺呢度就 return 咗，所以撳極都開唔返。
+    const obj = outlinerObjects.find((o) => o.key === key);
     if (!obj) return;
     const ov = overrideByKey[key];
     try {
@@ -719,7 +721,7 @@ export default function MapEditorPage() {
               {t('map.editor.addBuilding')}
             </button>
             <button
-              className="btn btn-outline"
+              className="btn btn-success"
               onClick={handlePublish}
               disabled={publishing || !canEdit}
               hidden={!canEdit}

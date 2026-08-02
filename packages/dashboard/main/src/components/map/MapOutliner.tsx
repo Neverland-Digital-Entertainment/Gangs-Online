@@ -295,6 +295,10 @@ export default function MapOutliner({
         const hidden = ov?.action === 'delete' && ov.isActive;
         const disabled = !!ov && !ov.isActive;
         const isInstance = ov?.action === 'add' || ov?.action === 'replace';
+        // 兩種「唔顯示」：底圖物件被 delete override 隱藏，或資產實例被停用。
+        // 兩者都要保持刪除線同閉眼，就算該行正被選取亦然 —— 否則選中之後
+        // 睇落好似已經 unhide。
+        const notVisible = hidden || disabled;
         const displayName =
           isInstance && ov?.assetId
             ? assetsById[ov.assetId]?.name ?? obj.meshName
@@ -326,11 +330,11 @@ export default function MapOutliner({
                 }`}
               />
               <span
-                className={`truncate ${
+                className={`truncate ${notVisible ? 'line-through' : ''} ${
                   isActive
                     ? 'text-white font-medium'
-                    : hidden || disabled
-                    ? 'text-[var(--muted-foreground)] line-through'
+                    : notVisible
+                    ? 'text-[var(--muted-foreground)]'
                     : 'text-[var(--foreground)]'
                 }`}
               >
@@ -345,12 +349,12 @@ export default function MapOutliner({
               type="button"
               onClick={() => onToggleVisible(obj.key)}
               disabled={!canEdit}
-              title={t(hidden ? 'map.editor.restore' : 'map.editor.remove')}
+              title={t(notVisible ? 'map.editor.restore' : 'map.editor.remove')}
               className={`p-1 flex-shrink-0 rounded hover:bg-black/20 disabled:opacity-40 ${
-                hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                notVisible ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
               }`}
             >
-              {hidden ? (
+              {notVisible ? (
                 <EyeOff className="w-3.5 h-3.5 text-[var(--muted-foreground)]" />
               ) : (
                 <Eye className="w-3.5 h-3.5 text-[var(--muted-foreground)]" />
