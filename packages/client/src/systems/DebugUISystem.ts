@@ -18,6 +18,7 @@ export class DebugUISystem {
     private charTrianglesElement: HTMLElement | null = null;
     private drawCallsElement: HTMLElement | null = null;
     private assetElement: HTMLElement | null = null;
+    private baseBuildingElement: HTMLElement | null = null;
     private posXElement: HTMLElement | null = null;
     private posZElement: HTMLElement | null = null;
     private isVisible: boolean = true;
@@ -46,12 +47,36 @@ export class DebugUISystem {
         let total = 0;
         let rendered = 0;
         let faded = 0;
+        // 底圖大廈走的是另一條淡出路徑（改 material.alpha），分開統計才分得出
+        // 「畫面擋住視線的那棟」到底是後台擺放的資產，還是底圖內建的大廈
+        let baseTotal = 0;
+        let baseFaded = 0;
+
         for (const mesh of this.scene.meshes) {
-            if (!(mesh instanceof BABYLON.InstancedMesh)) continue;
-            total++;
-            if (mesh.isEnabled() && mesh.isVisible) rendered++;
-            const color = mesh.instancedBuffers?.color as BABYLON.Color4 | undefined;
-            if (color && color.a < 0.99) faded++;
+            if (mesh instanceof BABYLON.InstancedMesh) {
+                total++;
+                if (mesh.isEnabled() && mesh.isVisible) rendered++;
+                const color = mesh.instancedBuffers?.color as BABYLON.Color4 | undefined;
+                if (color && color.a < 0.99) faded++;
+                continue;
+            }
+            if (
+                mesh instanceof BABYLON.Mesh &&
+                (mesh.metadata as { type?: string } | undefined)?.type === "building"
+            ) {
+                baseTotal++;
+                const mat = mesh.material as
+                    | BABYLON.PBRMaterial
+                    | BABYLON.StandardMaterial
+                    | null;
+                if (mat && mat.alpha < 0.99) baseFaded++;
+            }
+        }
+
+        if (this.baseBuildingElement) {
+            this.baseBuildingElement.style.color = baseFaded > 0 ? "#66ff99" : "#aaaaaa";
+            this.baseBuildingElement.textContent =
+                `底圖大廈: ${baseFaded}/${baseTotal} 淡出`;
         }
 
         if (total === 0) {
@@ -247,6 +272,10 @@ export class DebugUISystem {
         this.assetElement.style.color = "#ffcc66";
         this.assetElement.textContent = "Assets: --";
 
+        this.baseBuildingElement = document.createElement("div");
+        this.baseBuildingElement.style.color = "#aaaaaa";
+        this.baseBuildingElement.textContent = "底圖大廈: --";
+
         // 組裝 UI
         this.container.appendChild(this.fpsElement);
         this.container.appendChild(this.mapTrianglesElement);
@@ -255,6 +284,7 @@ export class DebugUISystem {
         this.container.appendChild(this.posXElement);
         this.container.appendChild(this.posZElement);
         this.container.appendChild(this.assetElement);
+        this.container.appendChild(this.baseBuildingElement);
 
         document.body.appendChild(this.container);
 
