@@ -18,13 +18,45 @@ import {
   buildingAssetService,
   MAX_ASSET_BYTES,
 } from '@/lib/map/asset-service';
+import { mapOverrideService } from '@/lib/map/override-service';
 import { generateGlbThumbnail } from '@/lib/map/thumbnail';
-import type { BuildingAsset, BuildingAssetInput } from '@/types/map';
+import type { AssetKind, BuildingAsset, BuildingAssetInput } from '@/types/map';
+import { ASSET_KINDS } from '@/types/map';
 
 function formatSize(bytes?: number): string {
   if (!bytes) return '-';
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/** 資產用途選單：決定客戶端的碰撞、可選取性與遮擋行為 */
+function KindSelect({
+  value,
+  onChange,
+}: {
+  value: AssetKind;
+  onChange: (kind: AssetKind) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div>
+      <label className="label">{t('map.assets.kind')}</label>
+      <select
+        className="input"
+        value={value}
+        onChange={(e) => onChange(e.target.value as AssetKind)}
+      >
+        {ASSET_KINDS.map((k) => (
+          <option key={k} value={k}>
+            {t(`map.assets.kind.${k}`)}
+          </option>
+        ))}
+      </select>
+      <p className="text-xs text-[var(--muted-foreground)] mt-1">
+        {t(`map.assets.kindHint.${value}`)}
+      </p>
+    </div>
+  );
 }
 
 function parseTags(raw: string): string[] {
@@ -46,6 +78,7 @@ export default function BuildingAssetsPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState('');
+  const [kind, setKind] = useState<AssetKind>('building');
   const [category, setCategory] = useState('');
   const [defaultScale, setDefaultScale] = useState('1');
   const [tags, setTags] = useState('');
@@ -57,6 +90,12 @@ export default function BuildingAssetsPage() {
   // 編輯 / 刪除
   const [editing, setEditing] = useState<BuildingAsset | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  // 刪除被擋下（資產仍在地圖上使用）
+  const [deleteBlocked, setDeleteBlocked] = useState<{
+    id: string;
+    count: number;
+    chunks: string;
+  } | null>(null);
 
   useEffect(() => {
     loadAssets();
@@ -95,6 +134,7 @@ export default function BuildingAssetsPage() {
   function resetUploadForm() {
     setFile(null);
     setName('');
+    setKind('building');
     setCategory('');
     setDefaultScale('1');
     setTags('');
@@ -116,6 +156,7 @@ export default function BuildingAssetsPage() {
       setUploadStatus(t('map.assets.uploading'));
       const input: BuildingAssetInput = {
         name: name.trim() || file.name.replace(/\.glb$/i, ''),
+        kind,
         category: category.trim() || undefined,
         defaultScale: Number(defaultScale) || 1,
         tags: parseTags(tags),
@@ -146,7 +187,22 @@ export default function BuildingAssetsPage() {
 
   async function handleDelete(asset: BuildingAsset) {
     try {
+      setDeleteBlocked(null);
+      // 先確認地圖上沒有在用：資產一旦刪除，客戶端載入時會找不到，
+      // 該位置變成空白且只在 console 留下警告，很難追查
+      const inUse = await mapOverrideService.getByAsset(asset.id);
+      if (inUse.length > 0) {
+        const chunks = Array.from(new Set(inUse.map((o) => o.chunkId))).join(', ');
+        setDeleteBlocked({
+          id: asset.id,
+          count: inUse.length,
+          chunks,
+        });
+        setDeleteConfirm(null);
+        return;
+      }
       await buildingAssetService.delete(asset);
+      buildingAssetService.invalidateGlbCache(asset.id);
       setAssets((prev) => prev.filter((a) => a.id !== asset.id));
       setDeleteConfirm(null);
     } catch (err) {
@@ -213,6 +269,7 @@ export default function BuildingAssetsPage() {
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
+              <KindSelect value={kind} onChange={setKind} />
               <div>
                 <label className="label">{t('map.assets.category')}</label>
                 <input
@@ -339,11 +396,24 @@ export default function BuildingAssetsPage() {
                   {asset.name}
                 </h3>
                 <div className="flex flex-wrap gap-2 mt-1 text-xs text-[var(--muted-foreground)]">
+                  <span className="badge badge-gray">
+                    {t(`map.assets.kind.${asset.kind ?? 'building'}`)}
+                  </span>
                   {asset.category && (
                     <span className="badge badge-gray">{asset.category}</span>
                   )}
                   <span>{formatSize(asset.fileSize)}</span>
                 </div>
+                {deleteBlocked?.id === asset.id && (
+                  <div className="mt-2 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-300">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span>
+                      {t('map.assets.deleteInUse')
+                        .replace('{count}', String(deleteBlocked.count))
+                        .replace('{chunks}', deleteBlocked.chunks)}
+                    </span>
+                  </div>
+                )}
                 {canEdit && (
                   <div className="flex items-center gap-2 mt-3">
                     <button
@@ -409,6 +479,7 @@ function EditAssetModal({
 }) {
   const { t } = useI18n();
   const [name, setName] = useState(asset.name);
+  const [kind, setKind] = useState<AssetKind>(asset.kind ?? 'building');
   const [category, setCategory] = useState(asset.category ?? '');
   const [defaultScale, setDefaultScale] = useState(
     String(asset.defaultScale ?? 1)
@@ -421,6 +492,7 @@ function EditAssetModal({
       setSaving(true);
       await buildingAssetService.update(asset.id, {
         name: name.trim() || asset.name,
+        kind,
         category: category.trim() || undefined,
         defaultScale: Number(defaultScale) || 1,
         tags: parseTags(tags),
@@ -462,6 +534,7 @@ function EditAssetModal({
               onChange={(e) => setName(e.target.value)}
             />
           </div>
+          <KindSelect value={kind} onChange={setKind} />
           <div>
             <label className="label">{t('map.assets.category')}</label>
             <input

@@ -94,12 +94,23 @@ export class BuildingOcclusionSystem {
 
     /**
      * 新增建築物 mesh（同時登記分組，遮擋偵測才會生效）
+     *
+     * @param groupId 明確指定遮擋群組。省略時退回以 mesh 名稱推導
+     *   （`extractBuildingBaseName`）。
+     *
+     *   底圖大廈的 mesh 名稱天然唯一（政府資料的 ID），靠名稱推導沒有問題；
+     *   但後台擺放的資產是同一份 GLB 重複實例化，多個實例的 mesh 名稱完全相同，
+     *   靠名稱推導會把全地圖同款大廈併成一組 —— 走到其中一棟後面，其餘同款
+     *   大廈會一齊變透明。故 `MapOverrideSystem` 一律傳入唯一的 groupId。
+     *
+     *   反過來，把同一個 groupId 傳給多個實例，即可讓它們一齊淡出
+     *   （例如地舖層與上層樓層分開擺放，但要視為同一棟大廈）。
      */
-    addBuildingMesh(mesh: BABYLON.AbstractMesh): void {
+    addBuildingMesh(mesh: BABYLON.AbstractMesh, groupId?: string): void {
         if (!this.buildingMeshes.includes(mesh)) {
             this.buildingMeshes.push(mesh);
         }
-        const baseName = this.extractBuildingBaseName(mesh.name);
+        const baseName = groupId ?? this.extractBuildingBaseName(mesh.name);
         if (!this.buildingGroups.has(baseName)) {
             this.buildingGroups.set(baseName, []);
         }
@@ -219,19 +230,33 @@ export class BuildingOcclusionSystem {
 
     /**
      * 設定單個 mesh 的透明度
+     *
+     * Phase 2（量產大廈 instancing）：MapOverrideSystem 擺放的資產同款會
+     * 共用同一份材質（InstancedMesh），若像底圖大廈咁樣直接改
+     * `material.alpha`，會令全地圖同款資產一齊變透明。故先判斷是否
+     * instance（有已註冊的 `instancedBuffers.color`），是就改寫該
+     * instance 專屬的 vertex color alpha；否則行返底圖大廈原有的
+     * material.alpha 路徑（行為完全不變）。
      */
     private setMeshAlpha(mesh: BABYLON.AbstractMesh, alpha: number): void {
-        if (!mesh.material) return;
+        // 擺放的資產是 InstancedMesh，本身冇材質，材質在 source mesh 上。
+        // MapOverrideSystem 為「每個遮擋群組」建立獨立樣板（因此獨立材質），
+        // 所以改 source 的 material.alpha 只會影響同一群組的實例。
+        const target: BABYLON.AbstractMesh =
+            mesh instanceof BABYLON.InstancedMesh ? mesh.sourceMesh : mesh;
+
+        if (!target.material) return;
+        const mesh_ = target;
 
         // 設定透明度
-        if (mesh.material instanceof BABYLON.PBRMaterial) {
-            mesh.material.alpha = alpha;
-            mesh.material.transparencyMode = alpha < 1.0
+        if (mesh_.material instanceof BABYLON.PBRMaterial) {
+            mesh_.material.alpha = alpha;
+            mesh_.material.transparencyMode = alpha < 1.0
                 ? BABYLON.Material.MATERIAL_ALPHABLEND
                 : BABYLON.Material.MATERIAL_OPAQUE;
-        } else if (mesh.material instanceof BABYLON.StandardMaterial) {
-            mesh.material.alpha = alpha;
-            mesh.material.transparencyMode = alpha < 1.0
+        } else if (mesh_.material instanceof BABYLON.StandardMaterial) {
+            mesh_.material.alpha = alpha;
+            mesh_.material.transparencyMode = alpha < 1.0
                 ? BABYLON.Material.MATERIAL_ALPHABLEND
                 : BABYLON.Material.MATERIAL_OPAQUE;
         }

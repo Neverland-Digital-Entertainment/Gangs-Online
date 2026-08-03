@@ -51,6 +51,18 @@ export interface MapObjectInfo {
   boundingSize: { x: number; y: number; z: number };
 }
 
+/**
+ * 資產實例的載入狀況（執行期資料）。
+ * 用於區分「仍在載入」與「真正載入失敗」——兩者都會令物件暫時不在場景中，
+ * 但只有後者才值得向使用者示警。
+ */
+export interface InstanceStatus {
+  /** 正在載入中的 override key */
+  loading: string[];
+  /** override key → 失敗原因 */
+  failed: Record<string, string>;
+}
+
 // ---- 持久化資料模型（P2 起使用） ----
 
 export type OverrideAction = 'delete' | 'transform' | 'replace' | 'add';
@@ -73,6 +85,12 @@ export interface MapOverride {
   assetId?: string;
   transform?: Transform;
   isActive: boolean;
+  /**
+   * 遮擋群組。填同一個值的實例，會被客戶端當成同一棟大廈一齊淡出
+   * （例如地舖層與上層樓層分開擺放）。
+   * 留空 = 自成一組，與其他實例互不影響。
+   */
+  groupId?: string;
   createdAt: Date;
   updatedAt: Date;
   updatedBy?: string;
@@ -87,6 +105,7 @@ export interface MapOverrideInput {
   assetId?: string;
   transform?: Transform;
   isActive?: boolean;
+  groupId?: string;
 }
 
 /**
@@ -95,11 +114,24 @@ export interface MapOverrideInput {
  * 因免費方案無 Firebase Storage，GLB 以 base64 分塊存在子集合
  * building_assets/{id}/chunks/{index}；縮圖以 data URL 存在本文件。
  */
+/**
+ * 資產用途。決定客戶端載入後的碰撞、可選取性與遮擋登記方式。
+ *   building（預設）：實心建築，有碰撞體、參與遮擋淡出
+ *   prop：街道物件，有碰撞體但不參與遮擋
+ *   decal：貼地平面（路面箭嘴、斑馬線、渠蓋等），無碰撞、不可選取、
+ *          不參與遮擋，並自動套用深度偏移避免與路面 z-fighting
+ */
+export type AssetKind = 'building' | 'prop' | 'decal';
+
+export const ASSET_KINDS: AssetKind[] = ['building', 'prop', 'decal'];
+
 export interface BuildingAsset {
   id: string;
   name: string;
   /** 縮圖 data URL（base64，直接存文件） */
   thumbnailUrl?: string;
+  /** 用途；舊資料留空時客戶端一律當成 building */
+  kind?: AssetKind;
   category?: string;
   defaultScale?: number;
   tags?: string[];
@@ -116,6 +148,7 @@ export interface BuildingAsset {
 /** 建立 / 更新 building_assets 的可編輯欄位 */
 export interface BuildingAssetInput {
   name: string;
+  kind?: AssetKind;
   category?: string;
   defaultScale?: number;
   tags?: string[];
@@ -133,4 +166,36 @@ export function classifyMeshName(name: string): MapObjectType {
 /** 組出覆蓋層穩定識別碼 */
 export function buildObjectKey(chunkId: string, meshName: string): string {
   return `${chunkId}:${meshName}`;
+}
+
+// ---- 發佈快照（Phase 3） ----
+
+/**
+ * `map_snapshots/{mapName}` 內的單一項目，短 key 慳 Firestore 空間。
+ * 只收 `isActive` 的 override。
+ */
+export interface MapOverrideSnapshotItem {
+  /** targetBuildingKey */
+  k: string;
+  /** chunkId */
+  c: string;
+  /** action */
+  a: OverrideAction;
+  /** assetId（replace / add） */
+  id?: string;
+  /** transform */
+  t?: Transform;
+  /** groupId（遮擋群組） */
+  g?: string;
+}
+
+/** `map_snapshots/{mapName}` 文件本身（不含分片時 items 直接內嵌） */
+export interface MapSnapshotDoc {
+  version: number;
+  publishedAt: Date;
+  publishedBy?: string;
+  itemCount: number;
+  /** true 代表 items 分散在 `map_snapshots/{mapName}/parts/{n}` 子集合 */
+  chunked: boolean;
+  items?: MapOverrideSnapshotItem[];
 }

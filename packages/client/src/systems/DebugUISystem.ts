@@ -17,6 +17,8 @@ export class DebugUISystem {
     private mapTrianglesElement: HTMLElement | null = null;
     private charTrianglesElement: HTMLElement | null = null;
     private drawCallsElement: HTMLElement | null = null;
+    private assetElement: HTMLElement | null = null;
+    private baseBuildingElement: HTMLElement | null = null;
     private posXElement: HTMLElement | null = null;
     private posZElement: HTMLElement | null = null;
     private isVisible: boolean = true;
@@ -27,6 +29,75 @@ export class DebugUISystem {
         this.createUI();
         this.startUpdate();
         this.setupDebugCommand();
+    }
+
+    /**
+     * 更新「後台擺放資產」狀態列。
+     *
+     * 上面的三角形統計只計 `BABYLON.Mesh`，而擺放的資產是 `InstancedMesh`
+     * （不是 Mesh 的子類），結構上永遠數不到，所以 "Other Tris" 是 0 既不
+     * 代表成功也不代表失敗。這一列直接數 instance 本身，並標出兩種失敗：
+     *   - 一個 instance 都沒有 → 載入階段就失敗了，與遮擋無關
+     *   - 有 instance 但沒有一個會渲染 → 樣板 root 被 disable
+     *     （InstancedMesh.isEnabled() 會一路查到 source mesh 及其祖先）
+     */
+    private updateAssetStatus(): void {
+        if (!this.assetElement) return;
+
+        let total = 0;
+        let rendered = 0;
+        let faded = 0;
+        // 底圖大廈走的是另一條淡出路徑（改 material.alpha），分開統計才分得出
+        // 「畫面擋住視線的那棟」到底是後台擺放的資產，還是底圖內建的大廈
+        let baseTotal = 0;
+        let baseFaded = 0;
+
+        for (const mesh of this.scene.meshes) {
+            if (mesh instanceof BABYLON.InstancedMesh) {
+                total++;
+                if (mesh.isEnabled() && mesh.isVisible) rendered++;
+                const srcMat = mesh.sourceMesh.material as
+                    | BABYLON.PBRMaterial
+                    | BABYLON.StandardMaterial
+                    | null;
+                if (srcMat && srcMat.alpha < 0.99) faded++;
+                continue;
+            }
+            if (
+                mesh instanceof BABYLON.Mesh &&
+                (mesh.metadata as { type?: string } | undefined)?.type === "building"
+            ) {
+                baseTotal++;
+                const mat = mesh.material as
+                    | BABYLON.PBRMaterial
+                    | BABYLON.StandardMaterial
+                    | null;
+                if (mat && mat.alpha < 0.99) baseFaded++;
+            }
+        }
+
+        if (this.baseBuildingElement) {
+            this.baseBuildingElement.style.color = baseFaded > 0 ? "#66ff99" : "#aaaaaa";
+            this.baseBuildingElement.textContent =
+                `底圖大廈: ${baseFaded}/${baseTotal} 淡出`;
+        }
+
+        if (total === 0) {
+            this.assetElement.style.color = "#ff8866";
+            this.assetElement.textContent = "Assets: 0（未載入任何擺放資產）";
+            return;
+        }
+
+        if (rendered === 0) {
+            this.assetElement.style.color = "#ff8866";
+            this.assetElement.textContent =
+                `Assets: ${total}, 渲染 0 ⚠️ 樣板被 disable`;
+            return;
+        }
+
+        this.assetElement.style.color = faded > 0 ? "#66ff99" : "#ffcc66";
+        this.assetElement.textContent =
+            `Assets: ${rendered}/${total} 渲染, ${faded} 淡出`;
     }
 
     /**
@@ -62,6 +133,84 @@ export class DebugUISystem {
             console.log(`Total: ${(mapTotal + otherTotal).toLocaleString()}`);
         };
         console.log("📊 [DebugUI] Type window.debugTriangles() in console to see triangle breakdown");
+
+        this.setupOcclusionDebug();
+    }
+
+    /**
+     * 後台擺放資產（instancing）的診斷指令。
+     *
+     * 平常的三角形面板數不到這些資產：`InstancedMesh` 不是 `BABYLON.Mesh`
+     * 的子類，統計迴圈會直接略過，所以「Other Tris: 0」既不代表成功也不
+     * 代表失敗。要判斷擺放的大廈到底有沒有渲染、遮擋淡出有沒有寫進去，
+     * 只能直接查場景裡的 instance 本身。
+     */
+    private setupOcclusionDebug(): void {
+        (window as any).debugOcclusion = () => {
+            const instances = this.scene.meshes.filter(
+                (m) => m instanceof BABYLON.InstancedMesh
+            ) as BABYLON.InstancedMesh[];
+            const templates = this.scene.transformNodes.filter((n) =>
+                n.name.startsWith("template_")
+            );
+            const containers = this.scene.transformNodes.filter((n) =>
+                n.name.startsWith("override_")
+            );
+
+            console.log("=== 擺放資產診斷 ===");
+            console.log(`樣板 (template_*): ${templates.length}`);
+            for (const t of templates) {
+                // 樣板 root 一旦 disable，它所有 instance 都不會渲染
+                console.log(`  ${t.name}: isEnabled=${t.isEnabled()}`);
+            }
+            console.log(`擺放容器 (override_*): ${containers.length}`);
+            console.log(`InstancedMesh 總數: ${instances.length}`);
+
+            if (instances.length === 0) {
+                console.warn(
+                    "⚠️ 場景裡一個 instance 都沒有 —— 擺放的資產根本沒有建立，" +
+                        "問題在載入階段，不在遮擋。"
+                );
+                return;
+            }
+
+            let rendered = 0;
+            let faded = 0;
+            const alphaSample: string[] = [];
+            for (const inst of instances) {
+                const visible = inst.isEnabled() && inst.isVisible;
+                if (visible) rendered++;
+                const color = inst.instancedBuffers?.color as
+                    | BABYLON.Color4
+                    | undefined;
+                if (color && color.a < 0.99) faded++;
+                if (alphaSample.length < 8) {
+                    alphaSample.push(
+                        `  ${inst.name}: enabled=${inst.isEnabled()} visible=${inst.isVisible} ` +
+                            `alpha=${color ? color.a.toFixed(2) : "（無 color buffer）"}`
+                    );
+                }
+            }
+
+            console.log(`會渲染的 instance: ${rendered}/${instances.length}`);
+            console.log(`目前被淡出的 instance: ${faded}`);
+            console.log("樣本：");
+            alphaSample.forEach((line) => console.log(line));
+
+            if (rendered === 0) {
+                console.warn(
+                    "⚠️ 全部 instance 都不會渲染。最常見原因：樣板 root 被 " +
+                        "setEnabled(false)（Babylon 的 InstancedMesh.isEnabled() " +
+                        "會一路查到 source mesh 及其祖先）。檢查上面樣板的 isEnabled。"
+                );
+            } else if (faded === 0) {
+                console.log(
+                    "ℹ️ 目前沒有任何 instance 被淡出。若此刻玩家確實站在某棟擺放的" +
+                        "大廈後面，代表遮擋射線沒有命中它；若沒有站在後面，這是正常的。"
+                );
+            }
+        };
+        console.log("📊 [DebugUI] Type window.debugOcclusion() to diagnose placed assets");
     }
 
     /**
@@ -117,6 +266,19 @@ export class DebugUISystem {
         this.posZElement.style.color = "#88ccff";
         this.posZElement.textContent = "Z: --";
 
+        // 後台擺放資產（instancing）狀態 —— 三角形面板數不到 InstancedMesh，
+        // 所以擺放的大廈有沒有渲染、有沒有淡出，只能在這裡直接看
+        this.assetElement = document.createElement("div");
+        this.assetElement.style.marginTop = "6px";
+        this.assetElement.style.paddingTop = "6px";
+        this.assetElement.style.borderTop = "1px solid #555";
+        this.assetElement.style.color = "#ffcc66";
+        this.assetElement.textContent = "Assets: --";
+
+        this.baseBuildingElement = document.createElement("div");
+        this.baseBuildingElement.style.color = "#aaaaaa";
+        this.baseBuildingElement.textContent = "底圖大廈: --";
+
         // 組裝 UI
         this.container.appendChild(this.fpsElement);
         this.container.appendChild(this.mapTrianglesElement);
@@ -124,6 +286,8 @@ export class DebugUISystem {
         this.container.appendChild(this.drawCallsElement);
         this.container.appendChild(this.posXElement);
         this.container.appendChild(this.posZElement);
+        this.container.appendChild(this.assetElement);
+        this.container.appendChild(this.baseBuildingElement);
 
         document.body.appendChild(this.container);
 
@@ -206,6 +370,8 @@ export class DebugUISystem {
         if (this.drawCallsElement) {
             this.drawCallsElement.textContent = `Draw Calls: ~${activeMeshes}`;
         }
+
+        this.updateAssetStatus();
 
         // Player Position
         if (this.posXElement) {

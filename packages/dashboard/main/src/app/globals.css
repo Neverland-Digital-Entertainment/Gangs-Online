@@ -85,6 +85,28 @@
     background-color: var(--sidebar-hover);
   }
 
+  /* 之前完全冇定義，用到 btn-outline 的掣會渲染成無底色無邊框的純文字，
+     睇落唔似掣（例如 Inspector 的「替換成資產」）。 */
+  .btn-outline {
+    background-color: transparent;
+    border-width: 1px;
+    border-color: var(--input-border);
+    color: var(--foreground);
+  }
+
+  .btn-outline:hover {
+    background-color: var(--sidebar-hover);
+  }
+
+  .btn-success {
+    background-color: rgb(22 163 74);
+    color: white;
+  }
+
+  .btn-success:hover {
+    background-color: rgb(21 128 61);
+  }
+
   .btn-danger {
     background-color: rgb(244 67 54);
     color: white;

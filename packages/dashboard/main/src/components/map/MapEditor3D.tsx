@@ -24,6 +24,7 @@ import {
   classifyMeshName,
   type BuildingAsset,
   type GizmoMode,
+  type InstanceStatus,
   type MapObjectInfo,
   type MapOverride,
   type Transform,
@@ -43,6 +44,8 @@ interface MapEditor3DProps {
   onTransformChange: (key: string, transform: Transform) => void;
   onInstancePlaced?: (key: string, transform: Transform) => void;
   onObjectsChange?: (objects: MapObjectInfo[]) => void;
+  /** 回報資產實例的載入狀況，供上層區分「仍在載入」與「真正失敗」 */
+  onInstanceStatusChange?: (status: InstanceStatus) => void;
   onLoadingChange?: (loading: boolean) => void;
   onError?: (message: string | null) => void;
 }
@@ -114,6 +117,7 @@ export default function MapEditor3D({
   onTransformChange,
   onInstancePlaced,
   onObjectsChange,
+  onInstanceStatusChange,
   onLoadingChange,
   onError,
 }: MapEditor3DProps) {
@@ -127,6 +131,16 @@ export default function MapEditor3D({
   const nodeByKeyRef = useRef<Map<string, BABYLON.TransformNode>>(new Map());
   const originalByKeyRef = useRef<Map<string, Transform>>(new Map());
   const instanceByKeyRef = useRef<Map<string, InstanceRec>>(new Map());
+  /**
+   * assetId → 隱藏樣板（Phase 2）。場景在整個元件生命週期只建立一次
+   * （見下面「建立引擎與場景」的 useEffect([])），故快取可以安全跟住場景
+   * 存活；卸載時一併 dispose。樣板本身 `setEnabled(false)`，唔算任何一次
+   * 擺放；每次擺放（含第一次）都對 master mesh 呼叫 `createInstance()`，
+   * 令同款資產在地圖上擺 N 次只有 1 份幾何、1 個 draw call（含材質）。
+   */
+  const templateCacheRef = useRef<Map<string, Promise<{ root: BABYLON.TransformNode; meshes: BABYLON.Mesh[] }>>>(
+    new Map()
+  );
   const objectsRef = useRef<Map<string, MapObjectInfo>>(new Map());
   const loadingKeysRef = useRef<Set<string>>(new Set());
   const highlightedRef = useRef<BABYLON.Mesh[]>([]);
@@ -141,6 +155,9 @@ export default function MapEditor3D({
   const onTransformRef = useRef(onTransformChange);
   const onInstancePlacedRef = useRef(onInstancePlaced);
   const onObjectsRef = useRef(onObjectsChange);
+  const onInstanceStatusRef = useRef(onInstanceStatusChange);
+  /** key → 失敗原因。只有真正載入失敗才會留在這裡 */
+  const failedKeysRef = useRef<Map<string, string>>(new Map());
   const onLoadingRef = useRef(onLoadingChange);
   const onErrorRef = useRef(onError);
   const overridesRef = useRef(overrides);
@@ -149,6 +166,7 @@ export default function MapEditor3D({
   onTransformRef.current = onTransformChange;
   onInstancePlacedRef.current = onInstancePlaced;
   onObjectsRef.current = onObjectsChange;
+  onInstanceStatusRef.current = onInstanceStatusChange;
   onLoadingRef.current = onLoadingChange;
   onErrorRef.current = onError;
   overridesRef.current = overrides;
@@ -161,6 +179,13 @@ export default function MapEditor3D({
 
   function emitObjects() {
     onObjectsRef.current?.(Array.from(objectsRef.current.values()));
+  }
+
+  function emitInstanceStatus() {
+    onInstanceStatusRef.current?.({
+      loading: Array.from(loadingKeysRef.current),
+      failed: Object.fromEntries(failedKeysRef.current),
+    });
   }
 
   function frameNode(node: BABYLON.TransformNode) {
@@ -270,8 +295,64 @@ export default function MapEditor3D({
       originalByKeyRef.current.clear();
       instanceByKeyRef.current.clear();
       objectsRef.current.clear();
+      for (const pending of templateCacheRef.current.values()) {
+        pending.then(({ root }) => root.dispose()).catch(() => {});
+      }
+      templateCacheRef.current.clear();
     };
   }, []);
+
+  /**
+   * 取得（並快取）指定資產的隱藏樣板。GLB 只解析一次；材質亦只 clone
+   * 一次，之後所有擺放共用同一份材質、對 master mesh createInstance()。
+   */
+  function getOrCreateTemplate(
+    assetId: string
+  ): Promise<{ root: BABYLON.TransformNode; meshes: BABYLON.Mesh[] }> {
+    const cache = templateCacheRef.current;
+    const cached = cache.get(assetId);
+    if (cached) return cached;
+    const pending = (async () => {
+      const scene = sceneRef.current!;
+      const url = await buildingAssetService.loadGlbObjectUrl(assetId);
+      let assetContainer: BABYLON.AssetContainer;
+      try {
+        assetContainer = await BABYLON.SceneLoader.LoadAssetContainerAsync(
+          '',
+          url,
+          scene,
+          undefined,
+          '.glb'
+        );
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+      const instantiated = assetContainer.instantiateModelsToScene((n) => n, false);
+      const root = new BABYLON.TransformNode(`template_${assetId}`, scene);
+      const assetRoot = instantiated.rootNodes.find((n) => n.name === '__root__');
+      const topNodes = assetRoot ? [...assetRoot.getChildren()] : instantiated.rootNodes;
+      for (const n of topNodes) n.parent = root;
+      if (assetRoot) assetRoot.dispose();
+
+      const meshes: BABYLON.Mesh[] = [];
+      for (const node of root.getChildMeshes(false)) {
+        if (node.name === '__root__' || !(node instanceof BABYLON.Mesh)) continue;
+        node.isVisible = false;
+        node.isPickable = false;
+        meshes.push(node);
+      }
+      // 樣板靠上面逐個 mesh 的 isVisible/isPickable = false 隱藏，只用嚟
+      // createInstance()。**唔可以**對 root 呼叫 setEnabled(false)：Babylon 的
+      // InstancedMesh.isEnabled() 會查到 source mesh 及其祖先，樣板一 disable
+      // 就會令所有實例唔渲染（實測畫面全黑）。與 Phase 0 驗證配方保持一致。
+      return { root, meshes };
+    })().catch((err) => {
+      cache.delete(assetId);
+      throw err;
+    });
+    cache.set(assetId, pending);
+    return pending;
+  }
 
   // ---- 載入 / 切換 chunk ----
   useEffect(() => {
@@ -474,11 +555,24 @@ export default function MapEditor3D({
     rec.container.dispose();
     instanceByKeyRef.current.delete(key);
     objectsRef.current.delete(key);
+    failedKeysRef.current.delete(key);
   }
 
   async function reconcileInstances() {
     const scene = sceneRef.current;
     if (!scene) return;
+
+    // 底圖 chunk 未載完就唔可以擺放資產。
+    //
+    // override 由 Firestore 載入、底圖 GLB 由 HTTP 載入，兩者各自非同步，
+    // 邊個快邊個先到。若 override 先到，container 會因為搵唔到 chunk root
+    // 而冇 parent —— 儲存的「chunk 內座標」就會被當成世界座標，物件飛到
+    // 地圖以外（雙擊聚焦時鏡頭去到一片虛空，但 Inspector 的數值睇落正常）。
+    // 而且之後 chunk 載完亦唔會補回 parent，因為調和邏輯見到 assetId 冇變
+    // 就只會更新 transform。
+    //
+    // 直接跳過即可：底圖載入完成後會再呼叫一次 reconcileInstances()。
+    if (!chunkRootRef.current) return;
 
     const desired = new Map<string, MapOverride>();
     for (const o of overridesRef.current) {
@@ -504,12 +598,13 @@ export default function MapEditor3D({
       }
       if (loadingKeysRef.current.has(key)) continue;
       loadingKeysRef.current.add(key);
+      emitInstanceStatus();
 
-      let url: string | null = null;
       try {
-        url = await buildingAssetService.loadGlbObjectUrl(assetId);
-        if (!sceneRef.current) break;
-        const result = await BABYLON.SceneLoader.ImportMeshAsync('', '', url, scene, undefined, '.glb');
+        // Phase 2：GLB 只解析一次、樣板材質只 clone 一次（見
+        // getOrCreateTemplate）；這裡對每個 master mesh createInstance()，
+        // 令同款資產在地圖上擺 N 次共用同一份幾何與材質。
+        const template = await getOrCreateTemplate(assetId);
         if (!sceneRef.current) break;
 
         const container = new BABYLON.TransformNode(`inst_${key}`, scene);
@@ -527,24 +622,14 @@ export default function MapEditor3D({
           boundingSize: { x: 0, y: 0, z: 0 },
         };
 
-        // 設定 metadata / 可點選
-        for (const m of result.meshes) {
-          m.metadata = { ...(m.metadata as object), imported: true, instanceKey: key };
-          if (m.name === '__root__') continue;
-          m.isPickable = true;
-          m.metadata = { ...(m.metadata as object), mapObject: info };
+        const instMeshes: BABYLON.InstancedMesh[] = [];
+        for (const masterMesh of template.meshes) {
+          const inst = masterMesh.createInstance(`${masterMesh.name}_${key}`);
+          inst.parent = container;
+          inst.isPickable = true;
+          inst.metadata = { ...(inst.metadata as object), imported: true, instanceKey: key, mapObject: info };
+          instMeshes.push(inst);
         }
-
-        // 把資產 __root__ 的「直接子節點」整棵子樹搬到 container，再 dispose 空的 __root__
-        // （注意：必須搬子節點，不能只搬個別 mesh，否則 dispose __root__ 會連幾何一起刪掉）
-        const assetRoot: BABYLON.Node | undefined =
-          (result.meshes.find((m) => m.name === '__root__') as BABYLON.Node | undefined) ??
-          (result.transformNodes?.find((n) => n.name === '__root__') as BABYLON.Node | undefined);
-        const topNodes = assetRoot
-          ? [...assetRoot.getChildren()]
-          : result.meshes.filter((m) => !m.parent && m.name !== '__root__');
-        for (const n of topNodes) n.parent = container;
-        if (assetRoot) assetRoot.dispose();
 
         let finalTransform: Transform;
         if (ov.transform) {
@@ -595,16 +680,23 @@ export default function MapEditor3D({
 
         instanceByKeyRef.current.set(key, {
           container,
-          meshes: result.meshes.filter((m) => m.name !== '__root__'),
+          meshes: instMeshes.filter((m) => m.name !== '__root__'),
           assetId,
         });
         objectsRef.current.set(key, finalInfo);
+        failedKeysRef.current.delete(key);
         setInstancesVersion((v) => v + 1);
+        // 逐個回報，令列表隨載入進度即時填入，而非等全部載完才一次過出現
+        emitObjects();
       } catch (err) {
         console.error('[MapEditor3D] failed to load asset instance', key, err);
+        failedKeysRef.current.set(
+          key,
+          err instanceof Error ? err.message : String(err)
+        );
       } finally {
-        if (url) URL.revokeObjectURL(url);
         loadingKeysRef.current.delete(key);
+        emitInstanceStatus();
       }
     }
 

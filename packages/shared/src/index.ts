@@ -721,7 +721,13 @@ export interface IBPQuestRuntimeState {
 }
 
 // ==================== Phase 21: Core Gameplay Systems ====================
-export * from "./newSystems";
+// 副檔名 `.js` 不可省略：本套件是 ESM（package.json "type": "module"），
+// Node 在執行期要求相對匯入帶明確副檔名。tsconfig 的
+// moduleResolution "bundler" 只在編譯期容許省略（打包器會自行解析），
+// tsc 不會改寫這段字串，於是 dist/index.js 會原樣輸出 "./newSystems"，
+// 令 Node 直接 ERR_MODULE_NOT_FOUND。客戶端因為經 Vite 打包所以看不出來，
+// 只有伺服器（直接由 Node 執行）會炸。日後在此套件新增相對匯入同樣要帶 .js。
+export * from "./newSystems.js";
 
 /**
  * 遊戲版本（0.21.0 - Core Gameplay Systems：武器升級/社團/地盤/組隊）
