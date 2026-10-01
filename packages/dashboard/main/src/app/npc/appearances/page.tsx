@@ -109,6 +109,8 @@ export default function NpcAppearancesPage() {
     hair: null, beard: null, head: null, top: null, bottom: null, shoe: null,
   });
   const [colors, setColors] = useState<ColorState>(DEFAULT_COLORS);
+  /** Body shape 0–100: standard → fat. */
+  const [bodyShape, setBodyShape] = useState(0);
   const [expandedSlot, setExpandedSlot] = useState<EquipmentSlot | null>('hair');
   const [thumbnails, setThumbnails] = useState<ThumbnailMap>({});
 
@@ -174,7 +176,7 @@ export default function NpcAppearancesPage() {
         <div className="lg:col-span-2">
           <div className="card">
             <div className="card-body p-0 overflow-hidden rounded-lg" style={{ height: '600px' }}>
-              <CharacterViewer gender={gender} equipment={equipment} colors={colors} />
+              <CharacterViewer gender={gender} equipment={equipment} colors={colors} bodyShape={bodyShape / 100} />
             </div>
           </div>
         </div>
@@ -208,6 +210,28 @@ export default function NpcAppearancesPage() {
               >
                 {t('npc.appearances.female')}
               </button>
+            </div>
+
+            {/* Body shape */}
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-medium">{t('npc.appearances.bodyShape')}</span>
+                <span className="text-xs text-[var(--muted-foreground)]">{bodyShape}%</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={bodyShape}
+                onChange={(e) => setBodyShape(Number(e.target.value))}
+                className="w-full accent-primary cursor-pointer"
+                aria-label={t('npc.appearances.bodyShape')}
+              />
+              <div className="flex justify-between text-[10px] text-[var(--muted-foreground)]">
+                <span>{t('npc.appearances.bodyShape.standard')}</span>
+                <span>{t('npc.appearances.bodyShape.fat')}</span>
+              </div>
             </div>
           </div>
 

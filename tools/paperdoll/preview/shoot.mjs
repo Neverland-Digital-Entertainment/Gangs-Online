@@ -7,7 +7,7 @@
 //
 // items: comma-separated paths under packages/shared/characters
 // pose : apose (viewer default) | tpose | arms:<radians>
-// views: comma-separated, see V below      zoom: "<radiusMul>:<targetY>"
+// views: comma-separated, see V below      zoom: "<radiusMul>:<targetY>"   fat: body-shape morph 0..1
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { dirname, extname, join, normalize } from 'node:path';
@@ -35,7 +35,7 @@ const server = createServer(async (req, res) => {
 }).listen(0);
 const port = server.address().port;
 
-const [outPrefix, gender, items = '', pose = 'apose', views = 'front,side,back', xray = '0', zoom = ''] = process.argv.slice(2);
+const [outPrefix, gender, items = '', pose = 'apose', views = 'front,side,back', xray = '0', zoom = '', fat = '0'] = process.argv.slice(2);
 const V = {
   front: [-Math.PI / 2], side: [Math.PI], back: [Math.PI / 2], q34: [-Math.PI / 4],
   backr: [Math.PI / 4, 1.4], sidelow: [Math.PI, 1.9], frontlow: [-Math.PI / 2 - 0.5, 1.85], topdown: [-Math.PI / 2, 0.25],
@@ -44,7 +44,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 try {
   const page = await browser.newPage({ viewport: { width: 640, height: 800 } });
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log('[page]', m.text()); });
-  await page.goto(`http://localhost:${port}/index.html?gender=${gender}&items=${encodeURIComponent(items)}&pose=${pose}&xray=${xray}`);
+  await page.goto(`http://localhost:${port}/index.html?gender=${gender}&items=${encodeURIComponent(items)}&pose=${pose}&xray=${xray}&fat=${fat}`);
   await page.waitForFunction(() => window.ready === true, null, { timeout: 120000 });
   const errs = await page.evaluate(() => window.errors);
   if (errs.length) console.log('ERRORS', errs);

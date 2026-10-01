@@ -33,6 +33,11 @@ packages/shared/characters/<slot>/female/<id>.glb
 
 `CharacterViewer` 會按性別從對應資料夾載入（`GENDER_SUBFOLDERED_SLOTS`）。
 
+### 體型（標準 ↔ 肥胖）
+
+身體、衣物、頭髮、鬍鬚都帶住同名嘅 `fat` morph target，Dashboard 嘅「體型」滑桿同時控制全部。
+`fit_garments.py` 會自動幫新衣物整埋肥版，唔使另外出檔案（詳見 `tools/paperdoll/README.md`）。
+
 ---
 
 ## 2. 加一件新衣物（摘要）

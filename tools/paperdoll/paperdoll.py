@@ -145,7 +145,8 @@ VIEWER_ARM_REST_ANGLE = 1.15  # CharacterViewer.tsx ARM_REST_ANGLE
 # ---------------------------------------------------------------------------
 
 class Body:
-    def __init__(self, path: str):
+    def __init__(self, path: str, morph: float = 0.0):
+        """morph: influence of the body's 'fat' morph target (0 = normal, 1 = fat)."""
         g = pygltflib.GLTF2().load(path)
         blob = g.binary_blob()
         self.path = path
@@ -175,7 +176,8 @@ class Body:
         _, first = np.unique(labels, return_index=True)
         remap = np.empty(labels.max() + 1, np.int64)
         remap[labels[first]] = np.arange(len(first))
-        self.V = P[first]
+        self.morph = morph
+        self.V = P[first] + morph * read_morph(g, blob, best)[first]
         self.F = remap[labels[F]]
         self.F = self.F[(self.F[:, 0] != self.F[:, 1]) & (self.F[:, 1] != self.F[:, 2]) & (self.F[:, 0] != self.F[:, 2])]
         self.J = J[first]
@@ -253,14 +255,14 @@ class Body:
         return V, mats
 
 
-def load_skinned_garment(path: str) -> dict:
+def load_skinned_garment(path: str, morph: float = 0.0) -> dict:
     g = pygltflib.GLTF2().load(path)
     blob = g.binary_blob()
     pr = g.meshes[0].primitives[0]
     a = pr.attributes
     return dict(
         gltf=g,
-        P=read_accessor(g, blob, a.POSITION).astype(float),
+        P=read_accessor(g, blob, a.POSITION).astype(float) + morph * read_morph(g, blob, pr),
         J=read_accessor(g, blob, a.JOINTS_0).astype(np.int64),
         W=read_accessor(g, blob, a.WEIGHTS_0).astype(float),
         F=read_accessor(g, blob, pr.indices).reshape(-1, 3).astype(np.int64),
@@ -438,7 +440,7 @@ class Fitter:
         self.min_off = cfg.get('min_offset', 0.006)
         self._pose_cache: dict = {}
         # Garments this one is worn over (already fitted skinned GLBs).
-        self.under = [load_skinned_garment(p) for p in cfg.get('_over_paths', [])]
+        self.under = [load_skinned_garment(p, body.morph) for p in cfg.get('_over_paths', [])]
         self.extra = self._under_thickness() if cfg.get('under_as_thickness') else np.zeros(len(body.V))
 
     def _under_thickness(self) -> np.ndarray:
@@ -759,6 +761,25 @@ class Fitter:
         loc, ri, _ = gmesh.ray.intersects_location(S - NS * depth, NS, multiple_hits=False)
         t = np.einsum('ij,ij->i', loc - (S - NS * depth)[ri], NS[ri])
         return int((sd < margin).sum()) + int(((t < depth + margin) & (t > -0.01)).sum())
+
+    def bridge(self, Pw: np.ndarray, pose: dict, iterations: int = 15) -> np.ndarray:
+        """Let cloth span hollows instead of sinking into them (cleavage, armpits).
+
+        Real fabric is pulled taut across a concave dip; skinned cloth just copies
+        the skin. Each step moves a vertex towards its neighbours' average but
+        only outward (along the skin normal), which fills dips and never pulls
+        cloth into the body.
+        """
+        Vb, _ = self.body.posed(pose)
+        surf = Surface(Vb, self.body.F)
+        deg = np.maximum(np.asarray(self.gm.adj.sum(1)).ravel(), 1)
+        x = Pw.copy()
+        for _ in range(iterations):
+            _, n, _, _, _ = surf.closest(x)
+            disp = (self.gm.adj @ x) / deg[:, None] - x
+            out = np.maximum(np.einsum('ij,ij->i', disp, n), 0.0)
+            x = x + 0.6 * out[:, None] * n
+        return x
 
     def inflate(self, Pw: np.ndarray, pose: dict, rounds: int = 4) -> np.ndarray:
         """Broad, smooth inflation where whole regions are too tight.
@@ -1135,3 +1156,182 @@ def fit_garment(body: Body, raw_path: str, cfg: dict, out_path: str, log=print) 
 def load_config(path: str) -> dict:
     with open(path, encoding='utf-8') as f:
         return json.load(f)
+
+
+# ---------------------------------------------------------------------------
+# Editing existing GLBs in place (morph targets, extra images)
+# ---------------------------------------------------------------------------
+
+def append_bytes(g: pygltflib.GLTF2, blob: bytearray, data: bytes, target=None) -> int:
+    """Append raw bytes to the GLB buffer; returns the new bufferView index."""
+    while len(blob) % 4:
+        blob.append(0)
+    g.bufferViews.append(pygltflib.BufferView(buffer=0, byteOffset=len(blob), byteLength=len(data), target=target))
+    blob += data
+    return len(g.bufferViews) - 1
+
+
+def append_accessor(g, blob, arr: np.ndarray, typ: str, minmax=False, target=34962) -> int:
+    arr = np.ascontiguousarray(arr.astype(np.float32))
+    bv = append_bytes(g, blob, arr.tobytes(), target)
+    acc = pygltflib.Accessor(bufferView=bv, componentType=5126, count=len(arr), type=typ)
+    if minmax:
+        acc.min = arr.min(0).astype(float).tolist()
+        acc.max = arr.max(0).astype(float).tolist()
+    g.accessors.append(acc)
+    return len(g.accessors) - 1
+
+
+def repack(g: pygltflib.GLTF2, blob: bytes) -> bytes:
+    """Drop accessors and buffer data nothing uses any more (keeps re-runs from growing the file)."""
+    def ints(d):
+        return [v for v in (d.values() if isinstance(d, dict) else d.__dict__.values()) if isinstance(v, int)]
+
+    # 1) accessors still referenced
+    used_acc = set()
+    for m in g.meshes:
+        for pr in m.primitives:
+            used_acc |= set(ints(pr.attributes))
+            if pr.indices is not None:
+                used_acc.add(pr.indices)
+            for t in pr.targets or []:
+                used_acc |= set(ints(t))
+    for s_ in g.skins or []:
+        if s_.inverseBindMatrices is not None:
+            used_acc.add(s_.inverseBindMatrices)
+    for a in g.animations or []:
+        for smp in a.samplers:
+            used_acc |= {smp.input, smp.output}
+    acc_map, accs = {}, []
+    for i, a in enumerate(g.accessors):
+        if i in used_acc:
+            acc_map[i] = len(accs)
+            accs.append(a)
+    g.accessors = accs
+
+    # 2) buffer views still referenced by those accessors / images
+    used = sorted({a.bufferView for a in g.accessors if a.bufferView is not None} |
+                  {im.bufferView for im in (g.images or []) if im.bufferView is not None})
+    remap, views, out = {}, [], bytearray()
+    for old in used:
+        bv = g.bufferViews[old]
+        while len(out) % 4:
+            out.append(0)
+        start = bv.byteOffset or 0
+        views.append(pygltflib.BufferView(buffer=0, byteOffset=len(out), byteLength=bv.byteLength,
+                                          byteStride=bv.byteStride, target=bv.target, name=bv.name))
+        out += blob[start:start + bv.byteLength]
+        remap[old] = len(views) - 1
+    for a in g.accessors:
+        if a.bufferView is not None:
+            a.bufferView = remap[a.bufferView]
+    for im in g.images or []:
+        if im.bufferView is not None:
+            im.bufferView = remap[im.bufferView]
+    g.bufferViews = views
+
+    # 3) re-point everything at the compacted accessors
+    for m in g.meshes:
+        for pr in m.primitives:
+            for k, v in pr.attributes.__dict__.items():
+                if isinstance(v, int):
+                    setattr(pr.attributes, k, acc_map[v])
+            if pr.indices is not None:
+                pr.indices = acc_map[pr.indices]
+            if pr.targets:
+                pr.targets = [{k: acc_map[v] for k, v in (t.items() if isinstance(t, dict) else t.__dict__.items())
+                               if isinstance(v, int)} for t in pr.targets]
+    for s_ in g.skins or []:
+        if s_.inverseBindMatrices is not None:
+            s_.inverseBindMatrices = acc_map[s_.inverseBindMatrices]
+    for a in g.animations or []:
+        for smp in a.samplers:
+            smp.input, smp.output = acc_map[smp.input], acc_map[smp.output]
+    while len(out) % 4:
+        out.append(0)
+    g.buffers[0].byteLength = len(out)
+    return bytes(out)
+
+
+def set_morph_target(g, blob: bytearray, mesh_index: int, prim_index: int, name: str,
+                     dpos: np.ndarray, dnorm: np.ndarray | None = None):
+    """Replace a primitive's morph targets with a single named target."""
+    mesh = g.meshes[mesh_index]
+    pr = mesh.primitives[prim_index]
+    t = {'POSITION': append_accessor(g, blob, dpos, 'VEC3', minmax=True)}
+    if dnorm is not None:
+        t['NORMAL'] = append_accessor(g, blob, dnorm, 'VEC3')
+    pr.targets = [t]
+    mesh.weights = [0.0]
+    mesh.extras = dict(mesh.extras or {}, targetNames=[name])
+
+
+def read_morph(g, blob, prim, name='fat'):
+    """POSITION delta of a named morph target (zeros if absent)."""
+    n = g.accessors[prim.attributes.POSITION].count
+    if not prim.targets:
+        return np.zeros((n, 3))
+    t = prim.targets[0]
+    idx = t['POSITION'] if isinstance(t, dict) else t.POSITION
+    return read_accessor(g, blob, idx).astype(float)
+
+
+# ---------------------------------------------------------------------------
+# Body-shape morph for fitted assets
+# ---------------------------------------------------------------------------
+
+def transfer_body_morph(slim: Body, fat: Body, P: np.ndarray, smooth_radius: float = 0.03) -> np.ndarray:
+    """Displacement for points on/around the slim body that follows the fat morph."""
+    surf = Surface(slim.V, slim.F)
+    _, _, _, corners, bary = surf.closest(P)
+    D = np.einsum('nk,nkj->nj', bary, (fat.V - slim.V)[corners])
+    if smooth_radius:
+        D = spatial_smooth(D, P, smooth_radius)
+    return D
+
+
+def add_fat_morph(slim: Body, fat: Body, path: str, cfg: dict, collide: bool = True, log=print) -> dict:
+    """Fit an already-exported skinned asset onto the fat body as a 'fat' morph target.
+
+    Topology, UVs and weights stay identical; only the morph delta is added, so
+    the viewer can blend continuously between the two shapes.
+    """
+    g = pygltflib.GLTF2().load(path)
+    blob = bytearray(g.binary_blob())
+    pr = g.meshes[0].primitives[0]
+    a = pr.attributes
+    P = read_accessor(g, bytes(blob), a.POSITION).astype(float)
+    N = read_accessor(g, bytes(blob), a.NORMAL).astype(float)
+    F = read_accessor(g, bytes(blob), pr.indices).reshape(-1, 3).astype(np.int64)
+    J = read_accessor(g, bytes(blob), a.JOINTS_0).astype(np.int64)
+    W = read_accessor(g, bytes(blob), a.WEIGHTS_0).astype(float)
+    UV = read_accessor(g, bytes(blob), a.TEXCOORD_0).astype(float) if a.TEXCOORD_0 is not None else np.zeros((len(P), 2))
+
+    gm = GarmentMesh(P.copy(), UV, F)
+    gm.rebuild_topology()
+    Pw = gm.Pw
+    Jw, Ww = J[gm.first], W[gm.first]
+    D = transfer_body_morph(slim, fat, Pw, cfg.get('morph_smooth', 0.06))
+    if cfg.get('rigid_bone'):
+        D[:] = D.mean(0)  # rigid items just ride along
+        Pf = Pw + D
+    else:
+        Pf = Pw + D
+        if collide:
+            fitter = Fitter(fat, gm, cfg, log)
+            display = cfg.get('display_pose', {'arms': VIEWER_ARM_REST_ANGLE})
+            mats_d = fat.skin_matrices(display)
+            P_disp = lbs(mats_d, Pf, Jw, Ww)
+            P_disp = fitter.inflate(P_disp, display)
+            P_disp = fitter.bridge(P_disp, display, cfg.get('bridge_iters', 15))
+            P_disp = fitter.collide(P_disp, display, cfg.get('collide_iters', 12))
+            Pf = inverse_lbs(mats_d, P_disp, Jw, Ww)
+    dpos = (Pf - Pw)[gm.weld]
+    n_slim = vertex_normals(Pw, gm.Fw)[gm.weld]
+    n_fat = vertex_normals(Pf, gm.Fw)[gm.weld]
+    dn = unit(N + (n_fat - n_slim)) - N
+    set_morph_target(g, blob, 0, 0, 'fat', dpos, dn)
+    new_blob = repack(g, bytes(blob))
+    g.set_binary_blob(new_blob)
+    g.save_binary(path)
+    return {'max_shift': float(np.linalg.norm(dpos, axis=1).max())}

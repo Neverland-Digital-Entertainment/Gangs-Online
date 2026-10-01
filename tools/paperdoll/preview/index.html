@@ -60,6 +60,9 @@ let charRoot, bodySkeleton, bodyHeight = 1.8;
         r.skeletons.forEach((s) => { s.bones.forEach((b) => b.getTransformNode()?.dispose(true)); s.dispose(); });
       }
     }
+    // body-shape morph (fat) influence for everything that has it
+    const fat = parseFloat(q.get('fat') || '0');
+    scene.meshes.forEach((m) => { const mt = m.morphTargetManager; if (mt) for (let k = 0; k < mt.numTargets; k++) mt.getTarget(k).influence = fat; });
     window.setView = (alpha, beta, radiusMul, targetY) => {
       camera.target = new BABYLON.Vector3(0, targetY ?? bodyHeight / 2, 0);
       camera.radius = bodyHeight * (radiusMul ?? 1.8); camera.alpha = alpha; camera.beta = beta ?? Math.PI / 2.2;

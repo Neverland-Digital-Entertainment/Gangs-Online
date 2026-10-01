@@ -4,10 +4,15 @@
     "female": "packages/shared/characters/body/female.glb"
   },
   "output_dir": "packages/shared/characters",
+  "follow_body_shape": [
+    { "files": "hair/{gender}/*.glb" },
+    { "files": "beard/*.glb", "genders": ["male"] }
+  ],
   "garments": [
     {
       "name": "pants01",
       "slot": "bottom",
+      "fat": { "collide_iters": 24, "poke_tolerance": 0.015 },
       "source": "tools/paperdoll/raw/bottom/pants01.glb",
       "yaw": 180,
       "subdivide": 1,
@@ -54,6 +59,7 @@
     {
       "name": "shirt01",
       "slot": "top",
+      "fat": { "collide_iters": 24 },
       "source": "tools/paperdoll/raw/top/shirt01.glb",
       "yaw": 180,
       "subdivide": 1,

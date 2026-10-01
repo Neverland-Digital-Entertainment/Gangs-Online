@@ -25,6 +25,23 @@ interface CharacterViewerProps {
   gender: Gender;
   equipment: EquipmentState;
   colors: ColorState;
+  /** 0 = normal body, 1 = fat body (drives the 'fat' morph target on body and clothes). */
+  bodyShape?: number;
+}
+
+/**
+ * Set the body-shape morph on every mesh that has one. The body, the fitted
+ * clothes, hair and beard all carry a matching 'fat' morph target
+ * (tools/paperdoll), so they change shape together.
+ */
+function applyBodyShape(meshes: any[], value: number): void {
+  meshes.forEach((mesh: any) => {
+    const manager = mesh.morphTargetManager;
+    if (!manager) return;
+    for (let i = 0; i < manager.numTargets; i++) {
+      manager.getTarget(i).influence = value;
+    }
+  });
 }
 
 const SLOT_FOLDERS: Record<EquipmentSlot, string> = {
@@ -99,7 +116,7 @@ function poseArmsToRest(BABYLON: any, transformNodes: any[]): void {
   }
 }
 
-export default function CharacterViewer({ gender, equipment, colors }: CharacterViewerProps) {
+export default function CharacterViewer({ gender, equipment, colors, bodyShape = 0 }: CharacterViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<any>(null);
   const sceneRef = useRef<any>(null);
@@ -117,6 +134,8 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
   const prevColorsRef = useRef<ColorState>(colors);
   const colorsRef = useRef<ColorState>(colors);
   colorsRef.current = colors;
+  const bodyShapeRef = useRef(bodyShape);
+  bodyShapeRef.current = bodyShape;
   /** Camera framing for the loaded body; double-click returns to it. */
   const homeViewRef = useRef<{ target: any; radius: number } | null>(null);
   const sceneReadyRef = useRef(false);
@@ -207,6 +226,7 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
       }
 
       equipmentMeshesRef.current[slot] = result.meshes;
+      applyBodyShape(result.meshes, bodyShapeRef.current);
       // Newly loaded hair/beard starts white; apply the current colour.
       if (slot === 'hair' || slot === 'beard') {
         await tintSlot(slot, colorsRef.current[slot]);
@@ -228,6 +248,7 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
     );
 
     bodyMeshesRef.current = result.meshes;
+    applyBodyShape(result.meshes, bodyShapeRef.current);
 
     // Store body skeleton for equipment binding
     if (result.skeletons.length > 0) {
@@ -399,6 +420,12 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
     });
     prevEquipmentRef.current = equipment;
   }, [equipment]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Body-shape slider → morph influence on body + everything worn
+  useEffect(() => {
+    applyBodyShape(bodyMeshesRef.current, bodyShape);
+    Object.values(equipmentMeshesRef.current).forEach((meshes) => applyBodyShape(meshes, bodyShape));
+  }, [bodyShape]);
 
   // Apply color tint to hair/beard meshes
   useEffect(() => {
