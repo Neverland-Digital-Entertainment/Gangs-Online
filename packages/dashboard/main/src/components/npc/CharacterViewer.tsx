@@ -47,6 +47,54 @@ function getEquipmentPath(slot: EquipmentSlot, gender: Gender): string {
   return `/characters/${folder}/`;
 }
 
+/** How far (radians) to swing each arm down from the T-pose toward the body. */
+const ARM_REST_ANGLE = 1.15;
+
+/**
+ * Swing the character's arms down from the authored T-pose into a relaxed
+ * A-pose.
+ *
+ * The body GLB is imported with a skeleton whose bones are each linked to a
+ * scene TransformNode (`bone._linkedTransformNode`). The skeleton re-syncs from
+ * those nodes every frame, so rotating the bones directly gets overwritten —
+ * the nodes are the source of truth and must be rotated instead.
+ *
+ * The rotation is done in each node's LOCAL space (about the shoulder joint),
+ * not world space: the glTF loader converts handedness with a mirrored
+ * `__root__` scale of (1, 1, -1), and that negative scale breaks world-space
+ * `rotateAround`. A local rotation about the arm's Z axis swings it cleanly in
+ * the frontal plane. The direction is verified per-arm by checking that the
+ * hand actually drops, so it stays correct regardless of the rig's mirroring.
+ */
+function poseArmsToRest(BABYLON: any, transformNodes: any[]): void {
+  const axis = new BABYLON.Vector3(0, 0, 1);
+  const byName = (name: string) => transformNodes.find((n) => n.name === name);
+
+  const arms: { upper: string; hand: string }[] = [
+    { upper: 'upperarm_l', hand: 'hand_l' },
+    { upper: 'upperarm_r', hand: 'hand_r' },
+  ];
+
+  for (const { upper, hand } of arms) {
+    const node = byName(upper);
+    if (!node) continue;
+    const tip = byName(hand);
+    const tipY = () => {
+      tip.computeWorldMatrix(true);
+      return tip.getAbsolutePosition().y;
+    };
+
+    const beforeY = tip ? tipY() : null;
+    node.rotate(axis, -ARM_REST_ANGLE, BABYLON.Space.LOCAL);
+
+    // If the hand rose instead of dropped, this arm mirrors the other — reverse
+    // to land on the same downward A-pose.
+    if (tip && beforeY !== null && tipY() > beforeY) {
+      node.rotate(axis, 2 * ARM_REST_ANGLE, BABYLON.Space.LOCAL);
+    }
+  }
+}
+
 export default function CharacterViewer({ gender, equipment, colors }: CharacterViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<any>(null);
@@ -148,6 +196,11 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
     // Store body skeleton for equipment binding
     if (result.skeletons.length > 0) {
       bodySkeletonRef.current = result.skeletons[0];
+      // The body GLB is authored in a wide T-pose (arms straight out). Clothing
+      // is modelled for a natural rest pose, so on the raw T-pose the character
+      // looks too wide and the garments appear mismatched. Swing the arms down
+      // into an A-pose so the silhouette and clothing read correctly.
+      poseArmsToRest(BABYLON, result.transformNodes);
     }
 
     // Compute model bounds for camera framing (only visible meshes)

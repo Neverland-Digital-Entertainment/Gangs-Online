@@ -45,6 +45,7 @@ const SHARED_CATALOG: Record<Exclude<EquipmentSlot, 'hair'>, EquipmentOption[]> 
   top: [
     { id: null, labelKey: 'npc.appearances.none' },
     { id: 'shirt01', labelKey: 'npc.appearances.top.shirt01', thumbnailKey: 'top/shirt01' },
+    { id: 'shirt01_rigged', labelKey: 'npc.appearances.top.shirt01Rigged', thumbnailKey: 'top/shirt01_rigged' },
   ],
   bottom: [
     { id: null, labelKey: 'npc.appearances.none' },
