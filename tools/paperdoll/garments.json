@@ -1,0 +1,120 @@
+{
+  "bodies": {
+    "male": "packages/shared/characters/body/male.glb",
+    "female": "packages/shared/characters/body/female.glb"
+  },
+  "output_dir": "packages/shared/characters",
+  "follow_body_shape": [
+    { "files": "hair/{gender}/*.glb" },
+    { "files": "beard/*.glb", "genders": ["male"] }
+  ],
+  "garments": [
+    {
+      "name": "pants01",
+      "slot": "bottom",
+      "fat": { "collide_iters": 24, "poke_tolerance": 0.015 },
+      "source": "tools/paperdoll/raw/bottom/pants01.glb",
+      "yaw": 180,
+      "subdivide": 1,
+      "taubin": 4,
+      "pose": {
+        "legs": [-0.05, 0.15]
+      },
+      "init_bones": ["pelvis", "thigh_l", "thigh_r", "calf_l", "calf_r"],
+      "init_axis": "y",
+      "init_ease": 1.0,
+      "region_bones": ["pelvis", "thigh_l", "thigh_r", "calf_l", "calf_r", "foot_l", "foot_r"],
+      "anchors": {
+        "top": ["pelvis", 0.06],
+        "bottom": ["foot_l", 0.05]
+      },
+      "target_offset": 0.01,
+      "min_offset": 0.005,
+      "color": [0.16, 0.2, 0.32]
+    },
+    {
+      "name": "shoe01",
+      "slot": "shoe",
+      "source": "tools/paperdoll/raw/shoe/shoe01.glb",
+      "yaw": 180,
+      "subdivide": 1,
+      "taubin": 2,
+      "per_part": true,
+      "init_bones": ["foot_l", "foot_r", "ball_l", "ball_r", "ball_leaf_l", "ball_leaf_r"],
+      "init_axis": "z",
+      "init_ease": 1.12,
+      "region_bones": ["foot_l", "foot_r", "ball_l", "ball_r", "ball_leaf_l", "ball_leaf_r"],
+      "anchors": {
+        "bottom": ["ground", -0.002]
+      },
+      "target_offset": 0.009,
+      "min_offset": 0.006,
+      "inflate_radius": 0.05,
+      "crease_deg": 45,
+      "color": [0.12, 0.12, 0.13],
+      "roughness": 0.6,
+      "aniso_limit": 0.1,
+      "cover_weight": 4.0
+    },
+    {
+      "name": "shirt01",
+      "slot": "top",
+      "fat": { "collide_iters": 24 },
+      "source": "tools/paperdoll/raw/top/shirt01.glb",
+      "yaw": 180,
+      "subdivide": 1,
+      "taubin": 4,
+      "pose": {
+        "arms": [0.5, 1.25]
+      },
+      "init_bones": ["spine_01", "spine_02", "spine_03", "clavicle_l", "clavicle_r"],
+      "init_axis": "y",
+      "init_ease": 1.0,
+      "region_bones": ["pelvis", "spine_01", "spine_02", "spine_03", "clavicle_l", "clavicle_r", "upperarm_l", "upperarm_r"],
+      "anchors": {
+        "top": ["neck_01", 0.03]
+      },
+      "target_offset": 0.012,
+      "min_offset": 0.006,
+      "color": [0.9, 0.9, 0.88],
+      "tighten": { "max_offset": 0.025, "strength": 0.7, "ignore_beyond": 0.15 },
+      "min_offset_zones": [
+        {
+          "below": ["pelvis", 0.11],
+          "min_offset": 0.012
+        }
+      ],
+      "over": ["pants01"],
+      "inflate_radius": 0.08
+    },
+    {
+      "name": "cap",
+      "slot": "head",
+      "source": "tools/paperdoll/raw/head/cap.glb",
+      "yaw": 180,
+      "subdivide": 1,
+      "taubin": 0,
+      "rigid_bone": "Head",
+      "init_bones": ["Head"],
+      "init_axis": "x",
+      "init_ease": 1.15,
+      "region_bones": ["Head"],
+      "anchors": {
+        "top": ["head_top", 0.045],
+        "bottom": ["head_top", -0.075]
+      },
+      "target_offset": 0.008,
+      "min_offset": 0.004,
+      "crease_deg": 50,
+      "color": [0.55, 0.1, 0.1],
+      "roughness": 0.8,
+      "aniso_y": true,
+      "over_files": ["hair/{gender}/*.glb"],
+      "layer_gap": 0.003,
+      "over_files_exclude": ["hair/female/bun.glb"],
+      "under_as_thickness": true,
+      "under_compress": 0.5,
+      "anchor_weight": 20.0
+    }
+  ]
+}

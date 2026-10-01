@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Users,
   MessageSquare,
+  Palette,
 } from 'lucide-react';
 import { npcTemplateService } from '@/lib/npc/template-service';
 import { useI18n } from '@/contexts/i18n-context';
@@ -330,6 +331,11 @@ export default function NpcTemplatesPage() {
                       >
                         {template.isActive ? t('common.disable') : t('common.enable')}
                       </button>
+                      <Link href={`/npc/appearances?template=${template.id}`}>
+                        <button className="btn btn-sm btn-light" title={t('npc.appearances.editLook')}>
+                          <Palette className="w-4 h-4" />
+                        </button>
+                      </Link>
                       <Link href={`/npc/templates/edit?id=${template.id}`}>
                         <button className="btn btn-sm btn-light" title={t('common.edit')}>
                           <Edit className="w-4 h-4" />

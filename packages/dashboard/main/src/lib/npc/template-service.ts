@@ -21,6 +21,7 @@ import type {
   NpcTemplate,
   NpcTemplateFormData,
   NpcTemplateFilter,
+  NpcAppearance,
 } from '@/types/npc';
 
 const COLLECTION_NAME = 'npc_templates';
@@ -190,6 +191,15 @@ export class NpcTemplateService {
     });
 
     await updateDoc(docRef, updateData);
+  }
+
+  /** Save the default appearance (造型) of a template. */
+  async updateTemplateAppearance(id: string, appearance: NpcAppearance): Promise<void> {
+    const { db } = getFirebaseServices();
+    await updateDoc(doc(db, COLLECTION_NAME, id), {
+      appearance,
+      updatedAt: Timestamp.now(),
+    });
   }
 
   async deleteTemplate(id: string): Promise<void> {

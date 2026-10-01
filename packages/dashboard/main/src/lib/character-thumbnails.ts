@@ -37,6 +37,9 @@ export async function generateAllThumbnails(
     'thumbCam', -Math.PI / 2, Math.PI / 2.5, 3,
     BABYLON.Vector3.Zero(), scene,
   );
+  // Small items (hair, beard, hats, shoes) are framed from a few tens of cm
+  // away; the default near plane (1 unit) would clip them away entirely.
+  camera.minZ = 0.01;
 
   const hemi = new BABYLON.HemisphericLight('thumbHemi', new BABYLON.Vector3(0, 1, 0), scene);
   hemi.intensity = 0.9;
@@ -68,7 +71,8 @@ export async function generateAllThumbnails(
 
         if (maxDim > 0 && maxDim < 1000) {
           camera.target = center;
-          camera.radius = maxDim * 1.5;
+          // distance at which the item just fills the view, plus a small margin
+          camera.radius = (maxDim / 2) / Math.tan(camera.fov / 2) * 1.15;
         }
       }
 
@@ -81,6 +85,7 @@ export async function generateAllThumbnails(
       // Cleanup
       loadResult.meshes.forEach((m: any) => m.dispose());
       loadResult.skeletons.forEach((s: any) => s.dispose());
+      loadResult.transformNodes.forEach((n: any) => n.dispose());
     } catch (err) {
       console.warn(`Thumbnail failed for ${key}:`, err);
     }

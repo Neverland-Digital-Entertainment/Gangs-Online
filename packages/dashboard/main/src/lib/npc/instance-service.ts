@@ -15,10 +15,12 @@ import {
   where,
   orderBy,
   Timestamp,
+  deleteField,
 } from 'firebase/firestore';
 import { getFirebaseServices } from '../firebase/config';
 import { npcTemplateService } from './template-service';
 import type {
+  NpcAppearance,
   NpcInstance,
   NpcInstanceFormData,
   NpcInstanceFilter,
@@ -176,6 +178,24 @@ export class NpcInstanceService {
     });
 
     await updateDoc(docRef, updateData);
+  }
+
+  /** Give this instance its own appearance (overrides the template's). */
+  async setAppearanceOverride(id: string, appearance: NpcAppearance): Promise<void> {
+    const { db } = getFirebaseServices();
+    await updateDoc(doc(db, COLLECTION_NAME, id), {
+      appearanceOverride: appearance,
+      updatedAt: Timestamp.now(),
+    });
+  }
+
+  /** Drop the override so the instance uses its template's appearance again. */
+  async clearAppearanceOverride(id: string): Promise<void> {
+    const { db } = getFirebaseServices();
+    await updateDoc(doc(db, COLLECTION_NAME, id), {
+      appearanceOverride: deleteField(),
+      updatedAt: Timestamp.now(),
+    });
   }
 
   async deleteInstance(id: string): Promise<void> {

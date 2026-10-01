@@ -25,6 +25,25 @@ interface CharacterViewerProps {
   gender: Gender;
   equipment: EquipmentState;
   colors: ColorState;
+  /** -1 = thin, 0 = standard, 1 = fat (drives the 'thin' / 'fat' morph targets on body and clothes). */
+  bodyShape?: number;
+}
+
+/**
+ * Set the body-shape morphs on every mesh that has them. The body, the fitted
+ * clothes, hair and beard all carry matching 'fat' and 'thin' morph targets
+ * (tools/paperdoll), so they change shape together.
+ */
+function applyBodyShape(meshes: any[], value: number): void {
+  const influence: Record<string, number> = { fat: Math.max(value, 0), thin: Math.max(-value, 0) };
+  meshes.forEach((mesh: any) => {
+    const manager = mesh.morphTargetManager;
+    if (!manager) return;
+    for (let i = 0; i < manager.numTargets; i++) {
+      const target = manager.getTarget(i);
+      target.influence = influence[target.name] ?? 0;
+    }
+  });
 }
 
 const SLOT_FOLDERS: Record<EquipmentSlot, string> = {
@@ -36,8 +55,12 @@ const SLOT_FOLDERS: Record<EquipmentSlot, string> = {
   shoe: 'shoe',
 };
 
-/** Slots where the asset path includes a gender subfolder */
-const GENDER_SUBFOLDERED_SLOTS: Set<EquipmentSlot> = new Set(['hair']);
+/**
+ * Slots where the asset path includes a gender subfolder. Garments are fitted
+ * to each body separately (tools/paperdoll), because male and female bodies
+ * have different skeleton bind poses — one GLB cannot fit both.
+ */
+const GENDER_SUBFOLDERED_SLOTS: Set<EquipmentSlot> = new Set(['hair', 'head', 'top', 'bottom', 'shoe']);
 
 function getEquipmentPath(slot: EquipmentSlot, gender: Gender): string {
   const folder = SLOT_FOLDERS[slot];
@@ -47,7 +70,55 @@ function getEquipmentPath(slot: EquipmentSlot, gender: Gender): string {
   return `/characters/${folder}/`;
 }
 
-export default function CharacterViewer({ gender, equipment, colors }: CharacterViewerProps) {
+/** How far (radians) to swing each arm down from the T-pose toward the body. */
+const ARM_REST_ANGLE = 1.15;
+
+/**
+ * Swing the character's arms down from the authored T-pose into a relaxed
+ * A-pose.
+ *
+ * The body GLB is imported with a skeleton whose bones are each linked to a
+ * scene TransformNode (`bone._linkedTransformNode`). The skeleton re-syncs from
+ * those nodes every frame, so rotating the bones directly gets overwritten —
+ * the nodes are the source of truth and must be rotated instead.
+ *
+ * The rotation is done in each node's LOCAL space (about the shoulder joint),
+ * not world space: the glTF loader converts handedness with a mirrored
+ * `__root__` scale of (1, 1, -1), and that negative scale breaks world-space
+ * `rotateAround`. A local rotation about the arm's Z axis swings it cleanly in
+ * the frontal plane. The direction is verified per-arm by checking that the
+ * hand actually drops, so it stays correct regardless of the rig's mirroring.
+ */
+function poseArmsToRest(BABYLON: any, transformNodes: any[]): void {
+  const axis = new BABYLON.Vector3(0, 0, 1);
+  const byName = (name: string) => transformNodes.find((n) => n.name === name);
+
+  const arms: { upper: string; hand: string }[] = [
+    { upper: 'upperarm_l', hand: 'hand_l' },
+    { upper: 'upperarm_r', hand: 'hand_r' },
+  ];
+
+  for (const { upper, hand } of arms) {
+    const node = byName(upper);
+    if (!node) continue;
+    const tip = byName(hand);
+    const tipY = () => {
+      tip.computeWorldMatrix(true);
+      return tip.getAbsolutePosition().y;
+    };
+
+    const beforeY = tip ? tipY() : null;
+    node.rotate(axis, -ARM_REST_ANGLE, BABYLON.Space.LOCAL);
+
+    // If the hand rose instead of dropped, this arm mirrors the other — reverse
+    // to land on the same downward A-pose.
+    if (tip && beforeY !== null && tipY() > beforeY) {
+      node.rotate(axis, 2 * ARM_REST_ANGLE, BABYLON.Space.LOCAL);
+    }
+  }
+}
+
+export default function CharacterViewer({ gender, equipment, colors, bodyShape = 0 }: CharacterViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<any>(null);
   const sceneRef = useRef<any>(null);
@@ -63,6 +134,12 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
   const prevGenderRef = useRef<Gender>(gender);
   const prevEquipmentRef = useRef<EquipmentState>(equipment);
   const prevColorsRef = useRef<ColorState>(colors);
+  const colorsRef = useRef<ColorState>(colors);
+  colorsRef.current = colors;
+  const bodyShapeRef = useRef(bodyShape);
+  bodyShapeRef.current = bodyShape;
+  /** Camera framing for the loaded body; double-click returns to it. */
+  const homeViewRef = useRef<{ target: any; radius: number } | null>(null);
   const sceneReadyRef = useRef(false);
 
   const disposeSlot = useCallback((slot: EquipmentSlot) => {
@@ -87,6 +164,26 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
     disposeBody();
     (Object.keys(equipmentMeshesRef.current) as EquipmentSlot[]).forEach(disposeSlot);
   }, [disposeBody, disposeSlot]);
+
+  /** Tint hair/beard meshes with the colour picked in the panel. */
+  const tintSlot = useCallback(async (slot: EquipmentSlot, hexColor: string) => {
+    const BABYLON = await import('@babylonjs/core');
+    const color = BABYLON.Color3.FromHexString(hexColor);
+    equipmentMeshesRef.current[slot].forEach((mesh: any) => {
+      if (mesh.material && mesh.getTotalVertices?.() > 0) {
+        // Clone material to avoid shared material issues
+        if (!mesh.material._colorTinted) {
+          mesh.material = mesh.material.clone(mesh.material.name + '_tinted');
+          mesh.material._colorTinted = true;
+        }
+        if ('albedoColor' in mesh.material) {
+          mesh.material.albedoColor = color;
+        } else if ('diffuseColor' in mesh.material) {
+          mesh.material.diffuseColor = color;
+        }
+      }
+    });
+  }, []);
 
   const loadEquipmentSlot = useCallback(async (
     scene: any,
@@ -122,15 +219,24 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
             mesh.skeleton = bodySkeletonRef.current;
           }
         });
-        // Dispose the equipment's own skeletons (now unused)
-        result.skeletons.forEach((s: any) => s.dispose());
+        // Dispose the equipment's own skeletons and the armature nodes that
+        // drove them (now unused) so swapping items doesn't pile up nodes.
+        result.skeletons.forEach((s: any) => {
+          s.bones.forEach((b: any) => b.getTransformNode()?.dispose(true));
+          s.dispose();
+        });
       }
 
       equipmentMeshesRef.current[slot] = result.meshes;
+      applyBodyShape(result.meshes, bodyShapeRef.current);
+      // Newly loaded hair/beard starts white; apply the current colour.
+      if (slot === 'hair' || slot === 'beard') {
+        await tintSlot(slot, colorsRef.current[slot]);
+      }
     } catch (err) {
       console.warn(`Failed to load equipment ${slot}/${itemId}:`, err);
     }
-  }, [disposeSlot]);
+  }, [disposeSlot, tintSlot]);
 
   const loadBody = useCallback(async (scene: any, currentGender: Gender) => {
     const BABYLON = await import('@babylonjs/core');
@@ -144,10 +250,16 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
     );
 
     bodyMeshesRef.current = result.meshes;
+    applyBodyShape(result.meshes, bodyShapeRef.current);
 
     // Store body skeleton for equipment binding
     if (result.skeletons.length > 0) {
       bodySkeletonRef.current = result.skeletons[0];
+      // The body GLB is authored in a wide T-pose (arms straight out). Clothing
+      // is modelled for a natural rest pose, so on the raw T-pose the character
+      // looks too wide and the garments appear mismatched. Swing the arms down
+      // into an A-pose so the silhouette and clothing read correctly.
+      poseArmsToRest(BABYLON, result.transformNodes);
     }
 
     // Compute model bounds for camera framing (only visible meshes)
@@ -173,6 +285,9 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
         camera.radius = height * 1.8;
         camera.alpha = -Math.PI / 2;
         camera.beta = Math.PI / 2.2;
+        // Right-drag panning is limited to stay around the character.
+        camera.panningOriginTarget.copyFrom(camera.target);
+        homeViewRef.current = { target: camera.target.clone(), radius: camera.radius };
       }
 
       // Create a shared parent TransformNode. Both body and equipment roots
@@ -230,13 +345,21 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
         'camera', -Math.PI / 2, Math.PI / 2.2, 3,
         new BABYLON.Vector3(0, 1, 0), scene,
       );
-      camera.attachControl(canvas, true);
-      camera.lowerRadiusLimit = 1.5;
+      // Left drag orbits, right drag pans (no Ctrl needed), wheel zooms.
+      camera.attachControl(true, false, 2);
+      (camera.inputs.attached.pointers as any).buttons = [0, 2];
+      camera.lowerRadiusLimit = 0.5;
       camera.upperRadiusLimit = 8;
       camera.lowerBetaLimit = 0.3;
       camera.upperBetaLimit = Math.PI / 1.5;
       camera.wheelDeltaPercentage = 0.01;
-      camera.panningSensibility = 0;
+      camera.minZ = 0.05; // allow close-ups without clipping the face
+      camera.panningDistanceLimit = 1.2;
+      // Panning moves a fixed world distance per pixel; scale it with zoom so a
+      // close-up pans gently and a full-body view still pans quickly.
+      camera.onViewMatrixChangedObservable.add(() => {
+        camera.panningSensibility = 8000 / Math.max(camera.radius, 0.1);
+      });
 
       const keyLight = new BABYLON.DirectionalLight('keyLight', new BABYLON.Vector3(-1, -1, 1), scene);
       keyLight.intensity = 1.2;
@@ -300,39 +423,36 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
     prevEquipmentRef.current = equipment;
   }, [equipment]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Body-shape slider → morph influence on body + everything worn
+  useEffect(() => {
+    applyBodyShape(bodyMeshesRef.current, bodyShape);
+    Object.values(equipmentMeshesRef.current).forEach((meshes) => applyBodyShape(meshes, bodyShape));
+  }, [bodyShape]);
+
   // Apply color tint to hair/beard meshes
   useEffect(() => {
     if (!sceneReadyRef.current) return;
 
-    const applyColor = async (slot: EquipmentSlot, hexColor: string) => {
-      const BABYLON = await import('@babylonjs/core');
-      const color = BABYLON.Color3.FromHexString(hexColor);
-      const meshes = equipmentMeshesRef.current[slot];
-      meshes.forEach((mesh: any) => {
-        if (mesh.material && mesh.getTotalVertices?.() > 0) {
-          // Clone material to avoid shared material issues
-          if (!mesh.material._colorTinted) {
-            mesh.material = mesh.material.clone(mesh.material.name + '_tinted');
-            mesh.material._colorTinted = true;
-          }
-          if ('albedoColor' in mesh.material) {
-            mesh.material.albedoColor = color;
-          } else if ('diffuseColor' in mesh.material) {
-            mesh.material.diffuseColor = color;
-          }
-        }
-      });
-    };
-
     const prev = prevColorsRef.current;
     if (colors.hair !== prev.hair) {
-      applyColor('hair', colors.hair);
+      tintSlot('hair', colors.hair);
     }
     if (colors.beard !== prev.beard) {
-      applyColor('beard', colors.beard);
+      tintSlot('beard', colors.beard);
     }
     prevColorsRef.current = colors;
   }, [colors]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Double-click: back to the default framing after panning/zooming. */
+  const resetView = useCallback(() => {
+    const camera = sceneRef.current?.activeCamera;
+    const home = homeViewRef.current;
+    if (!camera || !home) return;
+    camera.target = home.target.clone();
+    camera.radius = home.radius;
+    camera.alpha = -Math.PI / 2;
+    camera.beta = Math.PI / 2.2;
+  }, []);
 
   return (
     <div className="relative w-full h-full min-h-[400px]">
@@ -340,6 +460,8 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
         ref={canvasRef}
         className="w-full h-full rounded-lg outline-none"
         style={{ touchAction: 'none' }}
+        onContextMenu={(e) => e.preventDefault()}
+        onDoubleClick={resetView}
       />
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">

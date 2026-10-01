@@ -6,6 +6,8 @@ import { User, ChevronDown, X, Pipette } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
 import type { EquipmentState, EquipmentSlot, ColorState } from '@/components/npc/CharacterViewer';
 import { generateAllThumbnails, type ThumbnailMap } from '@/lib/character-thumbnails';
+import AppearanceTargetBar from '@/components/npc/AppearanceTargetBar';
+import type { NpcAppearance } from '@/types/npc';
 
 const CharacterViewer = dynamic(
   () => import('@/components/npc/CharacterViewer'),
@@ -33,33 +35,36 @@ const FEMALE_HAIR_OPTIONS: EquipmentOption[] = [
   { id: 'bun', labelKey: 'npc.appearances.hair.bun', thumbnailKey: 'hair/female/bun' },
 ];
 
-const SHARED_CATALOG: Record<Exclude<EquipmentSlot, 'hair'>, EquipmentOption[]> = {
-  beard: [
-    { id: null, labelKey: 'npc.appearances.none' },
-    { id: 'beard', labelKey: 'npc.appearances.beard.beard', thumbnailKey: 'beard/beard' },
-  ],
-  head: [
-    { id: null, labelKey: 'npc.appearances.none' },
-    { id: 'cap', labelKey: 'npc.appearances.head.cap', thumbnailKey: 'head/cap' },
-  ],
-  top: [
-    { id: null, labelKey: 'npc.appearances.none' },
-    { id: 'shirt01', labelKey: 'npc.appearances.top.shirt01', thumbnailKey: 'top/shirt01' },
-  ],
-  bottom: [
-    { id: null, labelKey: 'npc.appearances.none' },
-    { id: 'pants01', labelKey: 'npc.appearances.bottom.pants01', thumbnailKey: 'bottom/pants01' },
-  ],
-  shoe: [
-    { id: null, labelKey: 'npc.appearances.none' },
-    { id: 'shoe01', labelKey: 'npc.appearances.shoe.shoe01', thumbnailKey: 'shoe/shoe01' },
-  ],
+const BEARD_OPTIONS: EquipmentOption[] = [
+  { id: null, labelKey: 'npc.appearances.none' },
+  { id: 'beard', labelKey: 'npc.appearances.beard.beard', thumbnailKey: 'beard/beard' },
+];
+
+type WearableSlot = 'head' | 'top' | 'bottom' | 'shoe';
+
+/**
+ * Wearables exist once per body: characters/<slot>/<gender>/<id>.glb, fitted by
+ * tools/paperdoll (see its README). Add new items there, then list them here.
+ */
+const WEARABLES: Record<WearableSlot, { id: string; labelKey: string }[]> = {
+  head: [{ id: 'cap', labelKey: 'npc.appearances.head.cap' }],
+  top: [{ id: 'shirt01', labelKey: 'npc.appearances.top.shirt01' }],
+  bottom: [{ id: 'pants01', labelKey: 'npc.appearances.bottom.pants01' }],
+  shoe: [{ id: 'shoe01', labelKey: 'npc.appearances.shoe.shoe01' }],
 };
 
 function getCatalog(gender: Gender): Record<EquipmentSlot, EquipmentOption[]> {
+  const wearable = (slot: WearableSlot): EquipmentOption[] => [
+    { id: null, labelKey: 'npc.appearances.none' },
+    ...WEARABLES[slot].map((o) => ({ ...o, thumbnailKey: `${slot}/${gender}/${o.id}` })),
+  ];
   return {
     hair: gender === 'male' ? MALE_HAIR_OPTIONS : FEMALE_HAIR_OPTIONS,
-    ...SHARED_CATALOG,
+    beard: BEARD_OPTIONS,
+    head: wearable('head'),
+    top: wearable('top'),
+    bottom: wearable('bottom'),
+    shoe: wearable('shoe'),
   };
 }
 
@@ -99,17 +104,44 @@ const DEFAULT_COLORS: ColorState = {
   beard: '#3D2B1F',
 };
 
+const EMPTY_EQUIPMENT: EquipmentState = {
+  hair: null, beard: null, head: null, top: null, bottom: null, shoe: null,
+};
+
+/** Look used for a template that has none saved yet. */
+const DEFAULT_APPEARANCE: NpcAppearance = {
+  gender: 'male',
+  bodyShape: 0,
+  equipment: EMPTY_EQUIPMENT,
+  colors: DEFAULT_COLORS,
+};
+
 export default function NpcAppearancesPage() {
   const { t } = useI18n();
   const [gender, setGender] = useState<Gender>('male');
-  const [equipment, setEquipment] = useState<EquipmentState>({
-    hair: null, beard: null, head: null, top: null, bottom: null, shoe: null,
-  });
+  const [equipment, setEquipment] = useState<EquipmentState>(EMPTY_EQUIPMENT);
   const [colors, setColors] = useState<ColorState>(DEFAULT_COLORS);
+  /** Body shape -100…100: thin ← standard → fat. */
+  const [bodyShape, setBodyShape] = useState(0);
   const [expandedSlot, setExpandedSlot] = useState<EquipmentSlot | null>('hair');
   const [thumbnails, setThumbnails] = useState<ThumbnailMap>({});
 
   const catalog = useMemo(() => getCatalog(gender), [gender]);
+
+  /** The look being edited, in the shape that gets saved to Firestore. */
+  const currentAppearance = useMemo<NpcAppearance>(() => ({
+    gender,
+    bodyShape: bodyShape / 100,
+    equipment,
+    colors,
+  }), [gender, bodyShape, equipment, colors]);
+
+  const loadAppearance = useCallback((a: NpcAppearance) => {
+    setGender(a.gender);
+    setBodyShape(Math.round((a.bodyShape ?? 0) * 100));
+    setEquipment({ ...EMPTY_EQUIPMENT, ...a.equipment });
+    setColors({ ...DEFAULT_COLORS, ...a.colors });
+  }, []);
   const hiddenSlots = HIDDEN_SLOTS[gender] ?? new Set();
 
   // Generate thumbnails when gender changes (hair thumbnails differ per gender)
@@ -166,12 +198,14 @@ export default function NpcAppearancesPage() {
         </p>
       </div>
 
+      <AppearanceTargetBar current={currentAppearance} onLoad={loadAppearance} fallback={DEFAULT_APPEARANCE} />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 3D Viewer */}
         <div className="lg:col-span-2">
           <div className="card">
             <div className="card-body p-0 overflow-hidden rounded-lg" style={{ height: '600px' }}>
-              <CharacterViewer gender={gender} equipment={equipment} colors={colors} />
+              <CharacterViewer gender={gender} equipment={equipment} colors={colors} bodyShape={bodyShape / 100} />
             </div>
           </div>
         </div>
@@ -205,6 +239,36 @@ export default function NpcAppearancesPage() {
               >
                 {t('npc.appearances.female')}
               </button>
+            </div>
+
+            {/* Body shape */}
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-medium">{t('npc.appearances.bodyShape')}</span>
+                <button
+                  type="button"
+                  onClick={() => setBodyShape(0)}
+                  className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                  title={t('npc.appearances.bodyShape.standard')}
+                >
+                  {bodyShape > 0 ? `+${bodyShape}` : bodyShape}
+                </button>
+              </div>
+              <input
+                type="range"
+                min={-100}
+                max={100}
+                step={1}
+                value={bodyShape}
+                onChange={(e) => setBodyShape(Number(e.target.value))}
+                className="w-full accent-primary cursor-pointer"
+                aria-label={t('npc.appearances.bodyShape')}
+              />
+              <div className="flex justify-between text-[10px] text-[var(--muted-foreground)]">
+                <span>{t('npc.appearances.bodyShape.thin')}</span>
+                <span>{t('npc.appearances.bodyShape.standard')}</span>
+                <span>{t('npc.appearances.bodyShape.fat')}</span>
+              </div>
             </div>
           </div>
 
