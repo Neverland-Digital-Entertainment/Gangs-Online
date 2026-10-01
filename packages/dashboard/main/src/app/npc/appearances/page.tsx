@@ -33,34 +33,36 @@ const FEMALE_HAIR_OPTIONS: EquipmentOption[] = [
   { id: 'bun', labelKey: 'npc.appearances.hair.bun', thumbnailKey: 'hair/female/bun' },
 ];
 
-const SHARED_CATALOG: Record<Exclude<EquipmentSlot, 'hair'>, EquipmentOption[]> = {
-  beard: [
-    { id: null, labelKey: 'npc.appearances.none' },
-    { id: 'beard', labelKey: 'npc.appearances.beard.beard', thumbnailKey: 'beard/beard' },
-  ],
-  head: [
-    { id: null, labelKey: 'npc.appearances.none' },
-    { id: 'cap', labelKey: 'npc.appearances.head.cap', thumbnailKey: 'head/cap' },
-  ],
-  top: [
-    { id: null, labelKey: 'npc.appearances.none' },
-    { id: 'shirt01', labelKey: 'npc.appearances.top.shirt01', thumbnailKey: 'top/shirt01' },
-    { id: 'shirt01_rigged', labelKey: 'npc.appearances.top.shirt01Rigged', thumbnailKey: 'top/shirt01_rigged' },
-  ],
-  bottom: [
-    { id: null, labelKey: 'npc.appearances.none' },
-    { id: 'pants01', labelKey: 'npc.appearances.bottom.pants01', thumbnailKey: 'bottom/pants01' },
-  ],
-  shoe: [
-    { id: null, labelKey: 'npc.appearances.none' },
-    { id: 'shoe01', labelKey: 'npc.appearances.shoe.shoe01', thumbnailKey: 'shoe/shoe01' },
-  ],
+const BEARD_OPTIONS: EquipmentOption[] = [
+  { id: null, labelKey: 'npc.appearances.none' },
+  { id: 'beard', labelKey: 'npc.appearances.beard.beard', thumbnailKey: 'beard/beard' },
+];
+
+type WearableSlot = 'head' | 'top' | 'bottom' | 'shoe';
+
+/**
+ * Wearables exist once per body: characters/<slot>/<gender>/<id>.glb, fitted by
+ * tools/paperdoll (see its README). Add new items there, then list them here.
+ */
+const WEARABLES: Record<WearableSlot, { id: string; labelKey: string }[]> = {
+  head: [{ id: 'cap', labelKey: 'npc.appearances.head.cap' }],
+  top: [{ id: 'shirt01', labelKey: 'npc.appearances.top.shirt01' }],
+  bottom: [{ id: 'pants01', labelKey: 'npc.appearances.bottom.pants01' }],
+  shoe: [{ id: 'shoe01', labelKey: 'npc.appearances.shoe.shoe01' }],
 };
 
 function getCatalog(gender: Gender): Record<EquipmentSlot, EquipmentOption[]> {
+  const wearable = (slot: WearableSlot): EquipmentOption[] => [
+    { id: null, labelKey: 'npc.appearances.none' },
+    ...WEARABLES[slot].map((o) => ({ ...o, thumbnailKey: `${slot}/${gender}/${o.id}` })),
+  ];
   return {
     hair: gender === 'male' ? MALE_HAIR_OPTIONS : FEMALE_HAIR_OPTIONS,
-    ...SHARED_CATALOG,
+    beard: BEARD_OPTIONS,
+    head: wearable('head'),
+    top: wearable('top'),
+    bottom: wearable('bottom'),
+    shoe: wearable('shoe'),
   };
 }
 

@@ -36,8 +36,12 @@ const SLOT_FOLDERS: Record<EquipmentSlot, string> = {
   shoe: 'shoe',
 };
 
-/** Slots where the asset path includes a gender subfolder */
-const GENDER_SUBFOLDERED_SLOTS: Set<EquipmentSlot> = new Set(['hair']);
+/**
+ * Slots where the asset path includes a gender subfolder. Garments are fitted
+ * to each body separately (tools/paperdoll), because male and female bodies
+ * have different skeleton bind poses — one GLB cannot fit both.
+ */
+const GENDER_SUBFOLDERED_SLOTS: Set<EquipmentSlot> = new Set(['hair', 'head', 'top', 'bottom', 'shoe']);
 
 function getEquipmentPath(slot: EquipmentSlot, gender: Gender): string {
   const folder = SLOT_FOLDERS[slot];
@@ -170,8 +174,12 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
             mesh.skeleton = bodySkeletonRef.current;
           }
         });
-        // Dispose the equipment's own skeletons (now unused)
-        result.skeletons.forEach((s: any) => s.dispose());
+        // Dispose the equipment's own skeletons and the armature nodes that
+        // drove them (now unused) so swapping items doesn't pile up nodes.
+        result.skeletons.forEach((s: any) => {
+          s.bones.forEach((b: any) => b.getTransformNode()?.dispose(true));
+          s.dispose();
+        });
       }
 
       equipmentMeshesRef.current[slot] = result.meshes;

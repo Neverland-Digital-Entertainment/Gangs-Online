@@ -1,0 +1,73 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#26262e}canvas{width:640px;height:800px;display:block}</style>
+<script src="/node_modules/babylonjs/babylon.js"></script>
+<script src="/node_modules/babylonjs-loaders/babylonjs.loaders.min.js"></script>
+</head><body><canvas id="c" width="640" height="800"></canvas>
+<script>
+// Mirrors packages/dashboard/main/src/components/npc/CharacterViewer.tsx (body load, A-pose, skeleton rebind).
+// Query: ?gender=male&items=top/male/shirt01.glb,hair/male/short.glb&pose=apose|tpose|arms:0.8&xray=1
+const ARM_REST_ANGLE = 1.15;
+function poseArmsToRest(transformNodes, angle) {
+  const axis = new BABYLON.Vector3(0, 0, 1);
+  const byName = (n) => transformNodes.find((t) => t.name === n);
+  for (const { upper, hand } of [{ upper: 'upperarm_l', hand: 'hand_l' }, { upper: 'upperarm_r', hand: 'hand_r' }]) {
+    const node = byName(upper); if (!node) continue;
+    const tip = byName(hand);
+    const tipY = () => { tip.computeWorldMatrix(true); return tip.getAbsolutePosition().y; };
+    const beforeY = tip ? tipY() : null;
+    node.rotate(axis, -angle, BABYLON.Space.LOCAL);
+    if (tip && beforeY !== null && tipY() > beforeY) node.rotate(axis, 2 * angle, BABYLON.Space.LOCAL);
+  }
+}
+const q = new URLSearchParams(location.search);
+const gender = q.get('gender') || 'male';
+const items = (q.get('items') || '').split(',').filter(Boolean); // e.g. top/shirt01.glb or out/top/male/shirt01.glb
+const pose = q.get('pose') || 'apose';
+const xray = q.get('xray') === '1';
+const canvas = document.getElementById('c');
+const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color4(0.15, 0.15, 0.18, 1);
+const camera = new BABYLON.ArcRotateCamera('camera', -Math.PI / 2, Math.PI / 2.2, 3, new BABYLON.Vector3(0, 1, 0), scene); camera.minZ = 0.01;
+const keyLight = new BABYLON.DirectionalLight('keyLight', new BABYLON.Vector3(-1, -1, 1), scene); keyLight.intensity = 1.2;
+const fillLight = new BABYLON.DirectionalLight('fillLight', new BABYLON.Vector3(1, -0.5, -1), scene); fillLight.intensity = 0.6;
+const ambient = new BABYLON.HemisphericLight('ambient', new BABYLON.Vector3(0, 1, 0), scene); ambient.intensity = 0.4;
+ambient.groundColor = new BABYLON.Color3(0.2, 0.2, 0.25);
+const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 6, height: 6 }, scene);
+const gm = new BABYLON.StandardMaterial('groundMat', scene); gm.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.22); gm.specularColor = new BABYLON.Color3(0,0,0); ground.material = gm;
+window.ready = false; window.errors = [];
+let charRoot, bodySkeleton, bodyHeight = 1.8;
+(async () => {
+  try {
+    const body = await BABYLON.SceneLoader.ImportMeshAsync('', '/characters/body/', `${gender}.glb`, scene);
+    bodySkeleton = body.skeletons[0];
+    if (pose === 'apose') poseArmsToRest(body.transformNodes, ARM_REST_ANGLE);
+    else if (pose.startsWith('arms:')) poseArmsToRest(body.transformNodes, parseFloat(pose.slice(5)));
+    let min = new BABYLON.Vector3(Infinity, Infinity, Infinity), max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
+    body.meshes.forEach((m) => { if (m.getTotalVertices && m.getTotalVertices() > 0) { const bi = m.getBoundingInfo();
+      min = BABYLON.Vector3.Minimize(min, bi.boundingBox.minimumWorld); max = BABYLON.Vector3.Maximize(max, bi.boundingBox.maximumWorld); } });
+    const center = BABYLON.Vector3.Center(min, max); bodyHeight = max.y - min.y;
+    charRoot = new BABYLON.TransformNode('characterRoot', scene);
+    charRoot.position.x = -center.x; charRoot.position.z = -center.z;
+    body.meshes[0].parent = charRoot;
+    if (xray) body.meshes.forEach((m) => { if (m.material) { m.material.alpha = 0.35; m.material.transparencyMode = 2; } });
+    for (const it of items) {
+      const i = it.lastIndexOf('/');
+      const r = await BABYLON.SceneLoader.ImportMeshAsync('', '/characters/' + it.slice(0, i + 1), it.slice(i + 1), scene);
+      if (r.meshes[0]) r.meshes[0].parent = charRoot;
+      if (bodySkeleton && r.skeletons.length > 0) {
+        r.meshes.forEach((m) => { if (m.skeleton) m.skeleton = bodySkeleton; });
+        r.skeletons.forEach((s) => { s.bones.forEach((b) => b.getTransformNode()?.dispose(true)); s.dispose(); });
+      }
+    }
+    window.setView = (alpha, beta, radiusMul, targetY) => {
+      camera.target = new BABYLON.Vector3(0, targetY ?? bodyHeight / 2, 0);
+      camera.radius = bodyHeight * (radiusMul ?? 1.8); camera.alpha = alpha; camera.beta = beta ?? Math.PI / 2.2;
+    };
+    window.setView(-Math.PI / 2);
+    engine.runRenderLoop(() => scene.render());
+    await new Promise((r) => setTimeout(r, 300));
+    window.ready = true;
+  } catch (e) { window.errors.push(String(e && e.stack || e)); window.ready = true; }
+})();
+</script></body></html>
