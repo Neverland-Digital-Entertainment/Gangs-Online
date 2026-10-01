@@ -61,8 +61,10 @@ let charRoot, bodySkeleton, bodyHeight = 1.8;
       }
     }
     // body-shape morph (fat) influence for everything that has it
-    const fat = parseFloat(q.get('fat') || '0');
-    scene.meshes.forEach((m) => { const mt = m.morphTargetManager; if (mt) for (let k = 0; k < mt.numTargets; k++) mt.getTarget(k).influence = fat; });
+    // body shape: -1 thin .. 0 standard .. 1 fat (same mapping as CharacterViewer)
+    const shape = parseFloat(q.get('fat') || '0');
+    const infl = { fat: Math.max(shape, 0), thin: Math.max(-shape, 0) };
+    scene.meshes.forEach((m) => { const mt = m.morphTargetManager; if (mt) for (let k = 0; k < mt.numTargets; k++) { const t = mt.getTarget(k); t.influence = infl[t.name] ?? 0; } });
     window.setView = (alpha, beta, radiusMul, targetY) => {
       camera.target = new BABYLON.Vector3(0, targetY ?? bodyHeight / 2, 0);
       camera.radius = bodyHeight * (radiusMul ?? 1.8); camera.alpha = alpha; camera.beta = beta ?? Math.PI / 2.2;

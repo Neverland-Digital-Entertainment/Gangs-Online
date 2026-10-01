@@ -145,8 +145,8 @@ VIEWER_ARM_REST_ANGLE = 1.15  # CharacterViewer.tsx ARM_REST_ANGLE
 # ---------------------------------------------------------------------------
 
 class Body:
-    def __init__(self, path: str, morph: float = 0.0):
-        """morph: influence of the body's 'fat' morph target (0 = normal, 1 = fat)."""
+    def __init__(self, path: str, morph: float = 0.0, shape: str = 'fat'):
+        """morph: influence of the body-shape morph target `shape` ('fat' / 'thin')."""
         g = pygltflib.GLTF2().load(path)
         blob = g.binary_blob()
         self.path = path
@@ -176,8 +176,8 @@ class Body:
         _, first = np.unique(labels, return_index=True)
         remap = np.empty(labels.max() + 1, np.int64)
         remap[labels[first]] = np.arange(len(first))
-        self.morph = morph
-        self.V = P[first] + morph * read_morph(g, blob, best)[first]
+        self.morph, self.shape = morph, shape
+        self.V = P[first] + morph * read_morph(g, blob, best, shape)[first]
         self.F = remap[labels[F]]
         self.F = self.F[(self.F[:, 0] != self.F[:, 1]) & (self.F[:, 1] != self.F[:, 2]) & (self.F[:, 0] != self.F[:, 2])]
         self.J = J[first]
@@ -255,14 +255,14 @@ class Body:
         return V, mats
 
 
-def load_skinned_garment(path: str, morph: float = 0.0) -> dict:
+def load_skinned_garment(path: str, morph: float = 0.0, shape: str = 'fat') -> dict:
     g = pygltflib.GLTF2().load(path)
     blob = g.binary_blob()
     pr = g.meshes[0].primitives[0]
     a = pr.attributes
     return dict(
         gltf=g,
-        P=read_accessor(g, blob, a.POSITION).astype(float) + morph * read_morph(g, blob, pr),
+        P=read_accessor(g, blob, a.POSITION).astype(float) + morph * read_morph(g, blob, pr, shape),
         J=read_accessor(g, blob, a.JOINTS_0).astype(np.int64),
         W=read_accessor(g, blob, a.WEIGHTS_0).astype(float),
         F=read_accessor(g, blob, pr.indices).reshape(-1, 3).astype(np.int64),
@@ -440,7 +440,7 @@ class Fitter:
         self.min_off = cfg.get('min_offset', 0.006)
         self._pose_cache: dict = {}
         # Garments this one is worn over (already fitted skinned GLBs).
-        self.under = [load_skinned_garment(p, body.morph) for p in cfg.get('_over_paths', [])]
+        self.under = [load_skinned_garment(p, body.morph, body.shape) for p in cfg.get('_over_paths', [])]
         self.extra = self._under_thickness() if cfg.get('under_as_thickness') else np.zeros(len(body.V))
 
     def _under_thickness(self) -> np.ndarray:
@@ -1253,25 +1253,35 @@ def repack(g: pygltflib.GLTF2, blob: bytes) -> bytes:
     return bytes(out)
 
 
-def set_morph_target(g, blob: bytearray, mesh_index: int, prim_index: int, name: str,
-                     dpos: np.ndarray, dnorm: np.ndarray | None = None):
-    """Replace a primitive's morph targets with a single named target."""
+def set_morph_targets(g, blob: bytearray, mesh_index: int, prim_index: int, targets: dict):
+    """Replace a primitive's morph targets with named ones: {name: (dpos, dnorm or None)}.
+
+    Every primitive of a mesh must list the same targets in the same order
+    (glTF rule), so callers pass the same names for all of them.
+    """
     mesh = g.meshes[mesh_index]
     pr = mesh.primitives[prim_index]
-    t = {'POSITION': append_accessor(g, blob, dpos, 'VEC3', minmax=True)}
-    if dnorm is not None:
-        t['NORMAL'] = append_accessor(g, blob, dnorm, 'VEC3')
-    pr.targets = [t]
-    mesh.weights = [0.0]
-    mesh.extras = dict(mesh.extras or {}, targetNames=[name])
+    out = []
+    for dpos, dnorm in targets.values():
+        t = {'POSITION': append_accessor(g, blob, dpos, 'VEC3', minmax=True)}
+        if dnorm is not None:
+            t['NORMAL'] = append_accessor(g, blob, dnorm, 'VEC3')
+        out.append(t)
+    pr.targets = out
+    mesh.weights = [0.0] * len(out)
+    mesh.extras = dict(mesh.extras or {}, targetNames=list(targets.keys()))
 
 
 def read_morph(g, blob, prim, name='fat'):
-    """POSITION delta of a named morph target (zeros if absent)."""
+    """POSITION delta of a named morph target of `prim` (zeros if absent)."""
     n = g.accessors[prim.attributes.POSITION].count
     if not prim.targets:
         return np.zeros((n, 3))
-    t = prim.targets[0]
+    mesh = next(m for m in g.meshes if any(p is prim for p in m.primitives))
+    names = (mesh.extras or {}).get('targetNames') or ['fat']
+    if name not in names:
+        return np.zeros((n, 3))
+    t = prim.targets[names.index(name)]
     idx = t['POSITION'] if isinstance(t, dict) else t.POSITION
     return read_accessor(g, blob, idx).astype(float)
 
@@ -1290,11 +1300,13 @@ def transfer_body_morph(slim: Body, fat: Body, P: np.ndarray, smooth_radius: flo
     return D
 
 
-def add_fat_morph(slim: Body, fat: Body, path: str, cfg: dict, collide: bool = True, log=print) -> dict:
-    """Fit an already-exported skinned asset onto the fat body as a 'fat' morph target.
+def add_shape_morphs(slim: Body, shapes: dict, path: str, cfg: dict, collide: bool = True, log=print) -> dict:
+    """Fit an already-exported skinned asset onto each shaped body as morph targets.
 
-    Topology, UVs and weights stay identical; only the morph delta is added, so
-    the viewer can blend continuously between the two shapes.
+    shapes: {name: Body loaded with that morph at 1.0}. Topology, UVs and
+    weights stay identical; only morph deltas are added, so the viewer can
+    blend continuously between the shapes. `cfg[name]` may override settings
+    for one shape (e.g. more collision iterations for 'fat').
     """
     g = pygltflib.GLTF2().load(path)
     blob = bytearray(g.binary_blob())
@@ -1311,27 +1323,29 @@ def add_fat_morph(slim: Body, fat: Body, path: str, cfg: dict, collide: bool = T
     gm.rebuild_topology()
     Pw = gm.Pw
     Jw, Ww = J[gm.first], W[gm.first]
-    D = transfer_body_morph(slim, fat, Pw, cfg.get('morph_smooth', 0.06))
-    if cfg.get('rigid_bone'):
-        D[:] = D.mean(0)  # rigid items just ride along
+    n_slim = vertex_normals(Pw, gm.Fw)[gm.weld]
+    targets, stats = {}, {}
+    for name, shaped in shapes.items():
+        scfg = dict(cfg, **cfg.get(name, {}))
+        D = transfer_body_morph(slim, shaped, Pw, scfg.get('morph_smooth', 0.06))
+        if scfg.get('rigid_bone'):
+            D[:] = D.mean(0)  # rigid items just ride along
         Pf = Pw + D
-    else:
-        Pf = Pw + D
-        if collide:
-            fitter = Fitter(fat, gm, cfg, log)
-            display = cfg.get('display_pose', {'arms': VIEWER_ARM_REST_ANGLE})
-            mats_d = fat.skin_matrices(display)
+        if collide and not scfg.get('rigid_bone'):
+            fitter = Fitter(shaped, gm, scfg, log)
+            display = scfg.get('display_pose', {'arms': VIEWER_ARM_REST_ANGLE})
+            mats_d = shaped.skin_matrices(display)
             P_disp = lbs(mats_d, Pf, Jw, Ww)
             P_disp = fitter.inflate(P_disp, display)
-            P_disp = fitter.bridge(P_disp, display, cfg.get('bridge_iters', 15))
-            P_disp = fitter.collide(P_disp, display, cfg.get('collide_iters', 12))
+            P_disp = fitter.bridge(P_disp, display, scfg.get('bridge_iters', 15))
+            P_disp = fitter.collide(P_disp, display, scfg.get('collide_iters', 12))
             Pf = inverse_lbs(mats_d, P_disp, Jw, Ww)
-    dpos = (Pf - Pw)[gm.weld]
-    n_slim = vertex_normals(Pw, gm.Fw)[gm.weld]
-    n_fat = vertex_normals(Pf, gm.Fw)[gm.weld]
-    dn = unit(N + (n_fat - n_slim)) - N
-    set_morph_target(g, blob, 0, 0, 'fat', dpos, dn)
+        dpos = (Pf - Pw)[gm.weld]
+        n_shape = vertex_normals(Pf, gm.Fw)[gm.weld]
+        targets[name] = (dpos, unit(N + (n_shape - n_slim)) - N)
+        stats[name] = float(np.linalg.norm(dpos, axis=1).max())
+    set_morph_targets(g, blob, 0, 0, targets)
     new_blob = repack(g, bytes(blob))
     g.set_binary_blob(new_blob)
     g.save_binary(path)
-    return {'max_shift': float(np.linalg.norm(dpos, axis=1).max())}
+    return stats

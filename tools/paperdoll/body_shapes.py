@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Add a "fat" morph target to the body GLBs (肥佬 / 肥婆 body shape).
+Add body-shape morph targets to the body GLBs: "fat" (肥佬 / 肥婆) and "thin".
 
-The fat shape uses the very same mesh (topology, UVs, skin weights) and
-skeleton as the normal body, so polygon count and texture stay the same and
-the dashboard can blend between the two with a slider (morph influence 0..1).
+The shapes use the very same mesh (topology, UVs, skin weights) and skeleton
+as the normal body, so polygon count and texture stay the same and the
+dashboard blends them with one slider (thin <- standard -> fat).
 
-The displacement is a smooth "fat field":
+Each displacement is a smooth field:
   * every skin vertex moves out along its normal by an amount blended from
     its skin weights (belly/waist/thighs a lot, hands/feet almost nothing);
   * a few shaped extras on top: a forward-and-down hanging belly, chest,
@@ -15,7 +15,7 @@ The displacement is a smooth "fat field":
   * the result is Laplacian-smoothed so there are no creases.
 Eyes and eyebrows get the delta of the face under them so they stay attached.
 
-    python tools/paperdoll/body_shapes.py            # writes the morph into both bodies
+    python tools/paperdoll/body_shapes.py            # writes the morphs into both bodies
     python tools/paperdoll/body_shapes.py --preview  # only prints stats
 """
 import argparse
@@ -32,27 +32,49 @@ sys.path.insert(0, HERE)
 import paperdoll as pd  # noqa: E402
 
 CHAR = os.path.join(HERE, '..', '..', 'packages', 'shared', 'characters')
-MORPH_NAME = 'fat'
+SHAPE_NAMES = ('fat', 'thin')
 
-# Outward push (metres) per bone, blended by skin weight.
-BONE_FAT = {
-    'male': {
-        'pelvis': 0.070, 'spine_01': 0.100, 'spine_02': 0.085, 'spine_03': 0.055,
-        'clavicle_l': 0.030, 'clavicle_r': 0.030, 'neck_01': 0.036, 'Head': 0.0,
-        'upperarm_l': 0.045, 'upperarm_r': 0.045, 'lowerarm_l': 0.018, 'lowerarm_r': 0.018,
-        'thigh_l': 0.055, 'thigh_r': 0.055, 'calf_l': 0.020, 'calf_r': 0.020,
+# Outward push (metres) per bone, blended by skin weight; negative = slimmer.
+BONES = {
+    'fat': {
+        'male': {
+            'pelvis': 0.070, 'spine_01': 0.100, 'spine_02': 0.085, 'spine_03': 0.055,
+            'clavicle_l': 0.030, 'clavicle_r': 0.030, 'neck_01': 0.036, 'Head': 0.0,
+            'upperarm_l': 0.045, 'upperarm_r': 0.045, 'lowerarm_l': 0.018, 'lowerarm_r': 0.018,
+            'thigh_l': 0.055, 'thigh_r': 0.055, 'calf_l': 0.020, 'calf_r': 0.020,
+        },
+        'female': {
+            'pelvis': 0.080, 'spine_01': 0.080, 'spine_02': 0.065, 'spine_03': 0.042,
+            'clavicle_l': 0.026, 'clavicle_r': 0.026, 'neck_01': 0.028, 'Head': 0.0,
+            'upperarm_l': 0.042, 'upperarm_r': 0.042, 'lowerarm_l': 0.016, 'lowerarm_r': 0.016,
+            'thigh_l': 0.065, 'thigh_r': 0.065, 'calf_l': 0.022, 'calf_r': 0.022,
+        },
     },
-    'female': {
-        'pelvis': 0.080, 'spine_01': 0.080, 'spine_02': 0.065, 'spine_03': 0.042,
-        'clavicle_l': 0.026, 'clavicle_r': 0.026, 'neck_01': 0.028, 'Head': 0.0,
-        'upperarm_l': 0.042, 'upperarm_r': 0.042, 'lowerarm_l': 0.016, 'lowerarm_r': 0.016,
-        'thigh_l': 0.065, 'thigh_r': 0.065, 'calf_l': 0.022, 'calf_r': 0.022,
+    'thin': {
+        'male': {
+            'pelvis': -0.028, 'spine_01': -0.045, 'spine_02': -0.045, 'spine_03': -0.036,
+            'clavicle_l': -0.018, 'clavicle_r': -0.018, 'neck_01': -0.013, 'Head': 0.0,
+            'upperarm_l': -0.024, 'upperarm_r': -0.024, 'lowerarm_l': -0.011, 'lowerarm_r': -0.011,
+            'thigh_l': -0.032, 'thigh_r': -0.032, 'calf_l': -0.017, 'calf_r': -0.017,
+        },
+        'female': {
+            'pelvis': -0.030, 'spine_01': -0.028, 'spine_02': -0.026, 'spine_03': -0.018,
+            'clavicle_l': -0.010, 'clavicle_r': -0.010, 'neck_01': -0.008, 'Head': 0.0,
+            'upperarm_l': -0.016, 'upperarm_r': -0.016, 'lowerarm_l': -0.008, 'lowerarm_r': -0.008,
+            'thigh_l': -0.032, 'thigh_r': -0.032, 'calf_l': -0.013, 'calf_r': -0.013,
+        },
     },
 }
-# Shaped extras: amplitudes in metres
+# Shaped extras: amplitudes in metres (negative = sucked in / flatter / hollow)
 EXTRAS = {
-    'male': {'belly': 0.12, 'waist': 0.045, 'chest': 0.03, 'butt': 0.035, 'chin': 0.028, 'cheek': 0.012},
-    'female': {'belly': 0.09, 'waist': 0.035, 'chest': 0.022, 'butt': 0.06, 'chin': 0.022, 'cheek': 0.010},
+    'fat': {
+        'male': {'belly': 0.12, 'waist': 0.045, 'chest': 0.03, 'butt': 0.035, 'chin': 0.028, 'cheek': 0.012},
+        'female': {'belly': 0.09, 'waist': 0.035, 'chest': 0.022, 'butt': 0.06, 'chin': 0.022, 'cheek': 0.010},
+    },
+    'thin': {
+        'male': {'belly': -0.025, 'waist': -0.02, 'chest': -0.025, 'butt': -0.02, 'chin': 0.0, 'cheek': -0.007},
+        'female': {'belly': -0.018, 'waist': -0.016, 'chest': -0.008, 'butt': -0.025, 'chin': 0.0, 'cheek': -0.006},
+    },
 }
 
 
@@ -61,22 +83,22 @@ def gaussian(V, c, r):
     return np.exp(-0.5 * (d * d).sum(1))
 
 
-def fat_field(body: pd.Body, gender: str, eye_centers=()) -> np.ndarray:
+def shape_field(body: pd.Body, gender: str, shape: str, eye_centers=()) -> np.ndarray:
     V, F = body.V, body.F
     n = pd.vertex_normals(V, F)
     W = pd.node_worlds(body.gltf)
     J = lambda name: W[body.node_index[name]][:3, 3]  # noqa: E731
 
     amp = np.zeros(len(V))
-    for bone, a in BONE_FAT[gender].items():
+    for bone, a in BONES[shape][gender].items():
         amp += body.Wdense[:, body.joint_index[bone]] * a
-    # damp the inner thighs (normal pointing at the other leg) and the armpit side of the arms
+    # damp growth of the inner thighs (normal pointing at the other leg)
     leg = body.Wdense[:, [body.joint_index[b] for b in ('thigh_l', 'thigh_r', 'calf_l', 'calf_r')]].sum(1)
     inward = np.maximum(-np.sign(V[:, 0]) * n[:, 0], 0)
-    amp *= 1 - 0.75 * leg * inward
+    amp = np.where(amp > 0, amp * (1 - 0.75 * leg * inward), amp)
     D = amp[:, None] * n
 
-    ex = EXTRAS[gender]
+    ex = EXTRAS[shape][gender]
     front = -1.0  # characters face -Z
     z_front = lambda y: V[np.abs(V[:, 1] - y) < 0.02][:, 2].min()  # noqa: E731
     facing_front = np.clip(-n[:, 2], 0, 1)
@@ -146,46 +168,43 @@ def prim_weld_map(g, blob, prim):
     return P, pd.weld(P)
 
 
-def write_body_morph(path: str, gender: str, preview: bool = False):
+def write_body_morphs(path: str, gender: str, preview: bool = False):
     body = pd.Body(path)
     g = pygltflib.GLTF2().load(path)
     blob = bytearray(g.binary_blob())
     eyes = g.meshes[next(n.mesh for n in g.nodes if n.name == 'Eyes')].primitives[0]
     EP = pd.read_accessor(g, bytes(blob), eyes.attributes.POSITION).astype(float)
     eye_centers = [EP[EP[:, 0] < 0].mean(0), EP[EP[:, 0] > 0].mean(0)]
-    Dw = fat_field(body, gender, eye_centers)  # per welded body vertex
+    fields = {shape: shape_field(body, gender, shape, eye_centers) for shape in SHAPE_NAMES}  # per welded vertex
 
     # map welded deltas back to every primitive vertex
     tree = cKDTree(body.V)
-    stats = []
+    n0w = pd.vertex_normals(body.V, body.F)
+    biggest = max(g.accessors[p.attributes.POSITION].count for m in g.meshes for p in m.primitives)
     for mi, mesh in enumerate(g.meshes):
         for pi, prim in enumerate(mesh.primitives):
             P = pd.read_accessor(g, bytes(blob), prim.attributes.POSITION).astype(float)
-            dist, idx = tree.query(P)
-            dpos = Dw[idx]  # eyes/brows: delta of the closest face vertex
-            # normal deltas from the deformed welded surface
-            Vf = body.V + Dw
-            n0 = pd.vertex_normals(body.V, body.F)[idx]
-            n1 = pd.vertex_normals(Vf, body.F)[idx]
-            if prim.attributes.NORMAL is not None and len(P) == max(
-                    g.accessors[p.attributes.POSITION].count for m in g.meshes for p in m.primitives):
-                nrm = pd.read_accessor(g, bytes(blob), prim.attributes.NORMAL).astype(float)
-                # rotate the authored normal by the surface change (keeps eye/brow shading)
-                dn = pd.unit(nrm + (n1 - n0)) - nrm
-            else:
+            _, idx = tree.query(P)
+            targets = {}
+            for shape, Dw in fields.items():
+                dpos = Dw[idx]  # eyes/brows: delta of the closest face vertex
                 dn = None
-            stats.append((mesh.name, len(P), float(np.linalg.norm(dpos, axis=1).max())))
+                if prim.attributes.NORMAL is not None and len(P) == biggest:
+                    # rotate the authored normal by the surface change
+                    nrm = pd.read_accessor(g, bytes(blob), prim.attributes.NORMAL).astype(float)
+                    n1 = pd.vertex_normals(body.V + Dw, body.F)[idx]
+                    dn = pd.unit(nrm + (n1 - n0w[idx])) - nrm
+                targets[shape] = (dpos, dn)
+                print(f'  {gender} {shape:4s}: {mesh.name:28s} verts={len(P):5d} max shift={np.linalg.norm(dpos, axis=1).max() * 100:.1f}cm')
             if not preview:
-                pd.set_morph_target(g, blob, mi, pi, MORPH_NAME, dpos, dn)
-    for s in stats:
-        print(f'  {gender}: {s[0]:28s} verts={s[1]:5d} max shift={s[2] * 100:.1f}cm')
+                pd.set_morph_targets(g, blob, mi, pi, targets)
     if preview:
-        return Dw
+        return fields
     new_blob = pd.repack(g, bytes(blob))
     g.set_binary_blob(new_blob)
     g.save_binary(path)
     print(f'  wrote {os.path.relpath(path)} ({len(new_blob) // 1024} KB)')
-    return Dw
+    return fields
 
 
 if __name__ == '__main__':
@@ -194,4 +213,4 @@ if __name__ == '__main__':
     ap.add_argument('--gender', choices=['male', 'female'], action='append')
     args = ap.parse_args()
     for gender in args.gender or ['male', 'female']:
-        write_body_morph(os.path.abspath(os.path.join(CHAR, 'body', f'{gender}.glb')), gender, args.preview)
+        write_body_morphs(os.path.abspath(os.path.join(CHAR, 'body', f'{gender}.glb')), gender, args.preview)

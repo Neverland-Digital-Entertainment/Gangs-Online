@@ -7,7 +7,7 @@
 //
 // items: comma-separated paths under packages/shared/characters
 // pose : apose (viewer default) | tpose | arms:<radians>
-// views: comma-separated, see V below      zoom: "<radiusMul>:<targetY>"   fat: body-shape morph 0..1
+// views: comma-separated, see V below      zoom: "<radiusMul>:<targetY>"   fat: body shape -1 (thin) .. 0 .. 1 (fat)
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { dirname, extname, join, normalize } from 'node:path';

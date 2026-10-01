@@ -56,7 +56,7 @@ def clipping(body, garment, cfg, pose, min_ok=0.0):
 
 
 def validate(body, path, cfg):
-    gar = load_skinned(path, body.morph)
+    gar = load_skinned(path, body.morph, body.shape)
     lines, ok = [], True
     same_joints = gar['joints'] == body.joint_names
     ibm_diff = float(np.abs(gar['ibm'] - body.ibm_raw).max())
@@ -71,7 +71,7 @@ def validate(body, path, cfg):
         if label == 'viewer A-pose':
             ok &= inside / n < 0.01 and poke <= max(3, nb * cfg.get('poke_tolerance', 0.01))
             for up in cfg.get('_over_paths', []):
-                under = load_skinned(up, body.morph)
+                under = load_skinned(up, body.morph, body.shape)
                 Vb, mats = body.posed(pose)
                 G = pd.lbs(mats, gar['P'], gar['J'], gar['W'])
                 U = pd.lbs(mats, under['P'], under['J'], under['W'])

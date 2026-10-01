@@ -10,6 +10,7 @@ import {
   AlertCircle,
   MapPin,
   Target,
+  Palette,
 } from 'lucide-react';
 import { npcInstanceService } from '@/lib/npc/instance-service';
 import { npcTemplateService } from '@/lib/npc/template-service';
@@ -362,6 +363,11 @@ export default function InstancesPage() {
                       >
                         {instance.isActive ? t('common.disable') : t('common.enable')}
                       </button>
+                      <Link href={`/npc/appearances?template=${instance.templateId}&instance=${instance.id}`}>
+                        <button className="btn btn-sm btn-light" title={t('npc.appearances.editLook')}>
+                          <Palette className="w-4 h-4" />
+                        </button>
+                      </Link>
                       <Link href={`/npc/instances/edit?id=${instance.id}`}>
                         <button className="btn btn-sm btn-light" title={t('common.edit')}>
                           <Edit className="w-4 h-4" />

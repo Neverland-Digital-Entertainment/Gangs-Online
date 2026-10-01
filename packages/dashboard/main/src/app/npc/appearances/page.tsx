@@ -6,6 +6,8 @@ import { User, ChevronDown, X, Pipette } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
 import type { EquipmentState, EquipmentSlot, ColorState } from '@/components/npc/CharacterViewer';
 import { generateAllThumbnails, type ThumbnailMap } from '@/lib/character-thumbnails';
+import AppearanceTargetBar from '@/components/npc/AppearanceTargetBar';
+import type { NpcAppearance } from '@/types/npc';
 
 const CharacterViewer = dynamic(
   () => import('@/components/npc/CharacterViewer'),
@@ -102,19 +104,44 @@ const DEFAULT_COLORS: ColorState = {
   beard: '#3D2B1F',
 };
 
+const EMPTY_EQUIPMENT: EquipmentState = {
+  hair: null, beard: null, head: null, top: null, bottom: null, shoe: null,
+};
+
+/** Look used for a template that has none saved yet. */
+const DEFAULT_APPEARANCE: NpcAppearance = {
+  gender: 'male',
+  bodyShape: 0,
+  equipment: EMPTY_EQUIPMENT,
+  colors: DEFAULT_COLORS,
+};
+
 export default function NpcAppearancesPage() {
   const { t } = useI18n();
   const [gender, setGender] = useState<Gender>('male');
-  const [equipment, setEquipment] = useState<EquipmentState>({
-    hair: null, beard: null, head: null, top: null, bottom: null, shoe: null,
-  });
+  const [equipment, setEquipment] = useState<EquipmentState>(EMPTY_EQUIPMENT);
   const [colors, setColors] = useState<ColorState>(DEFAULT_COLORS);
-  /** Body shape 0–100: standard → fat. */
+  /** Body shape -100…100: thin ← standard → fat. */
   const [bodyShape, setBodyShape] = useState(0);
   const [expandedSlot, setExpandedSlot] = useState<EquipmentSlot | null>('hair');
   const [thumbnails, setThumbnails] = useState<ThumbnailMap>({});
 
   const catalog = useMemo(() => getCatalog(gender), [gender]);
+
+  /** The look being edited, in the shape that gets saved to Firestore. */
+  const currentAppearance = useMemo<NpcAppearance>(() => ({
+    gender,
+    bodyShape: bodyShape / 100,
+    equipment,
+    colors,
+  }), [gender, bodyShape, equipment, colors]);
+
+  const loadAppearance = useCallback((a: NpcAppearance) => {
+    setGender(a.gender);
+    setBodyShape(Math.round((a.bodyShape ?? 0) * 100));
+    setEquipment({ ...EMPTY_EQUIPMENT, ...a.equipment });
+    setColors({ ...DEFAULT_COLORS, ...a.colors });
+  }, []);
   const hiddenSlots = HIDDEN_SLOTS[gender] ?? new Set();
 
   // Generate thumbnails when gender changes (hair thumbnails differ per gender)
@@ -171,6 +198,8 @@ export default function NpcAppearancesPage() {
         </p>
       </div>
 
+      <AppearanceTargetBar current={currentAppearance} onLoad={loadAppearance} fallback={DEFAULT_APPEARANCE} />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 3D Viewer */}
         <div className="lg:col-span-2">
@@ -216,11 +245,18 @@ export default function NpcAppearancesPage() {
             <div className="mt-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-medium">{t('npc.appearances.bodyShape')}</span>
-                <span className="text-xs text-[var(--muted-foreground)]">{bodyShape}%</span>
+                <button
+                  type="button"
+                  onClick={() => setBodyShape(0)}
+                  className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                  title={t('npc.appearances.bodyShape.standard')}
+                >
+                  {bodyShape > 0 ? `+${bodyShape}` : bodyShape}
+                </button>
               </div>
               <input
                 type="range"
-                min={0}
+                min={-100}
                 max={100}
                 step={1}
                 value={bodyShape}
@@ -229,6 +265,7 @@ export default function NpcAppearancesPage() {
                 aria-label={t('npc.appearances.bodyShape')}
               />
               <div className="flex justify-between text-[10px] text-[var(--muted-foreground)]">
+                <span>{t('npc.appearances.bodyShape.thin')}</span>
                 <span>{t('npc.appearances.bodyShape.standard')}</span>
                 <span>{t('npc.appearances.bodyShape.fat')}</span>
               </div>

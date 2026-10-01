@@ -54,6 +54,28 @@ export interface Position {
   z: number;
 }
 
+// Appearance (paper-doll look edited in 造型管理 / Appearance Management)
+export type NpcGender = 'male' | 'female';
+
+export interface NpcAppearance {
+  gender: NpcGender;
+  /** -1 = thin, 0 = standard, 1 = fat */
+  bodyShape: number;
+  /** Item id per slot (null = nothing); files live in characters/<slot>/<gender>/<id>.glb */
+  equipment: {
+    hair: string | null;
+    beard: string | null;
+    head: string | null;
+    top: string | null;
+    bottom: string | null;
+    shoe: string | null;
+  };
+  colors: {
+    hair: string;
+    beard: string;
+  };
+}
+
 // NPC Template
 export interface NpcTemplate {
   id: string;
@@ -74,6 +96,9 @@ export interface NpcTemplate {
 
   // Dialogue
   dialogueTree?: DialogueTree;
+
+  /** Default look for every instance of this template */
+  appearance?: NpcAppearance;
 
   // Metadata
   createdAt: Date;
@@ -130,6 +155,9 @@ export interface NpcInstance {
   mapId?: string;
   territoryId?: string;
 
+  /** This instance's own look; when absent the template's appearance is used */
+  appearanceOverride?: NpcAppearance;
+
   // Metadata
   createdAt: Date;
   updatedAt: Date;
@@ -138,6 +166,11 @@ export interface NpcInstance {
 
   // Populated fields
   template?: NpcTemplate;
+}
+
+/** The look an instance actually uses: its own override, else its template's. */
+export function resolveNpcAppearance(instance: NpcInstance): NpcAppearance | undefined {
+  return instance.appearanceOverride ?? instance.template?.appearance;
 }
 
 export interface NpcInstanceFormData {

@@ -25,21 +25,23 @@ interface CharacterViewerProps {
   gender: Gender;
   equipment: EquipmentState;
   colors: ColorState;
-  /** 0 = normal body, 1 = fat body (drives the 'fat' morph target on body and clothes). */
+  /** -1 = thin, 0 = standard, 1 = fat (drives the 'thin' / 'fat' morph targets on body and clothes). */
   bodyShape?: number;
 }
 
 /**
- * Set the body-shape morph on every mesh that has one. The body, the fitted
- * clothes, hair and beard all carry a matching 'fat' morph target
+ * Set the body-shape morphs on every mesh that has them. The body, the fitted
+ * clothes, hair and beard all carry matching 'fat' and 'thin' morph targets
  * (tools/paperdoll), so they change shape together.
  */
 function applyBodyShape(meshes: any[], value: number): void {
+  const influence: Record<string, number> = { fat: Math.max(value, 0), thin: Math.max(-value, 0) };
   meshes.forEach((mesh: any) => {
     const manager = mesh.morphTargetManager;
     if (!manager) return;
     for (let i = 0; i < manager.numTargets; i++) {
-      manager.getTarget(i).influence = value;
+      const target = manager.getTarget(i);
+      target.influence = influence[target.name] ?? 0;
     }
   });
 }

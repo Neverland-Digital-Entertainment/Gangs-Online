@@ -90,7 +90,7 @@ python tools/paperdoll/fit_garments.py shirt01 --gender female
 | `over` / `over_files` | 着喺邊啲衣物/頭髮外面 |
 | `rigid_bone` | 硬物件：全部權重畀呢條骨 |
 | `color` / `roughness` / `crease_deg` | 材質顏色、粗糙度、自動平滑角度 |
-| `fat` | 只用於肥身形 fit 嘅覆寫，例如 `{ "collide_iters": 24, "poke_tolerance": 0.015 }` |
+| `fat` / `thin` | 只用於該體型 fit 嘅覆寫，例如 `"fat": { "collide_iters": 24, "poke_tolerance": 0.015 }` |
 | `poke_tolerance` | 驗收時可見穿出點佔皮膚樣本嘅上限（預設 1%） |
 
 ## 原理（每件 × 每個性別）
@@ -105,22 +105,33 @@ python tools/paperdoll/fit_garments.py shirt01 --gender female
 5. **擺去 Dashboard 嘅 A-pose**：用旋轉 Laplacian 座標放鬆（腋下唔會擠縐），再碰撞一次
 6. **反向 skinning** 返 T-pose bind pose，輸出帶住身體骨架 + IBM 嘅 GLB
 
-## 體型（標準 ↔ 肥胖）
+## 體型（瘦 ↔ 標準 ↔ 肥）
 
-![體型 0% / 50% / 100%](body_shapes.jpg)
+![體型 -100 / 0 / +100](body_shapes.jpg)
 
-肥身形用 **glTF morph target**（名 `fat`）做，同一個 mesh、同一套 UV/骨架/權重，polygon 數完全一樣，
-Dashboard 用「體型」滑桿控制 0–100%（中間身形都得）。所有着喺身上嘅嘢都帶住同名 morph，一齊變：
+體型用兩個 **glTF morph target**（`thin`、`fat`）做，同一個 mesh、同一套 UV/骨架/權重，polygon 數完全一樣。
+Dashboard 嘅「體型」滑桿 -100…+100：負數 = `thin` 權重，正數 = `fat` 權重（中間身形都得）。
+所有着喺身上嘅嘢都帶住同名 morph，一齊變：
 
-- **身體**：`python tools/paperdoll/body_shapes.py` —— 按骨骼權重向外推（肚、腰、大腿多，手腳少），
-  再加大肚腩（向前向下）、游泳圈、胸、屁股、雙下巴、臉頰；眼眶同嘴唇唔郁；平滑處理避免摺痕。
-  脂肪量喺 script 頂部 `BONE_FAT` / `EXTRAS` 調
-- **衣物**：`fit_garments.py` fit 完標準身形之後，自動將身體變形轉移落件衫，喺肥身上（A-pose）再做
-  膨脹 + 填平凹位 + 碰撞，寫入同一個 GLB。只重做肥版：`python tools/paperdoll/fit_garments.py --fat-only`
+- **身體**：`python tools/paperdoll/body_shapes.py` —— 按骨骼權重沿法向推出（肥）或收入（瘦），
+  再加形狀：大肚腩（向前向下）、游泳圈、胸、屁股、雙下巴、臉頰；瘦版係收肚、扁胸、凹臉頰。
+  眼眶同嘴唇唔郁；平滑處理避免摺痕。份量喺 script 頂部 `BONES` / `EXTRAS` 調
+- **衣物**：`fit_garments.py` fit 完標準身形之後，自動將每個體型嘅身體變形轉移落件衫，喺該體型（A-pose）
+  再做膨脹 + 填平凹位 + 碰撞，寫入同一個 GLB。只重做體型：`python tools/paperdoll/fit_garments.py --shapes-only`
 - **頭髮、鬍鬚**：`garments.json` 嘅 `follow_body_shape`（只轉移變形，唔做碰撞）
-- 驗收會分開報告 `[fat]` 結果；肥大腿內側/褲襠等夾縫位計做 hidden crease contacts
+- 驗收會分開報告 `[fat]` / `[thin]`；肥大腿內側/褲襠/胸下等俾身體包住嘅位計做 hidden crease contacts
+- `garments.json` 每件衣物可以用 `"fat": {...}` / `"thin": {...}` 覆寫該體型嘅設定
 
-**改咗身體脂肪量之後**：先跑 `body_shapes.py`，再跑 `fit_garments.py --fat-only`。
+**改咗身體份量之後**：先跑 `body_shapes.py`，再跑 `fit_garments.py --shapes-only`。
+
+## NPC 外觀儲存
+
+造型管理頁頂部揀「NPC 模板」→ 編輯 → 「儲存到模板」：存入 `npc_templates/<id>.appearance`，
+所有實例預設用呢個外觀。再揀「NPC 實例」→ 「儲存為此實例外觀」：存入
+`npc_instances/<id>.appearanceOverride`，只影響嗰個實例；「改用模板外觀」會刪走覆寫。
+資料格式見 `packages/dashboard/main/src/types/npc.ts` 嘅 `NpcAppearance`
+（`gender`、`bodyShape` -1…1、各槽位 item id、髮色/鬚色），實際用邊個外觀用 `resolveNpcAppearance()`。
+NPC 模板/實例列表每行嘅 🎨 掣會直接開返佢嘅外觀。
 
 ## 身體嘅眼睛同眉毛
 
