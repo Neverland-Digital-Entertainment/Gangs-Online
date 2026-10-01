@@ -115,6 +115,10 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
   const prevGenderRef = useRef<Gender>(gender);
   const prevEquipmentRef = useRef<EquipmentState>(equipment);
   const prevColorsRef = useRef<ColorState>(colors);
+  const colorsRef = useRef<ColorState>(colors);
+  colorsRef.current = colors;
+  /** Camera framing for the loaded body; double-click returns to it. */
+  const homeViewRef = useRef<{ target: any; radius: number } | null>(null);
   const sceneReadyRef = useRef(false);
 
   const disposeSlot = useCallback((slot: EquipmentSlot) => {
@@ -139,6 +143,26 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
     disposeBody();
     (Object.keys(equipmentMeshesRef.current) as EquipmentSlot[]).forEach(disposeSlot);
   }, [disposeBody, disposeSlot]);
+
+  /** Tint hair/beard meshes with the colour picked in the panel. */
+  const tintSlot = useCallback(async (slot: EquipmentSlot, hexColor: string) => {
+    const BABYLON = await import('@babylonjs/core');
+    const color = BABYLON.Color3.FromHexString(hexColor);
+    equipmentMeshesRef.current[slot].forEach((mesh: any) => {
+      if (mesh.material && mesh.getTotalVertices?.() > 0) {
+        // Clone material to avoid shared material issues
+        if (!mesh.material._colorTinted) {
+          mesh.material = mesh.material.clone(mesh.material.name + '_tinted');
+          mesh.material._colorTinted = true;
+        }
+        if ('albedoColor' in mesh.material) {
+          mesh.material.albedoColor = color;
+        } else if ('diffuseColor' in mesh.material) {
+          mesh.material.diffuseColor = color;
+        }
+      }
+    });
+  }, []);
 
   const loadEquipmentSlot = useCallback(async (
     scene: any,
@@ -183,10 +207,14 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
       }
 
       equipmentMeshesRef.current[slot] = result.meshes;
+      // Newly loaded hair/beard starts white; apply the current colour.
+      if (slot === 'hair' || slot === 'beard') {
+        await tintSlot(slot, colorsRef.current[slot]);
+      }
     } catch (err) {
       console.warn(`Failed to load equipment ${slot}/${itemId}:`, err);
     }
-  }, [disposeSlot]);
+  }, [disposeSlot, tintSlot]);
 
   const loadBody = useCallback(async (scene: any, currentGender: Gender) => {
     const BABYLON = await import('@babylonjs/core');
@@ -234,6 +262,9 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
         camera.radius = height * 1.8;
         camera.alpha = -Math.PI / 2;
         camera.beta = Math.PI / 2.2;
+        // Right-drag panning is limited to stay around the character.
+        camera.panningOriginTarget.copyFrom(camera.target);
+        homeViewRef.current = { target: camera.target.clone(), radius: camera.radius };
       }
 
       // Create a shared parent TransformNode. Both body and equipment roots
@@ -291,13 +322,21 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
         'camera', -Math.PI / 2, Math.PI / 2.2, 3,
         new BABYLON.Vector3(0, 1, 0), scene,
       );
-      camera.attachControl(canvas, true);
-      camera.lowerRadiusLimit = 1.5;
+      // Left drag orbits, right drag pans (no Ctrl needed), wheel zooms.
+      camera.attachControl(true, false, 2);
+      (camera.inputs.attached.pointers as any).buttons = [0, 2];
+      camera.lowerRadiusLimit = 0.5;
       camera.upperRadiusLimit = 8;
       camera.lowerBetaLimit = 0.3;
       camera.upperBetaLimit = Math.PI / 1.5;
       camera.wheelDeltaPercentage = 0.01;
-      camera.panningSensibility = 0;
+      camera.minZ = 0.05; // allow close-ups without clipping the face
+      camera.panningDistanceLimit = 1.2;
+      // Panning moves a fixed world distance per pixel; scale it with zoom so a
+      // close-up pans gently and a full-body view still pans quickly.
+      camera.onViewMatrixChangedObservable.add(() => {
+        camera.panningSensibility = 8000 / Math.max(camera.radius, 0.1);
+      });
 
       const keyLight = new BABYLON.DirectionalLight('keyLight', new BABYLON.Vector3(-1, -1, 1), scene);
       keyLight.intensity = 1.2;
@@ -365,35 +404,26 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
   useEffect(() => {
     if (!sceneReadyRef.current) return;
 
-    const applyColor = async (slot: EquipmentSlot, hexColor: string) => {
-      const BABYLON = await import('@babylonjs/core');
-      const color = BABYLON.Color3.FromHexString(hexColor);
-      const meshes = equipmentMeshesRef.current[slot];
-      meshes.forEach((mesh: any) => {
-        if (mesh.material && mesh.getTotalVertices?.() > 0) {
-          // Clone material to avoid shared material issues
-          if (!mesh.material._colorTinted) {
-            mesh.material = mesh.material.clone(mesh.material.name + '_tinted');
-            mesh.material._colorTinted = true;
-          }
-          if ('albedoColor' in mesh.material) {
-            mesh.material.albedoColor = color;
-          } else if ('diffuseColor' in mesh.material) {
-            mesh.material.diffuseColor = color;
-          }
-        }
-      });
-    };
-
     const prev = prevColorsRef.current;
     if (colors.hair !== prev.hair) {
-      applyColor('hair', colors.hair);
+      tintSlot('hair', colors.hair);
     }
     if (colors.beard !== prev.beard) {
-      applyColor('beard', colors.beard);
+      tintSlot('beard', colors.beard);
     }
     prevColorsRef.current = colors;
   }, [colors]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Double-click: back to the default framing after panning/zooming. */
+  const resetView = useCallback(() => {
+    const camera = sceneRef.current?.activeCamera;
+    const home = homeViewRef.current;
+    if (!camera || !home) return;
+    camera.target = home.target.clone();
+    camera.radius = home.radius;
+    camera.alpha = -Math.PI / 2;
+    camera.beta = Math.PI / 2.2;
+  }, []);
 
   return (
     <div className="relative w-full h-full min-h-[400px]">
@@ -401,6 +431,8 @@ export default function CharacterViewer({ gender, equipment, colors }: Character
         ref={canvasRef}
         className="w-full h-full rounded-lg outline-none"
         style={{ touchAction: 'none' }}
+        onContextMenu={(e) => e.preventDefault()}
+        onDoubleClick={resetView}
       />
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">

@@ -418,7 +418,7 @@ export default {
   'npc.appearances.shoe.shoe01': '鞋子',
   'npc.appearances.loadingModel': '載入 3D 模型中...',
   'npc.appearances.loadError': '載入 3D 模型失敗',
-  'npc.appearances.rotateHint': '拖曳可旋轉模型',
+  'npc.appearances.rotateHint': '左鍵拖曳旋轉 · 右鍵拖曳移動 · 滾輪縮放 · 雙擊重設視角',
 
   // Dialogue Editor
   'dialogue.title': '對話樹編輯器',

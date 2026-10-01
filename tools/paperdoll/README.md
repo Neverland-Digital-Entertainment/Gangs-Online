@@ -103,6 +103,16 @@ python tools/paperdoll/fit_garments.py shirt01 --gender female
 5. **擺去 Dashboard 嘅 A-pose**：用旋轉 Laplacian 座標放鬆（腋下唔會擠縐），再碰撞一次
 6. **反向 skinning** 返 T-pose bind pose，輸出帶住身體骨架 + IBM 嘅 GLB
 
+## 身體嘅眼睛同眉毛
+
+身體 GLB 匯出時冇咗面部貼圖（眼球純白、冇眼珠；眉毛顏色淨係留喺第二組頂點色 `COLOR_1`，glTF 唔會用）。
+`fix_body_face.py` 會按眼球 UV 畫一張眼睛貼圖（眼白/虹膜/瞳孔）嵌入身體 GLB，並將眉毛材質設返原本嘅啡色。
+如果之後換過身體模型，重跑一次就得：
+
+```bash
+python tools/paperdoll/fix_body_face.py
+```
+
 ## 無頭截圖（可選）
 
 `preview/` 用同 `CharacterViewer` 一樣嘅載入、A-pose、換骨架邏輯截圖，適合冇開 Dashboard 時檢查：

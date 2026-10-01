@@ -417,7 +417,7 @@ export default {
   'npc.appearances.shoe.shoe01': 'Shoes',
   'npc.appearances.loadingModel': 'Loading 3D model...',
   'npc.appearances.loadError': 'Failed to load 3D model',
-  'npc.appearances.rotateHint': 'Drag to rotate the model',
+  'npc.appearances.rotateHint': 'Left drag: rotate · Right drag: pan · Wheel: zoom · Double-click: reset view',
 
   // Dialogue Editor
   'dialogue.title': 'Dialogue Tree Editor',
