@@ -20,6 +20,7 @@
 | **P6** | 收尾：可編輯數值、啟用/停用 override、管理員權限 | ✅ 已完成 |
 | **P7** | 量產基礎：資產快取、遮擋群組 `groupId`、資產用途 `kind` | ✅ 已完成 |
 | **P8** | 編輯器可用性：列表多選編組、載入誤報、縮圖、刪除保護 | ✅ 已完成 |
+| **P9** | 按實際地圖產生大廈（tools/buildings）+ 大廈包匯入；碰撞方塊跟旋轉、`COL_`、共用貼圖 | 🔄 試點（11-NW-19D 51 棟） |
 
 > 狀態圖例：⬜ 未開始 ／ 🔄 進行中 ／ ✅ 已完成
 >
@@ -355,6 +356,36 @@ Firestore: map_overrides          Firestore: building_assets
 
   - 已通過 dashboard `tsc --noEmit` 與 `next build`
   - **待實測**：縮圖修正需以真實 GLB 確認；群組操作需在真實 Firebase 環境驗證
+
+- **2026-10-20** — P9：按實際地圖產生大廈 + 大廈包匯入（11-NW-19D 試點 51 棟）。
+  詳見 `tools/buildings/README.md`。
+
+  **1. 產生器 `tools/buildings`**：航拍圖描輪廓（本地街道座標）→ 每棟一個 ≤1000 三角面嘅
+  港漫風格 GLB + `manifest.json`（擺放 transform = chunk `__root__` 本地座標，即 glTF 嘅
+  `(E, y, -N)`，旋轉 y = 街道網格角度 10°）。
+
+  **2. 後台「匯入大廈包」**（建築資產頁）：一次過揀 manifest + GLB → 建立資產 + `add` 覆蓋，
+  key 固定為 `add:<packId>:<id>`，重新匯入只處理有改動嘅大廈；可選完成後發佈快照。
+
+  **3. 客戶端 `MapOverrideSystem`**
+  - 碰撞方塊改為跟擺放旋轉（之前用世界 AABB，斜街上嘅資產會擋住行人路）；
+    方塊仍放頂層而唔掛 container：chunk `__root__` 有鏡像縮放，冇材質嘅 mesh 只同正面
+    三角形碰撞，掛落去會令玩家由外面穿入去
+  - 資產入面 `COL_` 開頭嘅 mesh 改為碰撞方塊（唔渲染），招牌/簷篷唔再擋行人路
+  - `shared:` 開頭嘅貼圖跨資產共用一份 GPU 貼圖
+
+  **4. 客戶端 `BuildingOcclusionSystem`**：正交相機時遮擋射線由視線後方 250m 開始。
+  正交相機會畫埋相機後面嘅嘢，以前 40m 以上嘅大廈遮住玩家都唔會淡出。
+
+  **5. 後台編輯器 / 縮圖**：唔顯示 `COL_` mesh；編輯器同樣共用 `shared:` 貼圖。
+
+  - 已通過 client `tsc --noEmit` + `vite build`、dashboard `tsc --noEmit` + `next build`
+  - 無頭 Chromium 實測（真實 `ChunkLoaderSystem` / `MapOverrideSystem` /
+    `BuildingOcclusionSystem`，Firestore 以記憶體假資料代替）：51 棟全部載入、54 個碰撞方塊、
+    共用貼圖 = 1 份 GPU 貼圖；行人路可通行、撞牆停喺牆邊（誤差 < 0.1m）、招牌不擋路；
+    玩家身後大廈正確淡出
+  - 匯入邏輯以假服務測試：首次 51 新增、重覆匯入 0 上載、改一個 GLB 只更新該棟並刪舊資產
+  - **待實測**：真實 Firebase 環境下匯入（Firestore 規則、上載速度）
 
 ### 地圖來源（同源 /maps）
 後台預設以同源 `/maps` 供應底圖，免第二個 server、無 CORS：
