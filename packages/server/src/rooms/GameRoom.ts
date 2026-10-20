@@ -37,6 +37,7 @@ export class GameRoom extends Room<GameState> {
     private prisonSystem!: PrisonSystem; // 監獄系統 (Phase 14)
     private unsubscribeTeleport: (() => void) | null = null; // 後台「傳送回出生點」監聽
     private teleportsInFlight = new Set<string>(); // 正在清走請求嘅 firebaseUid，避免重複處理
+    private lastReturnToSpawn = new Map<string, number>(); // 玩家自己回出生點：firebaseUid（冇就 sessionId）→ 上次時間
 
     onCreate(options: any) {
         console.log("Gangs Online: Room Created");
@@ -155,6 +156,8 @@ export class GameRoom extends Room<GameState> {
                 player.z = input.z;
             }
         });
+
+        this.onMessage("returnToSpawn", (client) => this.handleReturnToSpawn(client));
 
         // Phase 15: Handle set_position (客戶端載入地圖後設定起始位置)
         this.onMessage("set_position", (client, input: { x: number; z: number }) => {
@@ -903,6 +906,32 @@ export class GameRoom extends Room<GameState> {
         ref.update({ x: player.x, z: player.z, teleportRequest: getFieldValue().delete() })
             .catch((error) => console.error("[Teleport] 清走傳送請求失敗:", error))
             .finally(() => this.teleportsInFlight.delete(firebaseUid));
+    }
+
+    /**
+     * 玩家自己「回出生點」（H 鍵 / 掣，脫困用，例如卡喺大廈之間）。
+     * 打緊交、坐緊監、紅名、倒咗都唔准，避免用嚟走佬；有冷卻防止濫用。
+     */
+    private handleReturnToSpawn(client: Client): void {
+        const player = this.state.players.get(client.sessionId);
+        if (!player) return;
+        const reject = (msg: string) => client.send("notification", msg);
+        if (player.hp <= 0) return reject("倒咗嘅時候唔可以回出生點");
+        if (player.inPrison) return reject("坐緊監，唔可以回出生點");
+        if (player.inCombatWith || player.inCombatWithEnemy) return reject("打緊交，唔可以回出生點");
+        if (this.evilValueSystem.isWanted(player)) return reject("紅名中，唔可以回出生點");
+
+        // 冷卻用 firebaseUid 記，斷線重登都唔會重置
+        const key = player.firebaseUid || client.sessionId;
+        const wait = (this.lastReturnToSpawn.get(key) ?? 0) + GAME_CONSTANTS.RETURN_TO_SPAWN_COOLDOWN - Date.now();
+        if (wait > 0) return reject(`回出生點冷卻中，${Math.ceil(wait / 1000)} 秒後再試`);
+        this.lastReturnToSpawn.set(key, Date.now());
+
+        player.x = GAME_CONSTANTS.SPAWN_X;
+        player.z = GAME_CONSTANTS.SPAWN_Z;
+        // 位置以客戶端為準，要叫佢自己瞬移（client 收到後會 set_position 同步返嚟）
+        client.send("teleport", { x: player.x, z: player.z });
+        client.send("notification", "已返回出生點");
     }
 
     onDispose() {

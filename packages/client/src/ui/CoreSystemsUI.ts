@@ -11,6 +11,8 @@
  * 全部使用 DOM 元素（與 QuestBlueprintUI 相同做法），聊天輸入框 focus 時不觸發快捷鍵。
  */
 import { Room } from "colyseus.js";
+import { EngineStore } from "@babylonjs/core";
+import { AdvancedDynamicTexture, InputText } from "@babylonjs/gui";
 import {
     WEAPON_ENHANCE_CONFIG,
     IEnhanceResult,
@@ -104,8 +106,21 @@ export class CoreSystemsUI {
             color: rgba(255,215,0,0.75); font-size: 11px; font-family: monospace;
             background: rgba(0,0,0,0.5); padding: 3px 8px; border-radius: 4px;
         `;
-        bar.textContent = "U:武器強化  G:社團  P:組隊  T:地盤  K:測試套件  N:生成測試怪";
+        bar.textContent = "U:武器強化  G:社團  P:組隊  T:地盤  H:回出生點  K:測試套件  N:生成測試怪";
         document.body.appendChild(bar);
+
+        // 回出生點掣（脫困用）：放喺右下角 🐛 掣上面，避免重疊
+        const home = document.createElement("button");
+        home.textContent = "🏠 回出生點 (H)";
+        home.title = "卡住咗？返去出生點（打緊交、坐緊監、紅名時唔用得，有冷卻）";
+        home.style.cssText = `${BTN_DARK_STYLE} position: fixed; bottom: 70px; right: 10px; z-index: 899;`;
+        home.onclick = () => this.returnToSpawn();
+        document.body.appendChild(home);
+    }
+
+    /** 由伺服器檢查條件同冷卻；成功會收到 teleport 訊息，失敗會收到 notification */
+    private returnToSpawn(): void {
+        this.room.send("returnToSpawn");
     }
 
     private body(key: string): HTMLDivElement {
@@ -145,6 +160,8 @@ export class CoreSystemsUI {
             // 輸入框 focus 時不觸發
             const active = document.activeElement;
             if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
+            // 聊天框係 Babylon GUI 輸入框，打字時 document 一樣收到 keydown
+            if (this.isTypingInGui()) return;
 
             switch (e.key.toLowerCase()) {
                 case "u": this.toggle("inventory"); break;
@@ -153,8 +170,17 @@ export class CoreSystemsUI {
                 case "t": this.toggle("territory"); break;
                 case "k": this.room.send("giveTestKit"); break;
                 case "n": this.room.send("spawnTestEnemies"); break;
+                case "h": this.returnToSpawn(); break;
             }
         });
+    }
+
+    /** 有冇 Babylon GUI 輸入框（例如聊天）正在輸入 */
+    private isTypingInGui(): boolean {
+        const scene = EngineStore.LastCreatedScene;
+        return !!scene?.textures.some(
+            (t) => t instanceof AdvancedDynamicTexture && t.focusedControl instanceof InputText
+        );
     }
 
     private me(): any {

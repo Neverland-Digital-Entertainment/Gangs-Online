@@ -251,6 +251,8 @@ export const GAME_CONSTANTS = {
     // 新玩家、後台「傳送回出生點」都用呢度
     SPAWN_X: -835575.4,
     SPAWN_Z: -819658.9,
+    // 玩家自己「回出生點」（H 鍵 / 掣）嘅冷卻時間（毫秒）
+    RETURN_TO_SPAWN_COOLDOWN: 60000,
 
     // Enemy/PVE Constants
     ENEMY_SPEED: 0.1, // Slower than players
