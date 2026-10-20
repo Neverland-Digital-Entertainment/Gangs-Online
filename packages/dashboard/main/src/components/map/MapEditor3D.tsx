@@ -19,6 +19,7 @@ import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import { MAP_BASE_URL } from '@/lib/map/map-loader';
 import { buildingAssetService } from '@/lib/map/asset-service';
+import { isColliderMeshName, shareAtlasTextures } from '@/lib/map/asset-mesh';
 import {
   buildObjectKey,
   classifyMeshName,
@@ -141,6 +142,8 @@ export default function MapEditor3D({
   const templateCacheRef = useRef<Map<string, Promise<{ root: BABYLON.TransformNode; meshes: BABYLON.Mesh[] }>>>(
     new Map()
   );
+  /** 共用 atlas（`shared:` 貼圖）：同名只保留一份 GPU 貼圖，見 lib/map/asset-mesh */
+  const sharedTexturesRef = useRef<Map<string, BABYLON.BaseTexture>>(new Map());
   const objectsRef = useRef<Map<string, MapObjectInfo>>(new Map());
   const loadingKeysRef = useRef<Set<string>>(new Set());
   const highlightedRef = useRef<BABYLON.Mesh[]>([]);
@@ -299,6 +302,7 @@ export default function MapEditor3D({
         pending.then(({ root }) => root.dispose()).catch(() => {});
       }
       templateCacheRef.current.clear();
+      sharedTexturesRef.current.clear();
     };
   }, []);
 
@@ -327,6 +331,7 @@ export default function MapEditor3D({
       } finally {
         URL.revokeObjectURL(url);
       }
+      shareAtlasTextures(assetContainer, sharedTexturesRef.current);
       const instantiated = assetContainer.instantiateModelsToScene((n) => n, false);
       const root = new BABYLON.TransformNode(`template_${assetId}`, scene);
       const assetRoot = instantiated.rootNodes.find((n) => n.name === '__root__');
@@ -337,6 +342,11 @@ export default function MapEditor3D({
       const meshes: BABYLON.Mesh[] = [];
       for (const node of root.getChildMeshes(false)) {
         if (node.name === '__root__' || !(node instanceof BABYLON.Mesh)) continue;
+        // 碰撞方塊只供遊戲客戶端做碰撞，編輯器唔顯示亦唔擺 instance
+        if (isColliderMeshName(node.name)) {
+          node.dispose();
+          continue;
+        }
         node.isVisible = false;
         node.isPickable = false;
         meshes.push(node);
