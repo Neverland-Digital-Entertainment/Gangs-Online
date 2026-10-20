@@ -9,7 +9,7 @@ import { ShopSystem } from "../systems/ShopSystem"; // Phase 9
 import { NPCManager } from "../systems/NPCManager"; // Phase 9
 import { QuestManager } from "../systems/QuestManager"; // Phase 10
 import { QuestBlueprintManager } from "../systems/QuestBlueprintManager"; // Phase 20
-import { initializeFirebase } from "../services/FirebaseService"; // Phase 12
+import { initializeFirebase, getFirestore, getFieldValue } from "../services/FirebaseService"; // Phase 12
 import { npcService } from "../services/NPCService"; // Phase 16-2
 import { shopService } from "../services/ShopService"; // Phase 16-3
 import { purchaseService } from "../services/PurchaseService"; // Phase 16-3
@@ -35,6 +35,8 @@ export class GameRoom extends Room<GameState> {
     private questBlueprintManager!: QuestBlueprintManager; // 藍圖任務管理系統 (Phase 20)
     private evilValueSystem!: EvilValueSystem; // 罪惡值系統 (Phase 14)
     private prisonSystem!: PrisonSystem; // 監獄系統 (Phase 14)
+    private unsubscribeTeleport: (() => void) | null = null; // 後台「傳送回出生點」監聽
+    private teleportsInFlight = new Set<string>(); // 正在清走請求嘅 firebaseUid，避免重複處理
 
     onCreate(options: any) {
         console.log("Gangs Online: Room Created");
@@ -42,6 +44,7 @@ export class GameRoom extends Room<GameState> {
 
         // Phase 12: 初始化 Firebase
         initializeFirebase();
+        this.watchTeleportRequests();
 
         // 初始化敵人管理系統
         this.enemyManager = new EnemyManager(this.state.enemies, this.state.players);
@@ -860,6 +863,53 @@ export class GameRoom extends Room<GameState> {
     /**
      * 處理玩家對玩家的攻擊（PVP） - Phase 15: 移除安全區檢查
      */
+    /**
+     * 後台「傳送回出生點」：監聽 players 入面嘅傳送請求，玩家喺呢個房間就即刻瞬移。
+     * 玩家離線（或者喺其他房間）就唔理，由 persistence.loadPlayer 喺下次登入時處理。
+     */
+    private watchTeleportRequests(): void {
+        const db = getFirestore();
+        if (!db) return;
+        this.unsubscribeTeleport = db
+            .collection("players")
+            .where("teleportRequest.to", "==", "spawn")
+            .onSnapshot(
+                (snap) => {
+                    snap.docChanges().forEach((change) => {
+                        if (change.type !== "removed") this.applyTeleportRequest(change.doc.id, change.doc.ref);
+                    });
+                },
+                (error) => console.error("[Teleport] 監聽傳送請求失敗:", error)
+            );
+    }
+
+    private applyTeleportRequest(firebaseUid: string, ref: FirebaseFirestore.DocumentReference): void {
+        if (this.teleportsInFlight.has(firebaseUid)) return;
+        const player = Array.from(this.state.players.values()).find((p) => p.firebaseUid === firebaseUid);
+        if (!player) return;
+        // 坐緊監獄就留低請求：監獄只准喺監獄範圍內郁，傳送出去會郁唔到；
+        // 監獄狀態唔會儲存，下次登入時 loadPlayer 先傳送
+        if (player.inPrison) return;
+
+        player.x = GAME_CONSTANTS.SPAWN_X;
+        player.z = GAME_CONSTANTS.SPAWN_Z;
+        // 位置以客戶端為準（佢會不停送 move），所以要叫佢自己瞬移
+        const client = this.clients.find((c) => c.sessionId === player.sessionId);
+        client?.send("teleport", { x: player.x, z: player.z });
+        client?.send("notification", "管理員已將你傳送回出生點");
+        console.log(`[Teleport] ${player.name} (${firebaseUid}) -> spawn`);
+
+        this.teleportsInFlight.add(firebaseUid);
+        ref.update({ x: player.x, z: player.z, teleportRequest: getFieldValue().delete() })
+            .catch((error) => console.error("[Teleport] 清走傳送請求失敗:", error))
+            .finally(() => this.teleportsInFlight.delete(firebaseUid));
+    }
+
+    onDispose() {
+        this.unsubscribeTeleport?.();
+        this.unsubscribeTeleport = null;
+    }
+
     private handlePlayerVsPlayer(client: Client, attacker: Player, targetSessionId: string): void {
         const target = this.state.players.get(targetSessionId);
 

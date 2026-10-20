@@ -8,10 +8,10 @@
  * - 社團資料（guilds + society 擴展欄位）
  * - 地盤狀態（territories：歸屬/守衛/保護期）
  * - 組隊快照（runtime_parties）
- * - 玩家資料（players：金錢/等級/裝備/背包）；可「傳送回出生點」（需 player.edit）
+ * - 玩家資料（players：金錢/等級/裝備/背包）；可「傳送回出生點」，線上即時瞬移（需 player.edit）
  */
 import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, query, orderBy, limit, doc, updateDoc, serverTimestamp, deleteField } from 'firebase/firestore';
+import { collection, getDocs, getDoc, query, orderBy, limit, doc, updateDoc, serverTimestamp, deleteField } from 'firebase/firestore';
 import { getFirebaseServices } from '@/lib/firebase/config';
 import { useAuth } from '@/contexts/auth-context';
 import { RefreshCw, MapPin } from 'lucide-react';
@@ -25,6 +25,9 @@ const TABS: { key: Tab; label: string }[] = [
     { key: 'party', label: '👥 組隊' },
     { key: 'player', label: '🧍 玩家' },
 ];
+
+/** 寫低傳送請求後等幾耐先睇伺服器有冇處理（線上玩家通常一秒內） */
+const TELEPORT_CHECK_MS = 3000;
 
 const fmtTime = (ts: any): string => {
     if (!ts) return '-';
@@ -43,21 +46,34 @@ export default function SystemsDataPage() {
     const [busyId, setBusyId] = useState<string | null>(null);
 
     /**
-     * 傳送回出生點：只寫低請求，由伺服器喺玩家下次登入時套用並清走
-     * （見 server persistence.loadPlayer）。唔直接改 x/z，因為玩家若果喺線上，
-     * 下線時伺服器會用記憶體入面嘅位置覆蓋返。
+     * 傳送回出生點：寫低請求，由伺服器執行並清走 ——
+     * 玩家喺線上：遊戲伺服器監聽到即刻瞬移（GameRoom.watchTeleportRequests）；
+     * 離線或者坐緊監獄：下次登入時處理（persistence.loadPlayer）。
+     * 唔直接改 x/z：玩家喺線上嘅話，下線時伺服器會用記憶體入面嘅位置覆蓋返。
      */
     const setTeleport = async (r: any, request: boolean) => {
-        if (request && !confirm(`將「${r.name}」傳送回出生點？\n玩家下次登入時生效；如果而家喺線上，請佢重新登入。`)) return;
+        if (request && !confirm(`將「${r.name}」傳送回出生點？\n喺線上會即刻瞬移；離線就下次登入時生效。`)) return;
         setBusyId(r.id);
         setError('');
         try {
             const { db } = getFirebaseServices();
+            const ref = doc(db, 'players', r.id);
             const teleportRequest = request
                 ? { to: 'spawn', requestedAt: serverTimestamp(), requestedBy: user?.email || '' }
                 : deleteField();
-            await updateDoc(doc(db, 'players', r.id), { teleportRequest });
-            setRows((prev) => prev.map((p) => (p.id === r.id ? { ...p, teleportRequest: request ? { to: 'spawn' } : undefined } : p)));
+            await updateDoc(ref, { teleportRequest });
+            const patch = (fields: any) => setRows((prev) => prev.map((p) => (p.id === r.id ? { ...p, ...fields } : p)));
+            if (!request) {
+                patch({ teleportRequest: undefined, teleportStatus: undefined });
+                return;
+            }
+            patch({ teleportRequest: { to: 'spawn' }, teleportStatus: 'waiting' });
+            // 等伺服器處理：請求冇咗 = 玩家喺線上、已經瞬移
+            await new Promise((resolve) => setTimeout(resolve, TELEPORT_CHECK_MS));
+            const after = (await getDoc(ref)).data();
+            patch(after?.teleportRequest
+                ? { teleportRequest: after.teleportRequest, teleportStatus: 'offline' }
+                : { teleportRequest: undefined, teleportStatus: 'done' });
         } catch (e: any) {
             console.error(e);
             setError(`更新失敗：${e?.message || e}`);
@@ -274,13 +290,22 @@ export default function SystemsDataPage() {
                                         <td className="p-2 whitespace-nowrap">
                                             {r.teleportRequest?.to === 'spawn' ? (
                                                 <span className="text-xs">
-                                                    <span className="text-yellow-500">⏳ 下次登入回出生點</span>
-                                                    <button className="btn-light px-2 py-0.5 ml-2 text-xs" disabled={busyId === r.id} onClick={() => setTeleport(r, false)}>取消</button>
+                                                    {r.teleportStatus === 'waiting' ? (
+                                                        <span className="text-[var(--muted)]">傳送中…</span>
+                                                    ) : (
+                                                        <span className="text-yellow-500">⏳ 離線中，下次登入回出生點</span>
+                                                    )}
+                                                    {r.teleportStatus !== 'waiting' && (
+                                                        <button className="btn-light px-2 py-0.5 ml-2 text-xs" disabled={busyId === r.id} onClick={() => setTeleport(r, false)}>取消</button>
+                                                    )}
                                                 </span>
                                             ) : (
-                                                <button className="btn-light px-2 py-1 text-xs flex items-center gap-1" disabled={busyId === r.id} onClick={() => setTeleport(r, true)}>
-                                                    <MapPin className="w-3 h-3" /> 傳送回出生點
-                                                </button>
+                                                <span className="flex items-center gap-2">
+                                                    <button className="btn-light px-2 py-1 text-xs flex items-center gap-1" disabled={busyId === r.id} onClick={() => setTeleport(r, true)}>
+                                                        <MapPin className="w-3 h-3" /> 傳送回出生點
+                                                    </button>
+                                                    {r.teleportStatus === 'done' && <span className="text-xs text-green-500">✅ 已瞬移</span>}
+                                                </span>
                                             )}
                                         </td>
                                     )}
