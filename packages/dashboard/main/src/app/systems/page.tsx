@@ -8,12 +8,13 @@
  * - 社團資料（guilds + society 擴展欄位）
  * - 地盤狀態（territories：歸屬/守衛/保護期）
  * - 組隊快照（runtime_parties）
- * - 玩家資料（players：金錢/等級/裝備/背包）
+ * - 玩家資料（players：金錢/等級/裝備/背包）；可「傳送回出生點」（需 player.edit）
  */
 import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, doc, updateDoc, serverTimestamp, deleteField } from 'firebase/firestore';
 import { getFirebaseServices } from '@/lib/firebase/config';
-import { RefreshCw } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context';
+import { RefreshCw, MapPin } from 'lucide-react';
 
 type Tab = 'enhance' | 'society' | 'territory' | 'party' | 'player';
 
@@ -36,6 +37,34 @@ export default function SystemsDataPage() {
     const [rows, setRows] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const { user, hasPermission } = useAuth();
+    const canEditPlayers = hasPermission('player.edit');
+    const [playerFilter, setPlayerFilter] = useState('');
+    const [busyId, setBusyId] = useState<string | null>(null);
+
+    /**
+     * 傳送回出生點：只寫低請求，由伺服器喺玩家下次登入時套用並清走
+     * （見 server persistence.loadPlayer）。唔直接改 x/z，因為玩家若果喺線上，
+     * 下線時伺服器會用記憶體入面嘅位置覆蓋返。
+     */
+    const setTeleport = async (r: any, request: boolean) => {
+        if (request && !confirm(`將「${r.name}」傳送回出生點？\n玩家下次登入時生效；如果而家喺線上，請佢重新登入。`)) return;
+        setBusyId(r.id);
+        setError('');
+        try {
+            const { db } = getFirebaseServices();
+            const teleportRequest = request
+                ? { to: 'spawn', requestedAt: serverTimestamp(), requestedBy: user?.email || '' }
+                : deleteField();
+            await updateDoc(doc(db, 'players', r.id), { teleportRequest });
+            setRows((prev) => prev.map((p) => (p.id === r.id ? { ...p, teleportRequest: request ? { to: 'spawn' } : undefined } : p)));
+        } catch (e: any) {
+            console.error(e);
+            setError(`更新失敗：${e?.message || e}`);
+        } finally {
+            setBusyId(null);
+        }
+    };
 
     const load = useCallback(async (t: Tab) => {
         setLoading(true);
@@ -203,16 +232,33 @@ export default function SystemsDataPage() {
             {!loading && tab === 'party' && rows.length === 0 && <div className="text-[var(--muted)]">目前沒有進行中的隊伍快照</div>}
 
             {!loading && tab === 'player' && (
+                <input
+                    className="input mb-3 max-w-xs"
+                    placeholder="搜尋角色名稱 / UID"
+                    value={playerFilter}
+                    onChange={(e) => setPlayerFilter(e.target.value)}
+                />
+            )}
+            {!loading && tab === 'player' && (
                 <div className="card overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead><tr className="text-left border-b border-[var(--border)]">
                             <th className="p-2">名稱</th><th className="p-2">等級</th><th className="p-2">金錢</th>
                             <th className="p-2">裝備武器</th><th className="p-2">攻擊加成</th><th className="p-2">背包</th><th className="p-2">最後上線</th>
+                            {canEditPlayers && <th className="p-2">操作</th>}
                         </tr></thead>
                         <tbody>
-                            {rows.map((r) => (
+                            {rows
+                                .filter((r) => {
+                                    const f = playerFilter.trim().toLowerCase();
+                                    return !f || String(r.name || '').toLowerCase().includes(f) || r.id.toLowerCase().includes(f);
+                                })
+                                .map((r) => (
                                 <tr key={r.id} className="border-b border-[var(--border)]">
-                                    <td className="p-2">{r.name}</td>
+                                    <td className="p-2">
+                                        {r.name}
+                                        <div className="font-mono text-[10px] text-[var(--muted)]">{r.id}</div>
+                                    </td>
                                     <td className="p-2">Lv{r.level}</td>
                                     <td className="p-2">${r.money}</td>
                                     <td className="p-2">{r.equippedWeaponName || '-'}</td>
@@ -224,6 +270,20 @@ export default function SystemsDataPage() {
                                         {(r.inventory || []).length > 8 && ` +${(r.inventory || []).length - 8}`}
                                     </td>
                                     <td className="p-2">{fmtTime(r.lastOnline)}</td>
+                                    {canEditPlayers && (
+                                        <td className="p-2 whitespace-nowrap">
+                                            {r.teleportRequest?.to === 'spawn' ? (
+                                                <span className="text-xs">
+                                                    <span className="text-yellow-500">⏳ 下次登入回出生點</span>
+                                                    <button className="btn-light px-2 py-0.5 ml-2 text-xs" disabled={busyId === r.id} onClick={() => setTeleport(r, false)}>取消</button>
+                                                </span>
+                                            ) : (
+                                                <button className="btn-light px-2 py-1 text-xs flex items-center gap-1" disabled={busyId === r.id} onClick={() => setTeleport(r, true)}>
+                                                    <MapPin className="w-3 h-3" /> 傳送回出生點
+                                                </button>
+                                            )}
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                         </tbody>

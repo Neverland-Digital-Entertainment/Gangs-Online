@@ -60,6 +60,7 @@ export default {
   'nav.mapEditor': '地圖編輯器',
   'nav.mapAssets': '建築資產',
   'nav.users': '用戶管理',
+  'nav.players': '玩家管理',
   'nav.userAccounts': '帳號',
   'nav.userGroups': '群組',
   'nav.settings': '設定',

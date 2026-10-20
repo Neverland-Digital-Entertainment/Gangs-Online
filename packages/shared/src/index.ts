@@ -247,6 +247,11 @@ export const GAME_CONSTANTS = {
     ATTACK_DAMAGE: 30, // 提高玩家攻擊力（原本 10）
     ATTACK_INTERVAL: 1000, // Milliseconds between auto-attacks
 
+    // 出生點（Phase 15：旺角 11-NW-19D 彌敦道，世界座標 = (-東距, -北距)）
+    // 新玩家、後台「傳送回出生點」都用呢度
+    SPAWN_X: -835575.4,
+    SPAWN_Z: -819658.9,
+
     // Enemy/PVE Constants
     ENEMY_SPEED: 0.1, // Slower than players
     ENEMY_DETECT_RANGE: 10.0, // Aggro range

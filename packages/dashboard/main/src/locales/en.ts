@@ -60,6 +60,7 @@ export default {
   'nav.mapEditor': 'Map Editor',
   'nav.mapAssets': 'Building Assets',
   'nav.users': 'User Management',
+  'nav.players': 'Players',
   'nav.userAccounts': 'Accounts',
   'nav.userGroups': 'Groups',
   'nav.settings': 'Settings',
