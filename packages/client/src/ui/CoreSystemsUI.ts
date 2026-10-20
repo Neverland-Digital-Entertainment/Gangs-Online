@@ -15,6 +15,7 @@ import { EngineStore } from "@babylonjs/core";
 import { AdvancedDynamicTexture, InputText } from "@babylonjs/gui";
 import {
     WEAPON_ENHANCE_CONFIG,
+    GAME_CONSTANTS,
     IEnhanceResult,
     IPartyInfo,
     ITerritoryStatus,
@@ -61,8 +62,12 @@ export class CoreSystemsUI {
     private partyInfo: IPartyInfo | null = null;
     private pendingInvite: { inviterName: string } | null = null;
 
-    constructor(room: Room) {
+    /** 瞬移本地玩家（main.ts 提供：郁角色 + 鏡頭，再同步位置畀伺服器） */
+    private teleportLocal: ((x: number, z: number) => void) | null;
+
+    constructor(room: Room, teleportLocal?: (x: number, z: number) => void) {
         this.room = room;
+        this.teleportLocal = teleportLocal ?? null;
         this.createPanels();
         this.setupHotkeys();
         this.setupMessages();
@@ -112,15 +117,21 @@ export class CoreSystemsUI {
         // 回出生點掣（脫困用）：放喺右下角 🐛 掣上面，避免重疊
         const home = document.createElement("button");
         home.textContent = "🏠 回出生點 (H)";
-        home.title = "卡住咗？返去出生點（打緊交、坐緊監、紅名時唔用得，有冷卻）";
+        home.title = "卡住咗？即刻返去出生點（打緊交、坐緊監時唔用得）";
         home.style.cssText = `${BTN_DARK_STYLE} position: fixed; bottom: 70px; right: 10px; z-index: 899;`;
         home.onclick = () => this.returnToSpawn();
         document.body.appendChild(home);
     }
 
-    /** 由伺服器檢查條件同冷卻；成功會收到 teleport 訊息，失敗會收到 notification */
+    /** 回出生點：同撳地圖行路一樣由客戶端直接郁，唔使等伺服器 */
     private returnToSpawn(): void {
-        this.room.send("returnToSpawn");
+        const me = this.me();
+        if (!me || !this.teleportLocal) return;
+        if (me.inPrison) return this.notify("坐緊監，唔可以回出生點");
+        if (me.hp <= 0) return this.notify("倒咗嘅時候唔可以回出生點");
+        if (me.inCombatWith || me.inCombatWithEnemy) return this.notify("打緊交，唔可以回出生點");
+        this.teleportLocal(GAME_CONSTANTS.SPAWN_X, GAME_CONSTANTS.SPAWN_Z);
+        this.notify("已返回出生點");
     }
 
     private body(key: string): HTMLDivElement {

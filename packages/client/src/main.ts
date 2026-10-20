@@ -217,8 +217,16 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
         // Phase 20: 初始化藍圖任務 UI
         questBlueprintUI = new QuestBlueprintUI(room);
 
-        // Phase 21: 初始化核心系統 UI（U:武器強化 G:社團 P:組隊 T:地盤 K:測試套件）
-        new CoreSystemsUI(room);
+        // 瞬移本地玩家：位置以客戶端為準（同撳地圖行路一樣），郁完即刻同步返伺服器，
+        // 否則未郁之前其他玩家仍然見到舊位置，下線時亦會存返舊位置
+        const teleportLocalPlayer = (x: number, z: number) => {
+            playerManager.teleportPlayer(room.sessionId, x, z);
+            teleportCamera(camera, new BABYLON.Vector3(x, 0, z));
+            room.send("set_position", { x, z });
+        };
+
+        // Phase 21: 初始化核心系統 UI（U:武器強化 G:社團 P:組隊 T:地盤 H:回出生點 K:測試套件）
+        new CoreSystemsUI(room, teleportLocalPlayer);
 
         // Phase 16-3: 連接對話系統和商店系統
         dialogueSystem.setOnOpenShop((npcId, shopId, npcName) => {
@@ -286,13 +294,7 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
         });
 
         // 後台「傳送回出生點」：伺服器叫我哋即刻瞬移
-        room.onMessage("teleport", (data: { x: number; z: number }) => {
-            playerManager.teleportPlayer(room.sessionId, data.x, data.z);
-            teleportCamera(camera, new BABYLON.Vector3(data.x, 0, data.z));
-            // 位置以客戶端為準：即刻同步返伺服器，否則未郁之前其他玩家仍然見到舊位置，
-            // 下線時亦會存返舊位置
-            room.send("set_position", { x: data.x, z: data.z });
-        });
+        room.onMessage("teleport", (data: { x: number; z: number }) => teleportLocalPlayer(data.x, data.z));
 
         // === Phase 13: 被踢出（帳號在其他地方登入）===
         room.onMessage("kicked", (data: { reason: string }) => {
