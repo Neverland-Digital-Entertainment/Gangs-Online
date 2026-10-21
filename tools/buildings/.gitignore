@@ -1,1 +1,3 @@
 __pycache__/
+# 地政總署原始數據（解壓咗嘅 FBX，好大，唔入 repo）
+source/

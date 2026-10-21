@@ -1,0 +1,3089 @@
+[
+ {
+  "id": "B353651967401063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 23.3,
+  "tiers": 2,
+  "tris": 236,
+  "lod": 0
+ },
+ {
+  "id": "B353661966501063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 29.1,
+  "tiers": 2,
+  "tris": 172,
+  "lod": 0
+ },
+ {
+  "id": "B353661967001063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 23.3,
+  "tiers": 2,
+  "tris": 130,
+  "lod": 0
+ },
+ {
+  "id": "B353671965501063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 24.1,
+  "tiers": 2,
+  "tris": 188,
+  "lod": 0
+ },
+ {
+  "id": "B353671966001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 29.1,
+  "tiers": 3,
+  "tris": 184,
+  "lod": 0
+ },
+ {
+  "id": "B353681965101063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 24.1,
+  "tiers": 2,
+  "tris": 225,
+  "lod": 0
+ },
+ {
+  "id": "B353691964601063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 24.1,
+  "tiers": 2,
+  "tris": 195,
+  "lod": 0
+ },
+ {
+  "id": "B353701964201063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 24.1,
+  "tiers": 1,
+  "tris": 134,
+  "lod": 0
+ },
+ {
+  "id": "B353711963701063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 22.8,
+  "tiers": 2,
+  "tris": 144,
+  "lod": 0
+ },
+ {
+  "id": "B353721963201063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 22.8,
+  "tiers": 3,
+  "tris": 131,
+  "lod": 0
+ },
+ {
+  "id": "B353731962301063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 22.8,
+  "tiers": 2,
+  "tris": 151,
+  "lod": 0
+ },
+ {
+  "id": "B353731962701063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 22.7,
+  "tiers": 3,
+  "tris": 270,
+  "lod": 0
+ },
+ {
+  "id": "B353771960301063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 31.2,
+  "tiers": 2,
+  "tris": 273,
+  "lod": 0
+ },
+ {
+  "id": "B353771960801063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 31.2,
+  "tiers": 2,
+  "tris": 222,
+  "lod": 0
+ },
+ {
+  "id": "B353771962001063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 22.2,
+  "tiers": 2,
+  "tris": 159,
+  "lod": 0
+ },
+ {
+  "id": "B353781959801063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 23.4,
+  "tiers": 2,
+  "tris": 152,
+  "lod": 0
+ },
+ {
+  "id": "B353801961501063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 22.2,
+  "tiers": 2,
+  "tris": 163,
+  "lod": 0
+ },
+ {
+  "id": "B353821957801063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 23.8,
+  "tiers": 2,
+  "tris": 179,
+  "lod": 0
+ },
+ {
+  "id": "B353821958401063C0",
+  "style": "low",
+  "facade": "TL_yellow",
+  "height": 5.5,
+  "tiers": 1,
+  "tris": 22,
+  "lod": 0
+ },
+ {
+  "id": "B353821959102063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 16.0,
+  "tiers": 1,
+  "tris": 130,
+  "lod": 0
+ },
+ {
+  "id": "B353831974901063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 57.7,
+  "tiers": 2,
+  "tris": 407,
+  "lod": 0
+ },
+ {
+  "id": "B353831974902063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 11.2,
+  "tiers": 1,
+  "tris": 308,
+  "lod": 0
+ },
+ {
+  "id": "B353841957101063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 17.2,
+  "tiers": 2,
+  "tris": 160,
+  "lod": 0
+ },
+ {
+  "id": "B353851957202063C0",
+  "style": "low",
+  "facade": "TL_cream",
+  "height": 5.4,
+  "tiers": 1,
+  "tris": 76,
+  "lod": 0
+ },
+ {
+  "id": "B353871973001063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 23.3,
+  "tiers": 1,
+  "tris": 84,
+  "lod": 0
+ },
+ {
+  "id": "B353881972501063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 23.4,
+  "tiers": 2,
+  "tris": 80,
+  "lod": 0
+ },
+ {
+  "id": "B353891971101063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 23.2,
+  "tiers": 1,
+  "tris": 283,
+  "lod": 0
+ },
+ {
+  "id": "B353901971701063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 23.2,
+  "tiers": 2,
+  "tris": 145,
+  "lod": 0
+ },
+ {
+  "id": "B353901972201063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 22.0,
+  "tiers": 1,
+  "tris": 102,
+  "lod": 0
+ },
+ {
+  "id": "B353961975601063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 30.7,
+  "tiers": 3,
+  "tris": 230,
+  "lod": 0
+ },
+ {
+  "id": "B353961976201063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 30.6,
+  "tiers": 1,
+  "tris": 250,
+  "lod": 0
+ },
+ {
+  "id": "B353971975101063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 30.8,
+  "tiers": 3,
+  "tris": 200,
+  "lod": 0
+ },
+ {
+  "id": "B353991974101063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 24.1,
+  "tiers": 2,
+  "tris": 141,
+  "lod": 0
+ },
+ {
+  "id": "B353991974601063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 30.9,
+  "tiers": 3,
+  "tris": 232,
+  "lod": 0
+ },
+ {
+  "id": "B354011966001063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 21.6,
+  "tiers": 1,
+  "tris": 102,
+  "lod": 0
+ },
+ {
+  "id": "B354011972801063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 22.5,
+  "tiers": 2,
+  "tris": 184,
+  "lod": 0
+ },
+ {
+  "id": "B354021965501063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 30.2,
+  "tiers": 2,
+  "tris": 172,
+  "lod": 0
+ },
+ {
+  "id": "B354021973501063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 23.8,
+  "tiers": 2,
+  "tris": 165,
+  "lod": 0
+ },
+ {
+  "id": "B354031964701063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 31.8,
+  "tiers": 1,
+  "tris": 148,
+  "lod": 0
+ },
+ {
+  "id": "B354031965101063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 31.8,
+  "tiers": 1,
+  "tris": 112,
+  "lod": 0
+ },
+ {
+  "id": "B354031968201063C0",
+  "style": "tower",
+  "facade": "TOWER_beige",
+  "height": 73.0,
+  "tiers": 2,
+  "tris": 684,
+  "lod": 3
+ },
+ {
+  "id": "B354031972501063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 31.5,
+  "tiers": 2,
+  "tris": 320,
+  "lod": 0
+ },
+ {
+  "id": "B354041964301063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 30.2,
+  "tiers": 2,
+  "tris": 181,
+  "lod": 0
+ },
+ {
+  "id": "B354041973801063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 23.8,
+  "tiers": 2,
+  "tris": 162,
+  "lod": 0
+ },
+ {
+  "id": "B354061967902063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 13.4,
+  "tiers": 1,
+  "tris": 514,
+  "lod": 0
+ },
+ {
+  "id": "B354071972101063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 31.5,
+  "tiers": 2,
+  "tris": 155,
+  "lod": 0
+ },
+ {
+  "id": "B354081963901063C0",
+  "style": "low",
+  "facade": "TL_yellow",
+  "height": 3.3,
+  "tiers": 1,
+  "tris": 34,
+  "lod": 0
+ },
+ {
+  "id": "B354081971301063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 31.5,
+  "tiers": 1,
+  "tris": 332,
+  "lod": 0
+ },
+ {
+  "id": "B354081971701063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 31.6,
+  "tiers": 2,
+  "tris": 208,
+  "lod": 0
+ },
+ {
+  "id": "B354101960901063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 28.4,
+  "tiers": 2,
+  "tris": 174,
+  "lod": 0
+ },
+ {
+  "id": "B354101961401063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 29.3,
+  "tiers": 1,
+  "tris": 146,
+  "lod": 0
+ },
+ {
+  "id": "B354111960401063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 29.0,
+  "tiers": 2,
+  "tris": 180,
+  "lod": 0
+ },
+ {
+  "id": "B354121959901063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 29.1,
+  "tiers": 2,
+  "tris": 231,
+  "lod": 0
+ },
+ {
+  "id": "B354141966101063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 69.5,
+  "tiers": 2,
+  "tris": 434,
+  "lod": 0
+ },
+ {
+  "id": "B354151965401063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 23.0,
+  "tiers": 2,
+  "tris": 136,
+  "lod": 0
+ },
+ {
+  "id": "B354161958001063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 32.3,
+  "tiers": 2,
+  "tris": 565,
+  "lod": 0
+ },
+ {
+  "id": "B354161965001063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 22.8,
+  "tiers": 3,
+  "tris": 232,
+  "lod": 0
+ },
+ {
+  "id": "B354181964201063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 22.4,
+  "tiers": 3,
+  "tris": 254,
+  "lod": 0
+ },
+ {
+  "id": "B354191963601063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 22.5,
+  "tiers": 2,
+  "tris": 160,
+  "lod": 0
+ },
+ {
+  "id": "B354201963201063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 22.5,
+  "tiers": 2,
+  "tris": 128,
+  "lod": 0
+ },
+ {
+  "id": "B354211955501063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 30.0,
+  "tiers": 2,
+  "tris": 249,
+  "lod": 0
+ },
+ {
+  "id": "B354211962701063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 23.3,
+  "tiers": 1,
+  "tris": 119,
+  "lod": 0
+ },
+ {
+  "id": "B354221955001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 30.0,
+  "tiers": 2,
+  "tris": 332,
+  "lod": 0
+ },
+ {
+  "id": "B354221962201063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 23.2,
+  "tiers": 1,
+  "tris": 128,
+  "lod": 0
+ },
+ {
+  "id": "B354231954401063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 38.6,
+  "tiers": 1,
+  "tris": 260,
+  "lod": 0
+ },
+ {
+  "id": "B354231954402063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 17.2,
+  "tiers": 2,
+  "tris": 161,
+  "lod": 0
+ },
+ {
+  "id": "B354231961701063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 36.6,
+  "tiers": 2,
+  "tris": 217,
+  "lod": 0
+ },
+ {
+  "id": "B354241953601063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 23.4,
+  "tiers": 2,
+  "tris": 104,
+  "lod": 0
+ },
+ {
+  "id": "B354241961301063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 36.7,
+  "tiers": 3,
+  "tris": 283,
+  "lod": 0
+ },
+ {
+  "id": "B354251953201063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 23.4,
+  "tiers": 2,
+  "tris": 120,
+  "lod": 0
+ },
+ {
+  "id": "B354261952501063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 22.7,
+  "tiers": 2,
+  "tris": 186,
+  "lod": 0
+ },
+ {
+  "id": "B354261960601063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 54.7,
+  "tiers": 3,
+  "tris": 532,
+  "lod": 0
+ },
+ {
+  "id": "B354271979101063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 24.2,
+  "tiers": 2,
+  "tris": 176,
+  "lod": 0
+ },
+ {
+  "id": "B354281958301063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 32.8,
+  "tiers": 2,
+  "tris": 189,
+  "lod": 0
+ },
+ {
+  "id": "B354281978601063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 22.2,
+  "tiers": 1,
+  "tris": 52,
+  "lod": 0
+ },
+ {
+  "id": "B354291951301063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 23.4,
+  "tiers": 2,
+  "tris": 107,
+  "lod": 0
+ },
+ {
+  "id": "B354291951801063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 23.4,
+  "tiers": 2,
+  "tris": 124,
+  "lod": 0
+ },
+ {
+  "id": "B354291958901063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 34.0,
+  "tiers": 1,
+  "tris": 189,
+  "lod": 0
+ },
+ {
+  "id": "B354301978201063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 23.2,
+  "tiers": 3,
+  "tris": 162,
+  "lod": 0
+ },
+ {
+  "id": "B354321957901063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 33.8,
+  "tiers": 2,
+  "tris": 293,
+  "lod": 0
+ },
+ {
+  "id": "B354331975801063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 22.3,
+  "tiers": 2,
+  "tris": 98,
+  "lod": 0
+ },
+ {
+  "id": "B354371955102063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 15.8,
+  "tiers": 1,
+  "tris": 269,
+  "lod": 0
+ },
+ {
+  "id": "B354371974901063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 33.3,
+  "tiers": 2,
+  "tris": 181,
+  "lod": 0
+ },
+ {
+  "id": "B354381953401063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 23.3,
+  "tiers": 1,
+  "tris": 104,
+  "lod": 0
+ },
+ {
+  "id": "B354381953901063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 23.3,
+  "tiers": 1,
+  "tris": 91,
+  "lod": 0
+ },
+ {
+  "id": "B354381973201063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 38.2,
+  "tiers": 2,
+  "tris": 518,
+  "lod": 0
+ },
+ {
+  "id": "B354381974401063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 39.0,
+  "tiers": 1,
+  "tris": 262,
+  "lod": 0
+ },
+ {
+  "id": "B354391953001063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 23.4,
+  "tiers": 2,
+  "tris": 200,
+  "lod": 0
+ },
+ {
+  "id": "B354391954901063C0",
+  "style": "tower",
+  "facade": "TOWER_teal",
+  "height": 56.4,
+  "tiers": 1,
+  "tris": 384,
+  "lod": 0
+ },
+ {
+  "id": "B354391973601063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 38.2,
+  "tiers": 3,
+  "tris": 355,
+  "lod": 0
+ },
+ {
+  "id": "B354401952501063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 23.4,
+  "tiers": 1,
+  "tris": 150,
+  "lod": 0
+ },
+ {
+  "id": "B354411952101063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 23.4,
+  "tiers": 1,
+  "tris": 102,
+  "lod": 0
+ },
+ {
+  "id": "B354421951101063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 31.9,
+  "tiers": 1,
+  "tris": 98,
+  "lod": 0
+ },
+ {
+  "id": "B354421951501063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 23.4,
+  "tiers": 1,
+  "tris": 148,
+  "lod": 0
+ },
+ {
+  "id": "B354421972401063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 66.2,
+  "tiers": 3,
+  "tris": 983,
+  "lod": 1
+ },
+ {
+  "id": "B354421972402063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 16.7,
+  "tiers": 2,
+  "tris": 314,
+  "lod": 0
+ },
+ {
+  "id": "B354431950601063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 31.8,
+  "tiers": 2,
+  "tris": 200,
+  "lod": 0
+ },
+ {
+  "id": "B354441950201063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 31.9,
+  "tiers": 2,
+  "tris": 107,
+  "lod": 0
+ },
+ {
+  "id": "B354451949701063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 31.9,
+  "tiers": 2,
+  "tris": 185,
+  "lod": 0
+ },
+ {
+  "id": "B354461949301063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 31.9,
+  "tiers": 1,
+  "tris": 180,
+  "lod": 0
+ },
+ {
+  "id": "B354521966601063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 36.1,
+  "tiers": 1,
+  "tris": 467,
+  "lod": 0
+ },
+ {
+  "id": "B354521977601063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 11.0,
+  "tiers": 2,
+  "tris": 112,
+  "lod": 0
+ },
+ {
+  "id": "B354531978901063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 16.2,
+  "tiers": 1,
+  "tris": 197,
+  "lod": 0
+ },
+ {
+  "id": "B354541964301063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 23.1,
+  "tiers": 2,
+  "tris": 192,
+  "lod": 0
+ },
+ {
+  "id": "B354581964001063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 23.1,
+  "tiers": 3,
+  "tris": 192,
+  "lod": 0
+ },
+ {
+  "id": "B354581976502063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 15.9,
+  "tiers": 1,
+  "tris": 102,
+  "lod": 0
+ },
+ {
+  "id": "B354591963401063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 22.5,
+  "tiers": 2,
+  "tris": 128,
+  "lod": 0
+ },
+ {
+  "id": "B354591975101063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 28.2,
+  "tiers": 2,
+  "tris": 128,
+  "lod": 0
+ },
+ {
+  "id": "B354591975601063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 28.3,
+  "tiers": 2,
+  "tris": 102,
+  "lod": 0
+ },
+ {
+  "id": "B354601962701063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 32.4,
+  "tiers": 4,
+  "tris": 511,
+  "lod": 0
+ },
+ {
+  "id": "B354601972701063C0",
+  "style": "tower",
+  "facade": "TOWER_beige",
+  "height": 62.5,
+  "tiers": 1,
+  "tris": 348,
+  "lod": 0
+ },
+ {
+  "id": "B354601976301063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 72.6,
+  "tiers": 2,
+  "tris": 499,
+  "lod": 0
+ },
+ {
+  "id": "B354611977101063C0",
+  "style": "low",
+  "facade": "TL_yellow",
+  "height": 6.0,
+  "tiers": 1,
+  "tris": 14,
+  "lod": 0
+ },
+ {
+  "id": "B354621961501063C1",
+  "style": "tower",
+  "facade": "TOWER_teal",
+  "height": 52.1,
+  "tiers": 1,
+  "tris": 342,
+  "lod": 0
+ },
+ {
+  "id": "B354621961702063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 17.9,
+  "tiers": 2,
+  "tris": 218,
+  "lod": 0
+ },
+ {
+  "id": "B354631960501063C0",
+  "style": "tower",
+  "facade": "TOWER_teal",
+  "height": 60.2,
+  "tiers": 2,
+  "tris": 375,
+  "lod": 0
+ },
+ {
+  "id": "B354641960602063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 16.4,
+  "tiers": 1,
+  "tris": 146,
+  "lod": 0
+ },
+ {
+  "id": "B354651959201063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 68.3,
+  "tiers": 3,
+  "tris": 290,
+  "lod": 0
+ },
+ {
+  "id": "B354651972702063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 17.4,
+  "tiers": 1,
+  "tris": 160,
+  "lod": 0
+ },
+ {
+  "id": "B354661974001063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 30.2,
+  "tiers": 2,
+  "tris": 212,
+  "lod": 0
+ },
+ {
+  "id": "B354661974401063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 30.1,
+  "tiers": 2,
+  "tris": 190,
+  "lod": 0
+ },
+ {
+  "id": "B354661974901063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 30.1,
+  "tiers": 1,
+  "tris": 82,
+  "lod": 0
+ },
+ {
+  "id": "B354671959202063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 17.1,
+  "tiers": 2,
+  "tris": 235,
+  "lod": 0
+ },
+ {
+  "id": "B354671967201063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 23.1,
+  "tiers": 1,
+  "tris": 176,
+  "lod": 0
+ },
+ {
+  "id": "B354681973501063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 30.5,
+  "tiers": 3,
+  "tris": 194,
+  "lod": 0
+ },
+ {
+  "id": "B354701967001063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 23.0,
+  "tiers": 1,
+  "tris": 96,
+  "lod": 0
+ },
+ {
+  "id": "B354711956501063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 24.2,
+  "tiers": 1,
+  "tris": 408,
+  "lod": 0
+ },
+ {
+  "id": "B354711969301063C0",
+  "style": "tower",
+  "facade": "TOWER_teal",
+  "height": 53.6,
+  "tiers": 1,
+  "tris": 950,
+  "lod": 0
+ },
+ {
+  "id": "B354711969302063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 18.9,
+  "tiers": 2,
+  "tris": 234,
+  "lod": 0
+ },
+ {
+  "id": "B354721956001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 29.9,
+  "tiers": 3,
+  "tris": 187,
+  "lod": 0
+ },
+ {
+  "id": "B354731955501063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 29.9,
+  "tiers": 2,
+  "tris": 213,
+  "lod": 0
+ },
+ {
+  "id": "B354741953301063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 66.4,
+  "tiers": 2,
+  "tris": 598,
+  "lod": 0
+ },
+ {
+  "id": "B354741955101063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 24.3,
+  "tiers": 2,
+  "tris": 188,
+  "lod": 0
+ },
+ {
+  "id": "B354751954601063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 24.4,
+  "tiers": 2,
+  "tris": 176,
+  "lod": 0
+ },
+ {
+  "id": "B354751966801063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 23.7,
+  "tiers": 1,
+  "tris": 142,
+  "lod": 0
+ },
+ {
+  "id": "B354771953702063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 16.3,
+  "tiers": 1,
+  "tris": 282,
+  "lod": 0
+ },
+ {
+  "id": "B354781967401063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 23.7,
+  "tiers": 3,
+  "tris": 166,
+  "lod": 0
+ },
+ {
+  "id": "B354791964801063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 34.8,
+  "tiers": 3,
+  "tris": 518,
+  "lod": 0
+ },
+ {
+  "id": "B354821950401063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 20.7,
+  "tiers": 3,
+  "tris": 287,
+  "lod": 0
+ },
+ {
+  "id": "B354821950801063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 20.7,
+  "tiers": 3,
+  "tris": 381,
+  "lod": 0
+ },
+ {
+  "id": "B354831950001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 36.2,
+  "tiers": 3,
+  "tris": 296,
+  "lod": 0
+ },
+ {
+  "id": "B354831967201063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 23.0,
+  "tiers": 2,
+  "tris": 160,
+  "lod": 0
+ },
+ {
+  "id": "B354841963001063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 33.5,
+  "tiers": 4,
+  "tris": 442,
+  "lod": 0
+ },
+ {
+  "id": "B354851949501063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 36.2,
+  "tiers": 1,
+  "tris": 380,
+  "lod": 0
+ },
+ {
+  "id": "B354851979701063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 26.5,
+  "tiers": 2,
+  "tris": 164,
+  "lod": 0
+ },
+ {
+  "id": "B354871962101063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 25.1,
+  "tiers": 3,
+  "tris": 150,
+  "lod": 0
+ },
+ {
+  "id": "B354871979301063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 26.5,
+  "tiers": 2,
+  "tris": 217,
+  "lod": 0
+ },
+ {
+  "id": "B354881960801063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 32.0,
+  "tiers": 1,
+  "tris": 356,
+  "lod": 0
+ },
+ {
+  "id": "B354881978801063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 26.4,
+  "tiers": 2,
+  "tris": 137,
+  "lod": 0
+ },
+ {
+  "id": "B354891947601063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 22.4,
+  "tiers": 1,
+  "tris": 198,
+  "lod": 0
+ },
+ {
+  "id": "B354891959001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 34.9,
+  "tiers": 1,
+  "tris": 797,
+  "lod": 0
+ },
+ {
+  "id": "B354891978401063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 26.4,
+  "tiers": 2,
+  "tris": 235,
+  "lod": 0
+ },
+ {
+  "id": "B354901947101063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 22.4,
+  "tiers": 1,
+  "tris": 136,
+  "lod": 0
+ },
+ {
+  "id": "B354921977802063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 15.6,
+  "tiers": 1,
+  "tris": 124,
+  "lod": 0
+ },
+ {
+  "id": "B354931977801063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 69.5,
+  "tiers": 1,
+  "tris": 352,
+  "lod": 0
+ },
+ {
+  "id": "B354941952501063C0",
+  "style": "low",
+  "facade": "TL_cream",
+  "height": 3.0,
+  "tiers": 1,
+  "tris": 30,
+  "lod": 0
+ },
+ {
+  "id": "B354941953101063C0",
+  "style": "low",
+  "facade": "BACK",
+  "height": 3.3,
+  "tiers": 1,
+  "tris": 20,
+  "lod": 0
+ },
+ {
+  "id": "B354941956501063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 72.4,
+  "tiers": 2,
+  "tris": 874,
+  "lod": 2
+ },
+ {
+  "id": "B354961951801063C0",
+  "style": "low",
+  "facade": "TL_yellow",
+  "height": 3.5,
+  "tiers": 1,
+  "tris": 36,
+  "lod": 0
+ },
+ {
+  "id": "B354961956002063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 16.3,
+  "tiers": 1,
+  "tris": 248,
+  "lod": 0
+ },
+ {
+  "id": "B354981975102063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 38.3,
+  "tiers": 3,
+  "tris": 733,
+  "lod": 0
+ },
+ {
+  "id": "B355001954201063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 30.4,
+  "tiers": 1,
+  "tris": 226,
+  "lod": 0
+ },
+ {
+  "id": "B355001954202063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 17.6,
+  "tiers": 1,
+  "tris": 91,
+  "lod": 0
+ },
+ {
+  "id": "B355031952601063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 36.2,
+  "tiers": 1,
+  "tris": 216,
+  "lod": 0
+ },
+ {
+  "id": "B355031952602063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 17.8,
+  "tiers": 1,
+  "tris": 188,
+  "lod": 0
+ },
+ {
+  "id": "B355041950501063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 34.2,
+  "tiers": 2,
+  "tris": 453,
+  "lod": 0
+ },
+ {
+  "id": "B355041970201063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 22.3,
+  "tiers": 3,
+  "tris": 136,
+  "lod": 0
+ },
+ {
+  "id": "B355041970801063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 10.3,
+  "tiers": 1,
+  "tris": 86,
+  "lod": 0
+ },
+ {
+  "id": "B355081969001063C0",
+  "style": "low",
+  "facade": "TL_yellow",
+  "height": 9.4,
+  "tiers": 1,
+  "tris": 92,
+  "lod": 0
+ },
+ {
+  "id": "B355131979501063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 92.7,
+  "tiers": 3,
+  "tris": 720,
+  "lod": 0
+ },
+ {
+  "id": "B355141946701063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 28.5,
+  "tiers": 2,
+  "tris": 199,
+  "lod": 0
+ },
+ {
+  "id": "B355151951201063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 22.6,
+  "tiers": 1,
+  "tris": 189,
+  "lod": 0
+ },
+ {
+  "id": "B355161946201063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 28.1,
+  "tiers": 2,
+  "tris": 307,
+  "lod": 0
+ },
+ {
+  "id": "B355161962802063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 17.9,
+  "tiers": 1,
+  "tris": 256,
+  "lod": 0
+ },
+ {
+  "id": "B355161962901063C0",
+  "style": "tower",
+  "facade": "TOWER_beige",
+  "height": 55.6,
+  "tiers": 1,
+  "tris": 462,
+  "lod": 0
+ },
+ {
+  "id": "B355171962201063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 20.9,
+  "tiers": 2,
+  "tris": 128,
+  "lod": 0
+ },
+ {
+  "id": "B355181961701063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 20.9,
+  "tiers": 2,
+  "tris": 185,
+  "lod": 0
+ },
+ {
+  "id": "B355201961101063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 50.2,
+  "tiers": 2,
+  "tris": 446,
+  "lod": 0
+ },
+ {
+  "id": "B355201961102063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 12.1,
+  "tiers": 1,
+  "tris": 125,
+  "lod": 0
+ },
+ {
+  "id": "B355201976002063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 35.7,
+  "tiers": 2,
+  "tris": 594,
+  "lod": 0
+ },
+ {
+  "id": "B355211963501063C0",
+  "style": "low",
+  "facade": "TL_yellow",
+  "height": 3.2,
+  "tiers": 1,
+  "tris": 43,
+  "lod": 0
+ },
+ {
+  "id": "B355231959701063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 22.8,
+  "tiers": 3,
+  "tris": 340,
+  "lod": 0
+ },
+ {
+  "id": "B355241975001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 44.2,
+  "tiers": 4,
+  "tris": 530,
+  "lod": 2
+ },
+ {
+  "id": "B355251964401063C0",
+  "style": "tower",
+  "facade": "TOWER_teal",
+  "height": 53.5,
+  "tiers": 1,
+  "tris": 222,
+  "lod": 0
+ },
+ {
+  "id": "B355281963302063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 17.3,
+  "tiers": 1,
+  "tris": 227,
+  "lod": 0
+ },
+ {
+  "id": "B355291957301063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 22.3,
+  "tiers": 2,
+  "tris": 285,
+  "lod": 0
+ },
+ {
+  "id": "B355301956601063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 23.9,
+  "tiers": 2,
+  "tris": 130,
+  "lod": 0
+ },
+ {
+  "id": "B355311956201063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 23.8,
+  "tiers": 2,
+  "tris": 184,
+  "lod": 0
+ },
+ {
+  "id": "B355321955701063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 22.1,
+  "tiers": 2,
+  "tris": 140,
+  "lod": 0
+ },
+ {
+  "id": "B355321961101063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 35.6,
+  "tiers": 2,
+  "tris": 313,
+  "lod": 0
+ },
+ {
+  "id": "B355331955301063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 22.1,
+  "tiers": 3,
+  "tris": 194,
+  "lod": 0
+ },
+ {
+  "id": "B355341954801063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 25.3,
+  "tiers": 2,
+  "tris": 186,
+  "lod": 0
+ },
+ {
+  "id": "B355351954401063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 25.3,
+  "tiers": 3,
+  "tris": 309,
+  "lod": 0
+ },
+ {
+  "id": "B355371953701063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 23.4,
+  "tiers": 3,
+  "tris": 179,
+  "lod": 0
+ },
+ {
+  "id": "B355371966001063C0",
+  "style": "tower",
+  "facade": "TOWER_teal",
+  "height": 55.5,
+  "tiers": 1,
+  "tris": 250,
+  "lod": 0
+ },
+ {
+  "id": "B355371969601063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 71.5,
+  "tiers": 2,
+  "tris": 657,
+  "lod": 0
+ },
+ {
+  "id": "B355391952501063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 31.3,
+  "tiers": 3,
+  "tris": 360,
+  "lod": 0
+ },
+ {
+  "id": "B355391953001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 31.3,
+  "tiers": 3,
+  "tris": 196,
+  "lod": 0
+ },
+ {
+  "id": "B355391965902063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 14.9,
+  "tiers": 2,
+  "tris": 220,
+  "lod": 0
+ },
+ {
+  "id": "B355401957201063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 69.0,
+  "tiers": 2,
+  "tris": 689,
+  "lod": 0
+ },
+ {
+  "id": "B355401969702063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 18.2,
+  "tiers": 2,
+  "tris": 420,
+  "lod": 0
+ },
+ {
+  "id": "B355421963001063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 72.2,
+  "tiers": 2,
+  "tris": 642,
+  "lod": 0
+ },
+ {
+  "id": "B355421964502063C0",
+  "style": "low",
+  "facade": "TL_yellow",
+  "height": 8.6,
+  "tiers": 1,
+  "tris": 42,
+  "lod": 0
+ },
+ {
+  "id": "B355431948101063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 31.7,
+  "tiers": 1,
+  "tris": 472,
+  "lod": 0
+ },
+ {
+  "id": "B355431951501063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 24.7,
+  "tiers": 3,
+  "tris": 557,
+  "lod": 0
+ },
+ {
+  "id": "B355431964501063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 46.9,
+  "tiers": 3,
+  "tris": 502,
+  "lod": 0
+ },
+ {
+  "id": "B355451962902063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 16.3,
+  "tiers": 2,
+  "tris": 241,
+  "lod": 0
+ },
+ {
+  "id": "B355461946501063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 29.6,
+  "tiers": 1,
+  "tris": 83,
+  "lod": 0
+ },
+ {
+  "id": "B355471947401063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 29.3,
+  "tiers": 2,
+  "tris": 262,
+  "lod": 0
+ },
+ {
+  "id": "B355471961901063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 24.7,
+  "tiers": 2,
+  "tris": 364,
+  "lod": 0
+ },
+ {
+  "id": "B355491961301063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 22.6,
+  "tiers": 2,
+  "tris": 241,
+  "lod": 0
+ },
+ {
+  "id": "B355501960301063C0",
+  "style": "tower",
+  "facade": "TOWER_beige",
+  "height": 57.0,
+  "tiers": 1,
+  "tris": 250,
+  "lod": 0
+ },
+ {
+  "id": "B355511945601063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 20.6,
+  "tiers": 3,
+  "tris": 309,
+  "lod": 0
+ },
+ {
+  "id": "B355511960302063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 16.0,
+  "tiers": 1,
+  "tris": 182,
+  "lod": 0
+ },
+ {
+  "id": "B355551958001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 41.6,
+  "tiers": 2,
+  "tris": 303,
+  "lod": 0
+ },
+ {
+  "id": "B355571947201063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 29.6,
+  "tiers": 2,
+  "tris": 205,
+  "lod": 0
+ },
+ {
+  "id": "B355581957002063C0",
+  "style": "tong_lau",
+  "facade": "TL_green",
+  "height": 16.4,
+  "tiers": 2,
+  "tris": 77,
+  "lod": 0
+ },
+ {
+  "id": "B355591946201063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 28.0,
+  "tiers": 3,
+  "tris": 335,
+  "lod": 0
+ },
+ {
+  "id": "B355611955102063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 16.4,
+  "tiers": 2,
+  "tris": 158,
+  "lod": 0
+ },
+ {
+  "id": "B355611955201063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 70.9,
+  "tiers": 1,
+  "tris": 464,
+  "lod": 0
+ },
+ {
+  "id": "B355611957001063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 75.4,
+  "tiers": 3,
+  "tris": 436,
+  "lod": 0
+ },
+ {
+  "id": "B355631952701063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 67.8,
+  "tiers": 1,
+  "tris": 978,
+  "lod": 0
+ },
+ {
+  "id": "B355651952802063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 16.4,
+  "tiers": 2,
+  "tris": 274,
+  "lod": 0
+ },
+ {
+  "id": "B355681951401063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 53.9,
+  "tiers": 2,
+  "tris": 603,
+  "lod": 0
+ },
+ {
+  "id": "B355681951502063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 17.7,
+  "tiers": 2,
+  "tris": 425,
+  "lod": 0
+ },
+ {
+  "id": "B355691949001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 27.5,
+  "tiers": 2,
+  "tris": 216,
+  "lod": 0
+ },
+ {
+  "id": "B355731948202063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 17.1,
+  "tiers": 2,
+  "tris": 140,
+  "lod": 0
+ },
+ {
+  "id": "B355751948201063C0",
+  "style": "tower",
+  "facade": "TOWER_beige",
+  "height": 51.2,
+  "tiers": 1,
+  "tris": 330,
+  "lod": 0
+ },
+ {
+  "id": "B355771945902063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 16.9,
+  "tiers": 1,
+  "tris": 232,
+  "lod": 0
+ },
+ {
+  "id": "B355771946301063C0",
+  "style": "tower",
+  "facade": "TOWER_beige",
+  "height": 67.1,
+  "tiers": 1,
+  "tris": 421,
+  "lod": 0
+ },
+ {
+  "id": "B355771949201063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 27.5,
+  "tiers": 1,
+  "tris": 201,
+  "lod": 0
+ },
+ {
+  "id": "B355781971301063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 57.9,
+  "tiers": 4,
+  "tris": 565,
+  "lod": 0
+ },
+ {
+  "id": "B355811976702063C0",
+  "style": "commercial",
+  "facade": "COMM_glass",
+  "height": 17.8,
+  "tiers": 2,
+  "tris": 273,
+  "lod": 0
+ },
+ {
+  "id": "B355811977001063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 65.7,
+  "tiers": 4,
+  "tris": 804,
+  "lod": 1
+ },
+ {
+  "id": "B355831971602063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 18.0,
+  "tiers": 2,
+  "tris": 248,
+  "lod": 0
+ },
+ {
+  "id": "B355841970101063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 66.7,
+  "tiers": 2,
+  "tris": 297,
+  "lod": 0
+ },
+ {
+  "id": "B355861969902063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 15.2,
+  "tiers": 2,
+  "tris": 69,
+  "lod": 0
+ },
+ {
+  "id": "B355891968001063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 66.6,
+  "tiers": 3,
+  "tris": 494,
+  "lod": 0
+ },
+ {
+  "id": "B355911967802063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 17.5,
+  "tiers": 2,
+  "tris": 354,
+  "lod": 0
+ },
+ {
+  "id": "B355951965001063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 72.4,
+  "tiers": 2,
+  "tris": 885,
+  "lod": 1
+ },
+ {
+  "id": "B355961965102063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 17.5,
+  "tiers": 2,
+  "tris": 150,
+  "lod": 0
+ },
+ {
+  "id": "B356011961901063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 72.5,
+  "tiers": 3,
+  "tris": 669,
+  "lod": 0
+ },
+ {
+  "id": "B356011962402063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 17.3,
+  "tiers": 2,
+  "tris": 166,
+  "lod": 0
+ },
+ {
+  "id": "B356011972502063C0",
+  "style": "low",
+  "facade": "TL_yellow",
+  "height": 6.6,
+  "tiers": 1,
+  "tris": 98,
+  "lod": 0
+ },
+ {
+  "id": "B356061972701063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 40.5,
+  "tiers": 3,
+  "tris": 248,
+  "lod": 0
+ },
+ {
+  "id": "B356071959001063C0",
+  "style": "tower",
+  "facade": "TOWER_teal",
+  "height": 51.4,
+  "tiers": 2,
+  "tris": 670,
+  "lod": 0
+ },
+ {
+  "id": "B356081969301063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 56.2,
+  "tiers": 1,
+  "tris": 420,
+  "lod": 0
+ },
+ {
+  "id": "B356091957501063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 81.0,
+  "tiers": 4,
+  "tris": 681,
+  "lod": 2
+ },
+ {
+  "id": "B356091969502063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 16.0,
+  "tiers": 1,
+  "tris": 203,
+  "lod": 0
+ },
+ {
+  "id": "B356121956301063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 69.9,
+  "tiers": 2,
+  "tris": 383,
+  "lod": 0
+ },
+ {
+  "id": "B356141966901063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 21.7,
+  "tiers": 3,
+  "tris": 260,
+  "lod": 0
+ },
+ {
+  "id": "B356161953401063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 48.6,
+  "tiers": 2,
+  "tris": 382,
+  "lod": 0
+ },
+ {
+  "id": "B356161954801063C0",
+  "style": "tower",
+  "facade": "TOWER_teal",
+  "height": 63.5,
+  "tiers": 3,
+  "tris": 915,
+  "lod": 0
+ },
+ {
+  "id": "B356181964601063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 68.9,
+  "tiers": 1,
+  "tris": 552,
+  "lod": 0
+ },
+ {
+  "id": "B356191964302063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 16.4,
+  "tiers": 1,
+  "tris": 222,
+  "lod": 0
+ },
+ {
+  "id": "B356201952501063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 51.1,
+  "tiers": 4,
+  "tris": 776,
+  "lod": 2
+ },
+ {
+  "id": "B356201961601063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 16.9,
+  "tiers": 3,
+  "tris": 233,
+  "lod": 0
+ },
+ {
+  "id": "B356231947101063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 49.3,
+  "tiers": 3,
+  "tris": 284,
+  "lod": 0
+ },
+ {
+  "id": "B356231949601063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 83.1,
+  "tiers": 2,
+  "tris": 458,
+  "lod": 0
+ },
+ {
+  "id": "B356251949802063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 16.3,
+  "tiers": 2,
+  "tris": 155,
+  "lod": 0
+ },
+ {
+  "id": "B356251978601063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 41.6,
+  "tiers": 2,
+  "tris": 461,
+  "lod": 0
+ },
+ {
+  "id": "B356261948201063C0",
+  "style": "tower",
+  "facade": "TOWER_beige",
+  "height": 49.2,
+  "tiers": 3,
+  "tris": 475,
+  "lod": 0
+ },
+ {
+  "id": "B356261961801063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 16.9,
+  "tiers": 2,
+  "tris": 249,
+  "lod": 0
+ },
+ {
+  "id": "B356261976001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 40.7,
+  "tiers": 3,
+  "tris": 876,
+  "lod": 0
+ },
+ {
+  "id": "B356291946801063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 49.4,
+  "tiers": 3,
+  "tris": 337,
+  "lod": 0
+ },
+ {
+  "id": "B356371972902063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 12.4,
+  "tiers": 2,
+  "tris": 261,
+  "lod": 0
+ },
+ {
+  "id": "B356401973201063C0",
+  "style": "tower",
+  "facade": "TOWER_beige",
+  "height": 62.1,
+  "tiers": 2,
+  "tris": 493,
+  "lod": 2
+ },
+ {
+  "id": "B356421952201063C0",
+  "style": "low",
+  "facade": "TL_yellow",
+  "height": 4.4,
+  "tiers": 1,
+  "tris": 42,
+  "lod": 0
+ },
+ {
+  "id": "B356421969701063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 72.1,
+  "tiers": 2,
+  "tris": 881,
+  "lod": 0
+ },
+ {
+  "id": "B356421969802063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 16.3,
+  "tiers": 1,
+  "tris": 380,
+  "lod": 0
+ },
+ {
+  "id": "B356441976901063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 49.3,
+  "tiers": 2,
+  "tris": 378,
+  "lod": 0
+ },
+ {
+  "id": "B356461979501063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 24.5,
+  "tiers": 3,
+  "tris": 197,
+  "lod": 0
+ },
+ {
+  "id": "B356471966201063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 63.7,
+  "tiers": 2,
+  "tris": 746,
+  "lod": 0
+ },
+ {
+  "id": "B356471979001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 32.2,
+  "tiers": 1,
+  "tris": 122,
+  "lod": 0
+ },
+ {
+  "id": "B356481950501063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 18.1,
+  "tiers": 1,
+  "tris": 134,
+  "lod": 0
+ },
+ {
+  "id": "B356481964501063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 18.5,
+  "tiers": 1,
+  "tris": 88,
+  "lod": 0
+ },
+ {
+  "id": "B356481966302063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 13.8,
+  "tiers": 1,
+  "tris": 296,
+  "lod": 0
+ },
+ {
+  "id": "B356481978501063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 32.2,
+  "tiers": 1,
+  "tris": 351,
+  "lod": 0
+ },
+ {
+  "id": "B356501976201063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 32.5,
+  "tiers": 1,
+  "tris": 526,
+  "lod": 0
+ },
+ {
+  "id": "B356521972902063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 11.5,
+  "tiers": 3,
+  "tris": 324,
+  "lod": 0
+ },
+ {
+  "id": "B356531963801063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 53.8,
+  "tiers": 1,
+  "tris": 517,
+  "lod": 0
+ },
+ {
+  "id": "B356541963802063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 16.9,
+  "tiers": 1,
+  "tris": 120,
+  "lod": 0
+ },
+ {
+  "id": "B356541973601063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 43.3,
+  "tiers": 1,
+  "tris": 392,
+  "lod": 0
+ },
+ {
+  "id": "B356551962801063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 14.5,
+  "tiers": 2,
+  "tris": 208,
+  "lod": 0
+ },
+ {
+  "id": "B356561962001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 37.6,
+  "tiers": 2,
+  "tris": 251,
+  "lod": 0
+ },
+ {
+  "id": "B356571966701063C0",
+  "style": "low",
+  "facade": "BACK",
+  "height": 3.5,
+  "tiers": 1,
+  "tris": 34,
+  "lod": 0
+ },
+ {
+  "id": "B356641969602063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 17.1,
+  "tiers": 1,
+  "tris": 184,
+  "lod": 0
+ },
+ {
+  "id": "B356671969601063C0",
+  "style": "tower",
+  "facade": "TOWER_pink",
+  "height": 60.6,
+  "tiers": 2,
+  "tris": 467,
+  "lod": 0
+ },
+ {
+  "id": "B356691953701063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 13.3,
+  "tiers": 2,
+  "tris": 325,
+  "lod": 0
+ },
+ {
+  "id": "B356721952101063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 14.1,
+  "tiers": 1,
+  "tris": 130,
+  "lod": 0
+ },
+ {
+  "id": "B356721957301063C0",
+  "style": "tower",
+  "facade": "TOWER_beige",
+  "height": 58.0,
+  "tiers": 2,
+  "tris": 711,
+  "lod": 0
+ },
+ {
+  "id": "B356721965602063C0",
+  "style": "low",
+  "facade": "TL_yellow",
+  "height": 9.3,
+  "tiers": 1,
+  "tris": 161,
+  "lod": 0
+ },
+ {
+  "id": "B356721965701063C0",
+  "style": "tower",
+  "facade": "TOWER_teal",
+  "height": 64.0,
+  "tiers": 2,
+  "tris": 991,
+  "lod": 0
+ },
+ {
+  "id": "B356741957902063C0",
+  "style": "commercial",
+  "facade": "COMM_glass",
+  "height": 26.1,
+  "tiers": 4,
+  "tris": 845,
+  "lod": 1
+ },
+ {
+  "id": "B356771962901063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 65.0,
+  "tiers": 2,
+  "tris": 598,
+  "lod": 0
+ },
+ {
+  "id": "B356771963002063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 15.9,
+  "tiers": 1,
+  "tris": 201,
+  "lod": 0
+ },
+ {
+  "id": "B356811979501063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 31.8,
+  "tiers": 2,
+  "tris": 336,
+  "lod": 0
+ },
+ {
+  "id": "B356831979001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 31.8,
+  "tiers": 2,
+  "tris": 217,
+  "lod": 0
+ },
+ {
+  "id": "B356841977901063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 42.9,
+  "tiers": 3,
+  "tris": 343,
+  "lod": 0
+ },
+ {
+  "id": "B356841978401063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 41.6,
+  "tiers": 3,
+  "tris": 259,
+  "lod": 0
+ },
+ {
+  "id": "B356851948501063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 22.5,
+  "tiers": 3,
+  "tris": 964,
+  "lod": 1
+ },
+ {
+  "id": "B356881976801063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 23.8,
+  "tiers": 3,
+  "tris": 821,
+  "lod": 0
+ },
+ {
+  "id": "B356981957701063C0",
+  "style": "low",
+  "facade": "TL_cream",
+  "height": 5.3,
+  "tiers": 1,
+  "tris": 36,
+  "lod": 0
+ },
+ {
+  "id": "B356981969902063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 12.3,
+  "tiers": 1,
+  "tris": 336,
+  "lod": 0
+ },
+ {
+  "id": "B356981971701063C0",
+  "style": "tower",
+  "facade": "TOWER_beige",
+  "height": 67.0,
+  "tiers": 2,
+  "tris": 833,
+  "lod": 0
+ },
+ {
+  "id": "B356991960301063C0",
+  "style": "low",
+  "facade": "TL_yellow",
+  "height": 8.3,
+  "tiers": 1,
+  "tris": 70,
+  "lod": 0
+ },
+ {
+  "id": "B357001956501063C0",
+  "style": "low",
+  "facade": "TL_cream",
+  "height": 3.4,
+  "tiers": 1,
+  "tris": 46,
+  "lod": 0
+ },
+ {
+  "id": "B357011973601063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 76.5,
+  "tiers": 2,
+  "tris": 664,
+  "lod": 3
+ },
+ {
+  "id": "B357011974202063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 10.5,
+  "tiers": 1,
+  "tris": 289,
+  "lod": 0
+ },
+ {
+  "id": "B357041968701063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 74.0,
+  "tiers": 3,
+  "tris": 552,
+  "lod": 2
+ },
+ {
+  "id": "B357061965101063C0",
+  "style": "tower",
+  "facade": "TOWER_beige",
+  "height": 73.1,
+  "tiers": 1,
+  "tris": 942,
+  "lod": 1
+ },
+ {
+  "id": "B357071965002063C0",
+  "style": "low",
+  "facade": "BACK",
+  "height": 7.8,
+  "tiers": 1,
+  "tris": 182,
+  "lod": 0
+ },
+ {
+  "id": "B357071978901063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 38.1,
+  "tiers": 1,
+  "tris": 414,
+  "lod": 0
+ },
+ {
+  "id": "B357081978301063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 38.1,
+  "tiers": 1,
+  "tris": 234,
+  "lod": 0
+ },
+ {
+  "id": "B357091977101063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 38.0,
+  "tiers": 3,
+  "tris": 540,
+  "lod": 0
+ },
+ {
+  "id": "B357131971801063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 72.9,
+  "tiers": 3,
+  "tris": 690,
+  "lod": 2
+ },
+ {
+  "id": "B357181970502063C0",
+  "style": "low",
+  "facade": "TL_cream",
+  "height": 7.3,
+  "tiers": 1,
+  "tris": 317,
+  "lod": 0
+ },
+ {
+  "id": "B357201969201063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 72.9,
+  "tiers": 3,
+  "tris": 700,
+  "lod": 2
+ },
+ {
+  "id": "B357211958401063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 27.0,
+  "tiers": 3,
+  "tris": 751,
+  "lod": 0
+ },
+ {
+  "id": "B357241967501063C0",
+  "style": "tong_lau",
+  "facade": "TL_yellow",
+  "height": 10.8,
+  "tiers": 1,
+  "tris": 110,
+  "lod": 0
+ },
+ {
+  "id": "B357251963601063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 23.1,
+  "tiers": 2,
+  "tris": 199,
+  "lod": 0
+ },
+ {
+  "id": "B357271966002063C0",
+  "style": "low",
+  "facade": "BACK",
+  "height": 7.2,
+  "tiers": 1,
+  "tris": 227,
+  "lod": 0
+ },
+ {
+  "id": "B357281960401063C1",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 36.1,
+  "tiers": 2,
+  "tris": 995,
+  "lod": 0
+ },
+ {
+  "id": "B357281966001063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 73.8,
+  "tiers": 4,
+  "tris": 655,
+  "lod": 2
+ },
+ {
+  "id": "B357341963701063C0",
+  "style": "tong_lau",
+  "facade": "TL_cream",
+  "height": 21.2,
+  "tiers": 2,
+  "tris": 284,
+  "lod": 0
+ },
+ {
+  "id": "B357371974101063C0",
+  "style": "low",
+  "facade": "TL_cream",
+  "height": 6.0,
+  "tiers": 1,
+  "tris": 18,
+  "lod": 0
+ },
+ {
+  "id": "B357411959101063C0",
+  "style": "low",
+  "facade": "TL_cream",
+  "height": 3.7,
+  "tiers": 1,
+  "tris": 24,
+  "lod": 0
+ },
+ {
+  "id": "B357411975401063C0",
+  "style": "low",
+  "facade": "TL_cream",
+  "height": 6.7,
+  "tiers": 1,
+  "tris": 18,
+  "lod": 0
+ },
+ {
+  "id": "B357461975502063C0",
+  "style": "low",
+  "facade": "TL_cream",
+  "height": 5.7,
+  "tiers": 1,
+  "tris": 81,
+  "lod": 0
+ },
+ {
+  "id": "B357471955401063C1",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 10.8,
+  "tiers": 2,
+  "tris": 282,
+  "lod": 0
+ },
+ {
+  "id": "B357521969502063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 14.3,
+  "tiers": 1,
+  "tris": 187,
+  "lod": 0
+ },
+ {
+  "id": "B357531949801063C1",
+  "style": "tower",
+  "facade": "TOWER_beige",
+  "height": 86.6,
+  "tiers": 4,
+  "tris": 948,
+  "lod": 6
+ },
+ {
+  "id": "B357541969701063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 41.4,
+  "tiers": 2,
+  "tris": 453,
+  "lod": 0
+ },
+ {
+  "id": "B357541973001063C0",
+  "style": "podium_tower",
+  "facade": "COMM_stone",
+  "height": 81.2,
+  "tiers": 2,
+  "tris": 951,
+  "lod": 2
+ },
+ {
+  "id": "B357541973002063C0",
+  "style": "low",
+  "facade": "TL_cream",
+  "height": 6.7,
+  "tiers": 1,
+  "tris": 181,
+  "lod": 0
+ },
+ {
+  "id": "B357541975001063C0",
+  "style": "composite",
+  "facade": "COMP_blue",
+  "height": 14.0,
+  "tiers": 2,
+  "tris": 238,
+  "lod": 0
+ },
+ {
+  "id": "B357601966502063C0",
+  "style": "composite",
+  "facade": "COMP_grey",
+  "height": 12.1,
+  "tiers": 1,
+  "tris": 177,
+  "lod": 0
+ },
+ {
+  "id": "B357601966601063C0",
+  "style": "tower",
+  "facade": "TOWER_teal",
+  "height": 73.0,
+  "tiers": 2,
+  "tris": 774,
+  "lod": 0
+ },
+ {
+  "id": "B357651969801063C0",
+  "style": "tower",
+  "facade": "TOWER_beige",
+  "height": 61.5,
+  "tiers": 1,
+  "tris": 715,
+  "lod": 0
+ },
+ {
+  "id": "B357661969802063C0",
+  "style": "tong_lau",
+  "facade": "TL_pink",
+  "height": 14.5,
+  "tiers": 2,
+  "tris": 290,
+  "lod": 0
+ },
+ {
+  "id": "B357881970302063C0",
+  "style": "low",
+  "facade": "BACK",
+  "height": 7.1,
+  "tiers": 1,
+  "tris": 355,
+  "lod": 0
+ },
+ {
+  "id": "B357931966701063C0",
+  "style": "tower",
+  "facade": "TOWER_teal",
+  "height": 80.0,
+  "tiers": 3,
+  "tris": 773,
+  "lod": 5
+ },
+ {
+  "id": "B358081967002063C0",
+  "style": "low",
+  "facade": "BACK",
+  "height": 9.9,
+  "tiers": 1,
+  "tris": 285,
+  "lod": 0
+ }
+]

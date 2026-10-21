@@ -743,6 +743,11 @@ export default {
   'map.pack.published': '已發佈快照（{count} 項編輯）',
   'map.pack.invalid': '唔係有效嘅大廈包',
   'map.pack.failed': '匯入失敗',
+  'map.pack.imported': '已匯入嘅大廈包',
+  'map.pack.remove': '移除',
+  'map.pack.removeConfirm': '確定移除大廈包「{pack}」？佢全部擺放會刪走，冇其他地方用嘅資產都會一齊刪走。',
+  'map.pack.removed': '已移除 {removed} 個擺放、刪走 {assets} 個資產',
+  'map.pack.removeFailed': '移除失敗',
 
   // Auth
   'auth.title': '管理後台登入',

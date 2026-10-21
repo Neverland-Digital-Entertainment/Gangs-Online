@@ -1,18 +1,22 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, CheckCircle2, Loader2, PackageOpen } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, PackageOpen, Trash2 } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
 import { useAuth } from '@/contexts/auth-context';
 import {
   importBuildingPack,
   listBuiltinPacks,
+  listImportedPacks,
   loadBuiltinPack,
   parseBuildingPack,
+  removeBuildingPack,
   type BuiltinPackInfo,
+  type ImportedPackInfo,
   type PackImportResult,
   type ParsedBuildingPack,
 } from '@/lib/map/building-pack';
+import { loadMapManifest } from '@/lib/map/map-loader';
 import { mapOverrideService } from '@/lib/map/override-service';
 
 function formatSize(bytes: number): string {
@@ -23,6 +27,7 @@ function formatSize(bytes: number): string {
 /**
  * 匯入大廈包：一撳載入隨後台發佈嘅內建大廈包（tools/buildings/out），
  * 或者自己揀 manifest.json 同全部 GLB，一次過建立資產並擺放到地圖（map_overrides `add`）。
+ * 亦可以移除已匯入嘅大廈包（例如已經由底圖真實大廈取代嘅試點包）。
  */
 export default function BuildingPackImport({
   onClose,
@@ -43,10 +48,50 @@ export default function BuildingPackImport({
   const [publishNote, setPublishNote] = useState<string | null>(null);
   const [builtin, setBuiltin] = useState<BuiltinPackInfo[]>([]);
   const [loadingDir, setLoadingDir] = useState<string | null>(null);
+  const [mapName, setMapName] = useState('');
+  const [imported, setImported] = useState<ImportedPackInfo[]>([]);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [removeNote, setRemoveNote] = useState<string | null>(null);
 
   useEffect(() => {
     listBuiltinPacks().then(setBuiltin).catch(() => setBuiltin([]));
+    loadMapManifest()
+      .then((m) => {
+        setMapName(m.mapName);
+        return listImportedPacks(m.mapName);
+      })
+      .then(setImported)
+      .catch((err) => console.error('讀取已匯入大廈包失敗:', err));
   }, []);
+
+  async function remove(packId: string) {
+    if (!mapName || !window.confirm(t('map.pack.removeConfirm').replace('{pack}', packId))) return;
+    setResult(null);
+    setParseError(null);
+    setRemoveNote(null);
+    try {
+      setRemoving(packId);
+      const res = await removeBuildingPack(mapName, packId, (done, total, label) =>
+        setProgress({ done, total, label })
+      );
+      let note = t('map.pack.removed')
+        .replace('{removed}', String(res.removed))
+        .replace('{assets}', String(res.assetsDeleted));
+      if (publish) {
+        const snap = await mapOverrideService.publishSnapshot(mapName, user?.email ?? undefined);
+        note += ' · ' + t('map.pack.published').replace('{count}', String(snap.itemCount));
+      }
+      setRemoveNote(note);
+      setImported(await listImportedPacks(mapName));
+      onImported();
+    } catch (err) {
+      console.error('移除大廈包失敗:', err);
+      setParseError(`${t('map.pack.removeFailed')}（${err instanceof Error ? err.message : String(err)}）`);
+    } finally {
+      setRemoving(null);
+      setProgress(null);
+    }
+  }
 
   async function pickBuiltin(dir: string) {
     setPack(null);
@@ -111,6 +156,32 @@ export default function BuildingPackImport({
         </h2>
         <p className="text-sm text-[var(--muted-foreground)]">{t('map.pack.hint')}</p>
 
+        {imported.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-[var(--foreground)]">{t('map.pack.imported')}</div>
+            {imported.map((p) => (
+              <div key={p.packId} className="flex items-center gap-3 text-sm">
+                <button
+                  className="btn btn-sm btn-light"
+                  onClick={() => remove(p.packId)}
+                  disabled={running || removing !== null || loadingDir !== null}
+                >
+                  {removing === p.packId ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4 mr-1" />
+                  )}
+                  {removing === p.packId && progress ? `${progress.done}/${progress.total}` : t('map.pack.remove')}
+                </button>
+                <span className="text-[var(--foreground)]">
+                  {p.packId} · {p.chunkId} · {t('map.pack.count').replace('{count}', String(p.count))}
+                </span>
+              </div>
+            ))}
+            {removeNote && <p className="text-xs text-[var(--muted-foreground)]">{removeNote}</p>}
+          </div>
+        )}
+
         {builtin.length > 0 && (
           <div className="space-y-2">
             <div className="text-sm font-medium text-[var(--foreground)]">{t('map.pack.builtin')}</div>
@@ -119,7 +190,7 @@ export default function BuildingPackImport({
                 <button
                   className="btn btn-sm btn-primary"
                   onClick={() => pickBuiltin(b.dir)}
-                  disabled={running || loadingDir !== null}
+                  disabled={running || removing !== null || loadingDir !== null}
                 >
                   {loadingDir === b.dir ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
                   {loadingDir === b.dir && progress
@@ -200,7 +271,7 @@ export default function BuildingPackImport({
           <button
             className="btn btn-primary"
             onClick={run}
-            disabled={running || !pack || pack.missing.length === pack.manifest.buildings.length}
+            disabled={running || removing !== null || !pack || pack.missing.length === pack.manifest.buildings.length}
           >
             {running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PackageOpen className="w-4 h-4 mr-2" />}
             {running && progress

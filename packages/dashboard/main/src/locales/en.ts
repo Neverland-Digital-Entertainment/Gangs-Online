@@ -745,6 +745,11 @@ export default {
   'map.pack.published': 'Snapshot published ({count} edits)',
   'map.pack.invalid': 'Not a valid building pack',
   'map.pack.failed': 'Import failed',
+  'map.pack.imported': 'Imported building packs',
+  'map.pack.remove': 'Remove',
+  'map.pack.removeConfirm': 'Remove building pack "{pack}"? All of its placements are deleted, along with any of its assets nothing else uses.',
+  'map.pack.removed': 'Removed {removed} placements and deleted {assets} assets',
+  'map.pack.removeFailed': 'Remove failed',
 
   // Auth
   'auth.title': 'Admin Sign In',
