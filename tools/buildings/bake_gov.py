@@ -45,6 +45,9 @@ SPAWN = (835575.4, 819658.9)
 ROAD_CLEAR = 0.3        # 底圖馬路同真實位置有少少偏差：大廈伸入馬路嘅部分切走（再留 0.3m）
 SPAWN_CLEAR = 2.0       # 出生點周圍最少留空
 MIN_EDGE = 0.25         # 短過呢個嘅牆唔整（簡化後殘留嘅碎邊）
+GROUP_OVERLAP = 0.5     # 兩筆記錄重疊超過細嗰筆一半 → 同一棟
+STACK_DZ = 3.0          # 有重疊而地面高度差 > 3m → 一筆疊喺另一筆上面，同一棟
+MAX_GROUP_TIERS = 5
 STRAIGHT_DEG = 8.0      # 轉角細過 8° 嘅頂點拉直（幾段差唔多同一直線嘅牆併做一面）
 CORNER_DEG = 25.0       # 轉角大過 25° 先畫牆角墨線
 PARTY_WINDOWS = 6.0     # 貼住隔籬嘅牆露出超過 6m → 有窗（後巷款），唔係成幅白牆
@@ -65,15 +68,80 @@ def polys_of(g):
     return [p for p in getattr(g, "geoms", []) if isinstance(p, Polygon)]
 
 
+def group_records(records):
+    """
+    政府數據會將一棟大廈拆做幾筆：塔樓（…01…）企喺平台（…02…）上面，塔樓嘅 ground 係平台頂。
+    以下情況當同一棟：編號頭 11 位相同；或者兩筆輪廓重疊超過細嗰筆嘅一半；
+    或者有重疊而地面高度差 > 3m（一筆疊喺另一筆上面）。
+    """
+    geo = [tier_geom(r["tiers"][0]) for r in records]
+    parent = list(range(len(records)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def union(a, b):
+        parent[find(a)] = find(b)
+
+    by_prefix = {}
+    for i, r in enumerate(records):
+        by_prefix.setdefault(r["id"][:11], []).append(i)
+    for members in by_prefix.values():
+        for i in members[1:]:
+            union(members[0], i)
+    tree = STRtree(geo)
+    for i, g in enumerate(geo):
+        for j in tree.query(g):
+            if j <= i:
+                continue
+            inter = g.intersection(geo[j]).area
+            if inter <= 0.5:
+                continue
+            ratio = inter / min(g.area, geo[j].area)
+            stacked = abs(records[i]["ground"] - records[j]["ground"]) > STACK_DZ
+            if ratio > GROUP_OVERLAP or (ratio > 0.05 and stacked):
+                union(i, j)
+    groups = {}
+    for i in range(len(records)):
+        groups.setdefault(find(i), []).append(records[i])
+    return list(groups.values())
+
+
+def merge_group(members):
+    """幾筆記錄 → 一棟：用絕對高度（mPD）重新分級，地面 = 最低嗰筆"""
+    ground = min(m["ground"] for m in members)
+    pieces = [(tier_geom(t), m["ground"] + t["height"]) for m in members for t in m["tiers"]]
+    levels = sorted({round(h, 2) for _, h in pieces})
+    clusters = []  # [門檻, 高度]：相差 1m 內嘅級併埋，用最高嗰個高度
+    for L in levels:
+        if clusters and L - clusters[-1][1] < 1.0:
+            clusters[-1][1] = L
+        else:
+            clusters.append([L, L])
+    tiers = []
+    for thr, top in clusters:
+        g = unary_union([g for g, h in pieces if h >= thr - 1e-6])
+        if top - ground >= 2.5 and not g.is_empty:
+            tiers.append((g, top - ground))
+    while len(tiers) > MAX_GROUP_TIERS:
+        k = min(range(1, len(tiers)), key=lambda i: tiers[i][0].area * (tiers[i][1] - tiers[i - 1][1]))
+        del tiers[k]
+    rep = max(members, key=lambda m: m["ground"] + m["tiers"][-1]["height"])
+    return {"id": rep["id"], "members": [m["id"] for m in members], "ground": ground, "tiers": tiers}
+
+
 def prepare(doc, roads):
-    """切走伸入馬路、出生點嘅部分；回傳 [{id, ground, tiers:[(geom, H)]}]"""
+    """併埋拆開嘅記錄、切走伸入馬路同出生點嘅部分；回傳 [{id, members, ground, tiers:[(geom, H)]}]"""
     block = unary_union([roads.buffer(ROAD_CLEAR), Point(SPAWN).buffer(SPAWN_CLEAR)])
     out, notes = [], []
-    for b in doc["buildings"]:
+    for members in group_records(doc["buildings"]):
+        b = merge_group(members)
         tiers = []
         prev = None
-        for t in b["tiers"]:
-            g = tier_geom(t)
+        for g, H in b["tiers"]:
             cut = g.intersection(block).area
             g = g.difference(block)
             if prev is not None:
@@ -84,10 +152,10 @@ def prepare(doc, roads):
                 break
             if cut > 2.0 and not tiers:
                 notes.append((cut, b["id"]))
-            tiers.append((g, float(t["height"])))
+            tiers.append((g, float(H)))
             prev = g
         if tiers:
-            out.append({"id": b["id"], "ground": b["ground"], "tiers": tiers})
+            out.append({**b, "tiers": tiers})
     return out, notes
 
 
@@ -602,7 +670,7 @@ def main():
         worst = max(worst, mesh.tris)
         lods[lod] += 1
         baked.append((b["id"], mesh, origin))
-        report.append({"id": b["id"], "style": style, "facade": upper,
+        report.append({"id": b["id"], "members": b["members"], "style": style, "facade": upper,
                        "height": round(b["tiers"][-1][1], 1), "tiers": len(b["tiers"]),
                        "tris": mesh.tris, "lod": lod})
     bake(map_path, baked, image_bytes, image_name)
@@ -614,7 +682,9 @@ def main():
     styles = {}
     for r in report:
         styles[r["style"]] = styles.get(r["style"], 0) + 1
-    print(f"{len(baked)} 棟 → {os.path.relpath(map_path, bb.REPO)}（{os.path.getsize(map_path) / 1024 / 1024:.1f} MB）")
+    merged = sum(1 for r in report if len(r["members"]) > 1)
+    print(f"{len(baked)} 棟（{len(doc['buildings'])} 筆政府記錄，{merged} 棟由幾筆合併）→ "
+          f"{os.path.relpath(map_path, bb.REPO)}（{os.path.getsize(map_path) / 1024 / 1024:.1f} MB）")
     print(f"三角面：最多 {worst}、平均 {sum(tris) / len(tris):.0f}、合共 {sum(tris)}；"
           f"要減細節：冇墨線 {lods[1]}、簡化輪廓 {lods[2]}、併層 {sum(lods[3:])} 棟")
     print("風格：" + "、".join(f"{k} {v}" for k, v in sorted(styles.items())))
