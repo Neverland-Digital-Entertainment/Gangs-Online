@@ -11,8 +11,11 @@
  * 全部使用 DOM 元素（與 QuestBlueprintUI 相同做法），聊天輸入框 focus 時不觸發快捷鍵。
  */
 import { Room } from "colyseus.js";
+import { EngineStore } from "@babylonjs/core";
+import { AdvancedDynamicTexture, InputText } from "@babylonjs/gui";
 import {
     WEAPON_ENHANCE_CONFIG,
+    GAME_CONSTANTS,
     IEnhanceResult,
     IPartyInfo,
     ITerritoryStatus,
@@ -59,8 +62,12 @@ export class CoreSystemsUI {
     private partyInfo: IPartyInfo | null = null;
     private pendingInvite: { inviterName: string } | null = null;
 
-    constructor(room: Room) {
+    /** 瞬移本地玩家（main.ts 提供：郁角色 + 鏡頭，再同步位置畀伺服器） */
+    private teleportLocal: ((x: number, z: number) => void) | null;
+
+    constructor(room: Room, teleportLocal?: (x: number, z: number) => void) {
         this.room = room;
+        this.teleportLocal = teleportLocal ?? null;
         this.createPanels();
         this.setupHotkeys();
         this.setupMessages();
@@ -104,8 +111,27 @@ export class CoreSystemsUI {
             color: rgba(255,215,0,0.75); font-size: 11px; font-family: monospace;
             background: rgba(0,0,0,0.5); padding: 3px 8px; border-radius: 4px;
         `;
-        bar.textContent = "U:武器強化  G:社團  P:組隊  T:地盤  K:測試套件  N:生成測試怪";
+        bar.textContent = "U:武器強化  G:社團  P:組隊  T:地盤  H:回出生點  K:測試套件  N:生成測試怪";
         document.body.appendChild(bar);
+
+        // 回出生點掣（脫困用）：放喺右下角 🐛 掣上面，避免重疊
+        const home = document.createElement("button");
+        home.textContent = "🏠 回出生點 (H)";
+        home.title = "卡住咗？即刻返去出生點（打緊交、坐緊監時唔用得）";
+        home.style.cssText = `${BTN_DARK_STYLE} position: fixed; bottom: 70px; right: 10px; z-index: 899;`;
+        home.onclick = () => this.returnToSpawn();
+        document.body.appendChild(home);
+    }
+
+    /** 回出生點：同撳地圖行路一樣由客戶端直接郁，唔使等伺服器 */
+    private returnToSpawn(): void {
+        const me = this.me();
+        if (!me || !this.teleportLocal) return;
+        if (me.inPrison) return this.notify("坐緊監，唔可以回出生點");
+        if (me.hp <= 0) return this.notify("倒咗嘅時候唔可以回出生點");
+        if (me.inCombatWith || me.inCombatWithEnemy) return this.notify("打緊交，唔可以回出生點");
+        this.teleportLocal(GAME_CONSTANTS.SPAWN_X, GAME_CONSTANTS.SPAWN_Z);
+        this.notify("已返回出生點");
     }
 
     private body(key: string): HTMLDivElement {
@@ -145,6 +171,8 @@ export class CoreSystemsUI {
             // 輸入框 focus 時不觸發
             const active = document.activeElement;
             if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
+            // 聊天框係 Babylon GUI 輸入框，打字時 document 一樣收到 keydown
+            if (this.isTypingInGui()) return;
 
             switch (e.key.toLowerCase()) {
                 case "u": this.toggle("inventory"); break;
@@ -153,8 +181,17 @@ export class CoreSystemsUI {
                 case "t": this.toggle("territory"); break;
                 case "k": this.room.send("giveTestKit"); break;
                 case "n": this.room.send("spawnTestEnemies"); break;
+                case "h": this.returnToSpawn(); break;
             }
         });
+    }
+
+    /** 有冇 Babylon GUI 輸入框（例如聊天）正在輸入 */
+    private isTypingInGui(): boolean {
+        const scene = EngineStore.LastCreatedScene;
+        return !!scene?.textures.some(
+            (t) => t instanceof AdvancedDynamicTexture && t.focusedControl instanceof InputText
+        );
     }
 
     private me(): any {

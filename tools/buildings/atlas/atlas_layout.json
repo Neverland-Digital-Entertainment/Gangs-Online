@@ -1,0 +1,383 @@
+{
+  "size": 1024,
+  "regions": {
+    "TL_cream": {
+      "x": 0,
+      "y": 0,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "TL_green": {
+      "x": 512,
+      "y": 0,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "TL_yellow": {
+      "x": 0,
+      "y": 64,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "TL_pink": {
+      "x": 512,
+      "y": 64,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "COMP_blue": {
+      "x": 0,
+      "y": 128,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "COMP_grey": {
+      "x": 512,
+      "y": 128,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "TOWER_beige": {
+      "x": 0,
+      "y": 192,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "TOWER_pink": {
+      "x": 512,
+      "y": 192,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "TOWER_teal": {
+      "x": 0,
+      "y": 256,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "COMM_glass": {
+      "x": 512,
+      "y": 256,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "COMM_stone": {
+      "x": 0,
+      "y": 320,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "SIGN_1F": {
+      "x": 512,
+      "y": 320,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "BLANK": {
+      "x": 0,
+      "y": 384,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "BACK": {
+      "x": 512,
+      "y": 384,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "upper"
+    },
+    "SHOP_old": {
+      "x": 0,
+      "y": 448,
+      "w": 512,
+      "h": 128,
+      "metersW": 18.0,
+      "metersH": 4.5,
+      "kind": "ground"
+    },
+    "SHOP_cafe": {
+      "x": 512,
+      "y": 448,
+      "w": 512,
+      "h": 128,
+      "metersW": 18.0,
+      "metersH": 4.5,
+      "kind": "ground"
+    },
+    "SHOP_pawn": {
+      "x": 0,
+      "y": 576,
+      "w": 512,
+      "h": 128,
+      "metersW": 18.0,
+      "metersH": 4.5,
+      "kind": "ground"
+    },
+    "SHOP_lobby": {
+      "x": 512,
+      "y": 576,
+      "w": 512,
+      "h": 128,
+      "metersW": 18.0,
+      "metersH": 4.5,
+      "kind": "ground"
+    },
+    "SHOP_mall": {
+      "x": 0,
+      "y": 704,
+      "w": 512,
+      "h": 128,
+      "metersW": 18.0,
+      "metersH": 4.5,
+      "kind": "ground"
+    },
+    "SHOP_night": {
+      "x": 512,
+      "y": 704,
+      "w": 512,
+      "h": 128,
+      "metersW": 18.0,
+      "metersH": 4.5,
+      "kind": "ground"
+    },
+    "PARAPET_plain": {
+      "x": 0,
+      "y": 832,
+      "w": 512,
+      "h": 16,
+      "metersW": 24.0,
+      "metersH": 1.0,
+      "kind": "parapet"
+    },
+    "PARAPET_tiled": {
+      "x": 512,
+      "y": 832,
+      "w": 512,
+      "h": 16,
+      "metersW": 24.0,
+      "metersH": 1.0,
+      "kind": "parapet"
+    },
+    "ROOF_concrete": {
+      "x": 0,
+      "y": 848,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "roof"
+    },
+    "ROOF_green": {
+      "x": 512,
+      "y": 848,
+      "w": 512,
+      "h": 64,
+      "metersW": 24.0,
+      "metersH": 3.0,
+      "kind": "roof"
+    },
+    "CANOPY": {
+      "x": 0,
+      "y": 912,
+      "w": 512,
+      "h": 16,
+      "metersW": 24.0,
+      "metersH": 0.5,
+      "kind": "trim"
+    },
+    "INK": {
+      "x": 512,
+      "y": 912,
+      "w": 512,
+      "h": 16,
+      "metersW": 24.0,
+      "metersH": 1.0,
+      "kind": "trim"
+    },
+    "SIGN_00": {
+      "x": 0,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_01": {
+      "x": 64,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_02": {
+      "x": 128,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_03": {
+      "x": 192,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_04": {
+      "x": 256,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_05": {
+      "x": 320,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_06": {
+      "x": 384,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_07": {
+      "x": 448,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_08": {
+      "x": 512,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_09": {
+      "x": 576,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_10": {
+      "x": 640,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_11": {
+      "x": 704,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_12": {
+      "x": 768,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_13": {
+      "x": 832,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_14": {
+      "x": 896,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    },
+    "SIGN_15": {
+      "x": 960,
+      "y": 928,
+      "w": 64,
+      "h": 96,
+      "metersW": 1.6,
+      "metersH": 2.4,
+      "kind": "sign"
+    }
+  }
+}

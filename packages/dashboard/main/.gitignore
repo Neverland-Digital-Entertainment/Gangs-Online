@@ -19,6 +19,8 @@ node_modules
 
 # Map Editor: maps copied from client/public/maps by scripts/copy-maps.mjs
 /public/maps
+# Building packs copied from tools/buildings/out by the same script
+/public/building-packs
 
 # Debug
 npm-debug.log*

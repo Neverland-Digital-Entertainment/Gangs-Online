@@ -83,6 +83,11 @@ interface TemplateEntry {
     /** 可 createInstance() 的 master mesh（每個 primitive 一個） */
     meshes: BABYLON.Mesh[];
     kind: AssetKind;
+    /**
+     * 碰撞方塊（資產本地座標的外框）。資產有 `COL_` 開頭的 mesh 就用佢哋，
+     * 否則用全部可見 mesh 的外框。每次擺放按呢啲外框建立貼合旋轉的方塊碰撞體。
+     */
+    colliderBounds: { min: BABYLON.Vector3; max: BABYLON.Vector3 }[];
 }
 
 const OVERRIDES_COLLECTION = "map_overrides";
@@ -93,6 +98,21 @@ const SNAPSHOT_PARTS_SUB = "parts";
 
 /** 貼地平面的深度偏移，負值把面拉向鏡頭以壓過路面 */
 const DECAL_Z_OFFSET = -2;
+
+/**
+ * 資產入面以呢個前綴命名的 mesh 係「碰撞方塊」：唔渲染、唔參與遮擋，只用嚟
+ * 建立碰撞體。用途：大廈的招牌、簷篷凸出行人路，若用整個模型的外框做碰撞，
+ * 會連行人路都擋住；L 形大廈亦可以用多個方塊貼合。
+ */
+const COLLIDER_PREFIX = "COL_";
+
+/**
+ * glTF 貼圖（image）名稱以呢個前綴開頭，代表多份資產共用同一張 atlas：
+ * 第一次載入後，其他資產的同名貼圖直接改用嗰一份，GPU 只存一份。
+ * 名稱要連內容 hash（例如 `shared:hk_comic_atlas:3fa2c1d9e0`），換過貼圖就係新名，
+ * 唔會同舊版混用。
+ */
+const SHARED_TEXTURE_PREFIX = "shared:";
 
 export class MapOverrideSystem {
     private scene: BABYLON.Scene;
@@ -109,6 +129,9 @@ export class MapOverrideSystem {
 
     /** assetId → 隱藏樣板（Phase 2）。同一份資產在地圖上擺 N 次只建立一份幾何。 */
     private templateCache = new Map<string, Promise<TemplateEntry | null>>();
+
+    /** 共用 atlas：貼圖名 → 第一份載入的貼圖（見 SHARED_TEXTURE_PREFIX） */
+    private sharedTextures = new Map<string, BABYLON.BaseTexture>();
 
     constructor(scene: BABYLON.Scene) {
         this.scene = scene;
@@ -132,6 +155,8 @@ export class MapOverrideSystem {
             pending.then((tpl) => tpl?.root.dispose()).catch(() => {});
         }
         this.templateCache.clear();
+        // 共用貼圖屬於第一份載入它的 container，上面已一併 dispose
+        this.sharedTextures.clear();
     }
 
     private getDb(): Firestore | null {
@@ -426,8 +451,16 @@ export class MapOverrideSystem {
 
         const isDecal = asset.kind === "decal";
         const meshes: BABYLON.Mesh[] = [];
+        const colliderBounds: TemplateEntry["colliderBounds"] = [];
         for (const node of root.getChildMeshes(false)) {
             if (node.name === "__root__" || !(node instanceof BABYLON.Mesh)) continue;
+
+            // 碰撞方塊：只記低外框（樣板 root 喺原點，世界座標 = 資產本地座標），之後丟棄
+            if (node.name.startsWith(COLLIDER_PREFIX)) {
+                colliderBounds.push(this.meshBounds([node]));
+                node.dispose();
+                continue;
+            }
 
             if (node.material) {
                 const cloned = node.material.clone(`${node.name}_tmpl_mat`);
@@ -459,7 +492,25 @@ export class MapOverrideSystem {
         // 結果係全部擺放的資產完全唔會渲染（實測：畫面全黑）。
         // Phase 0 驗證用的正是 `isVisible = false`，此處必須與驗證配方一致。
 
-        return { root, meshes, kind: asset.kind };
+        if (colliderBounds.length === 0 && meshes.length > 0) {
+            colliderBounds.push(this.meshBounds(meshes));
+        }
+
+        return { root, meshes, kind: asset.kind, colliderBounds };
+    }
+
+    /** 一組 mesh 喺世界座標的外框（樣板 root 喺原點，即係資產本地座標） */
+    private meshBounds(meshes: BABYLON.AbstractMesh[]): { min: BABYLON.Vector3; max: BABYLON.Vector3 } {
+        const min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
+        const max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
+        for (const m of meshes) {
+            m.computeWorldMatrix(true);
+            for (const v of m.getBoundingInfo().boundingBox.vectorsWorld) {
+                min.minimizeInPlace(v);
+                max.maximizeInPlace(v);
+            }
+        }
+        return { min, max };
     }
 
     /** 載入資產 GLB 並掛到 chunk root 下，套用 transform + 建築屬性 */
@@ -505,46 +556,94 @@ export class MapOverrideSystem {
 
         // 建立貼合外框的隱形方塊碰撞體（隨 container 旋轉/縮放，移動更順）。
         // 貼地平面是走得過的路面裝飾，不加碰撞。
-        if (!isDecal) this.addBoxCollider(container, key, chunkId);
+        if (!isDecal) {
+            template.colliderBounds.forEach((bounds, i) =>
+                this.addBoxCollider(container, bounds, i === 0 ? key : `${key}#${i}`, chunkId)
+            );
+        }
     }
 
-    /** 依 container 的世界包圍盒建立貼合外框的方塊碰撞體（移動更順） */
+    /**
+     * 按資產本地外框建立方塊碰撞體，跟足 container 的位置、旋轉與縮放。
+     *
+     * 以前用世界座標的軸對齊外框（AABB）：資產一旦旋轉，方塊會比大廈大一圈，
+     * 沿住斜街擺放的大廈會連行人路都擋住。而家將本地外框的中心同三條軸轉去
+     * 世界座標，建立同樣旋轉的方塊。
+     *
+     * 方塊仍然放喺頂層（唔掛 container）：chunk __root__ 帶住 glTF 的鏡像縮放
+     * (1,1,-1)，掛落去會令方塊三角形反轉；冇材質的 mesh 只同正面三角形碰撞，
+     * 反轉咗玩家就會由外面直接穿入去。
+     */
     private addBoxCollider(
         container: BABYLON.TransformNode,
+        bounds: { min: BABYLON.Vector3; max: BABYLON.Vector3 },
         key: string,
         chunkId: string
     ): void {
-        container.computeWorldMatrix(true);
-        // getHierarchyBoundingVectors 會強制更新世界矩陣，回傳可靠的世界 AABB
-        const hb = container.getHierarchyBoundingVectors(true);
-        if (
-            !Number.isFinite(hb.min.x) ||
-            !Number.isFinite(hb.max.x) ||
-            !Number.isFinite(hb.min.y) ||
-            !Number.isFinite(hb.max.y)
-        ) {
+        const { min, max } = bounds;
+        if (![min.x, min.y, min.z, max.x, max.y, max.z].every(Number.isFinite)) {
             console.warn(`[MapOverride] collider skipped (no bounds): ${key}`);
             return;
         }
 
-        const size = hb.max.subtract(hb.min);
+        const wm = container.computeWorldMatrix(true);
+        const size = max.subtract(min);
+        const center = BABYLON.Vector3.TransformCoordinates(min.add(max).scale(0.5), wm);
+        // 用單位軸計方向同縮放：資產某一軸係扁平（尺寸 0）都唔會整出零向量
+        const ax = BABYLON.Vector3.TransformNormal(BABYLON.Axis.X, wm);
+        const ay = BABYLON.Vector3.TransformNormal(BABYLON.Axis.Y, wm);
+        const az = BABYLON.Vector3.TransformNormal(BABYLON.Axis.Z, wm);
+        const width = Math.abs(size.x) * ax.length();
+        const height = Math.abs(size.y) * ay.length();
+        const depth = Math.abs(size.z) * az.length();
+
         // 防呆：尺寸異常巨大代表算錯，寧可不放碰撞體也不要把玩家困住
-        if (size.length() > 5000 || size.length() < 1e-3) {
-            console.warn(`[MapOverride] collider skipped (bad size ${size.length().toFixed(1)}): ${key}`);
+        const diag = Math.hypot(width, height, depth);
+        if (diag > 5000 || diag < 1e-3) {
+            console.warn(`[MapOverride] collider skipped (bad size ${diag.toFixed(1)}): ${key}`);
             return;
         }
 
-        const center = hb.min.add(hb.max).scale(0.5);
+        // 三條軸可能因為鏡像而成左手系；方塊左右對稱，反轉一條軸就得返正常旋轉
+        let xAxis = ax.normalize();
+        const yAxis = ay.normalize();
+        const zAxis = az.normalize();
+        if (BABYLON.Vector3.Dot(BABYLON.Vector3.Cross(xAxis, yAxis), zAxis) < 0) {
+            xAxis = xAxis.negate();
+        }
+
         const box = BABYLON.MeshBuilder.CreateBox(
             `collider_${key}`,
-            { width: Math.abs(size.x), height: Math.abs(size.y), depth: Math.abs(size.z) },
+            { width, height, depth },
             this.scene
         );
-        box.position.copyFrom(center); // 世界座標（頂層，不掛 container 以免重複套用變換）
+        box.position.copyFrom(center);
+        box.rotationQuaternion = BABYLON.Quaternion.RotationQuaternionFromAxis(xAxis, yAxis, zAxis);
         box.checkCollisions = true;
         box.isVisible = false;
         box.isPickable = false;
         box.metadata = { isOverrideCollider: true, chunkId, overrideKey: key };
+    }
+
+    /**
+     * 共用 atlas：同名（`shared:` 開頭）貼圖只保留第一份，其他資產的材質改用佢。
+     * 每棟大廈係獨立 GLB、各自嵌住同一張 atlas，唔處理的話擺幾多棟就有幾多份
+     * 一模一樣的貼圖喺 GPU。
+     */
+    private shareTextures(container: BABYLON.AssetContainer): void {
+        for (const mat of container.materials) {
+            if (!(mat instanceof BABYLON.PBRMaterial)) continue;
+            const tex = mat.albedoTexture;
+            const label = tex?.getInternalTexture()?.label;
+            if (!tex || !label || !label.startsWith(SHARED_TEXTURE_PREFIX)) continue;
+            const shared = this.sharedTextures.get(label);
+            if (!shared) {
+                this.sharedTextures.set(label, tex);
+            } else if (shared !== tex) {
+                mat.albedoTexture = shared;
+                tex.dispose();
+            }
+        }
     }
 
     /** 從 Firestore 讀回資產 GLB，重組成 object URL */
@@ -603,6 +702,7 @@ export class MapOverrideSystem {
                 undefined,
                 ".glb"
             );
+            this.shareTextures(container);
             return { container, kind };
         } finally {
             URL.revokeObjectURL(url);

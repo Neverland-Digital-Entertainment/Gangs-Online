@@ -1,6 +1,12 @@
 import * as BABYLON from "@babylonjs/core";
 
 /**
+ * 正交相機時，遮擋射線由玩家沿視線向後退幾遠開始（米）。
+ * 視線仰角約 35°，250m 足夠覆蓋 140m 高嘅大廈。
+ */
+const ORTHO_RAY_BACKTRACK = 250;
+
+/**
  * 建築物遮擋系統 (Phase 15)
  *
  * 當玩家位於建築物後方（被相機與玩家之間的建築物遮擋）時：
@@ -162,10 +168,22 @@ export class BuildingOcclusionSystem {
             }
         }
 
+        // 正交相機會畫埋相機「後面」嘅嘢（minZ 係負數），所以同一條視線上、比相機
+        // 位置更遠嘅高樓一樣會遮住玩家。射線要由視線後方好遠開始，沿相機方向平行射向
+        // 玩家，否則 40m 以上嘅大廈永遠唔會淡出。
+        const isOrtho = camera.mode === BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
+        const forward = isOrtho ? camera.getForwardRay(1).direction : null;
+
         for (const target of rayTargets) {
-            const direction = target.subtract(cameraPos).normalize();
-            const distance = BABYLON.Vector3.Distance(cameraPos, target) + 5;
-            const ray = new BABYLON.Ray(cameraPos, direction, distance);
+            let ray: BABYLON.Ray;
+            if (forward) {
+                const origin = target.subtract(forward.scale(ORTHO_RAY_BACKTRACK));
+                ray = new BABYLON.Ray(origin, forward, ORTHO_RAY_BACKTRACK + 5);
+            } else {
+                const direction = target.subtract(cameraPos).normalize();
+                const distance = BABYLON.Vector3.Distance(cameraPos, target) + 5;
+                ray = new BABYLON.Ray(cameraPos, direction, distance);
+            }
 
             // 使用 multiPickWithRay 一次找出所有被射線穿過的建築物
             const hits = this.scene.multiPickWithRay(ray, (mesh) => {

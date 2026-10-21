@@ -3,7 +3,7 @@ import { debugVerbose } from "../config";
 import * as GUI from "@babylonjs/gui";
 import { IEnemyData, EntityType } from "@gangs-online/shared";
 import { UISystem } from "../systems/UISystem";
-import { modelConfig } from "../config";
+import { modelConfig, characterCollisionConfig } from "../config";
 
 /**
  * 敵人實體介面 (Phase 9: 也包含 NPC)
@@ -164,8 +164,9 @@ export class EnemyManager {
         root.scaling.set(modelConfig.characterScale, modelConfig.characterScale, modelConfig.characterScale);
         root.rotationQuaternion = null;
         root.checkCollisions = true;
-        root.ellipsoid = new BABYLON.Vector3(0.5, 1.0, 0.5);
-        root.ellipsoidOffset = new BABYLON.Vector3(0, 1.0, 0); // 跟 PlayerManager 一樣
+        const cc = characterCollisionConfig; // 跟 PlayerManager 一樣
+        root.ellipsoid = new BABYLON.Vector3(cc.radius, cc.halfHeight, cc.radius);
+        root.ellipsoidOffset = new BABYLON.Vector3(0, cc.halfHeight + cc.stepHeight, 0);
 
         // Debug: Log complete model info including Y position
         if (debugVerbose) console.log(`✅ ${isNPC ? 'NPC' : 'Enemy'} model loaded: id="${enemyId}"`);

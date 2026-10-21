@@ -727,6 +727,22 @@ export default {
   'map.assets.loadFailed': '載入建築資產失敗',
   'map.assets.invalidFile': '請選擇 .glb 檔案',
   'map.assets.tooLarge': '檔案太大（免費方案上限 10MB），請用較小的模型。',
+  'map.pack.open': '匯入大廈包',
+  'map.pack.title': '匯入大廈包',
+  'map.pack.hint':
+    '每棟大廈會建立一個資產，並按實際地圖座標擺放到地圖；重新匯入同一個包只會更新有改動嘅大廈。',
+  'map.pack.builtin': '內建大廈包',
+  'map.pack.load': '載入',
+  'map.pack.orPick': '或者自己揀 manifest.json 同全部 .glb：',
+  'map.pack.count': '{count} 棟大廈',
+  'map.pack.missing': '未揀嘅檔案',
+  'map.pack.publishAfter': '完成後發佈快照（遊戲客戶端即時用到）',
+  'map.pack.import': '開始匯入',
+  'map.pack.importing': '匯入中',
+  'map.pack.result': '新增 {created}、更新 {updated}、移位 {moved}、無改動 {unchanged}',
+  'map.pack.published': '已發佈快照（{count} 項編輯）',
+  'map.pack.invalid': '唔係有效嘅大廈包',
+  'map.pack.failed': '匯入失敗',
 
   // Auth
   'auth.title': '管理後台登入',

@@ -5,6 +5,8 @@
  * 失敗時回傳 null（資產仍可上載，只是沒有縮圖）。
  */
 
+import { isColliderMeshName } from './asset-mesh';
+
 export async function generateGlbThumbnail(
   file: File,
   size = 256
@@ -38,6 +40,11 @@ export async function generateGlbThumbnail(
     let max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
     for (const mesh of result.meshes) {
       if (mesh.name === '__root__') continue;
+      // 碰撞方塊唔渲染，亦唔計入取景範圍
+      if (isColliderMeshName(mesh.name)) {
+        mesh.isVisible = false;
+        continue;
+      }
       mesh.computeWorldMatrix(true);
       const bi = mesh.getBoundingInfo();
       min = BABYLON.Vector3.Minimize(min, bi.boundingBox.minimumWorld);

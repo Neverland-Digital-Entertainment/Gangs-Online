@@ -11,7 +11,9 @@ import {
   AlertCircle,
   X,
   ImageOff,
+  PackageOpen,
 } from 'lucide-react';
+import BuildingPackImport from '@/components/map/BuildingPackImport';
 import { useI18n } from '@/contexts/i18n-context';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -76,6 +78,7 @@ export default function BuildingAssetsPage() {
 
   // 上載表單
   const [showUpload, setShowUpload] = useState(false);
+  const [showPack, setShowPack] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState('');
   const [kind, setKind] = useState<AssetKind>('building');
@@ -225,15 +228,28 @@ export default function BuildingAssetsPage() {
           </p>
         </div>
         {canEdit && (
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowUpload((v) => !v)}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            {t('map.assets.upload')}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className="btn btn-light"
+              onClick={() => setShowPack((v) => !v)}
+            >
+              <PackageOpen className="w-4 h-4 mr-2" />
+              {t('map.pack.open')}
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowUpload((v) => !v)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              {t('map.assets.upload')}
+            </button>
+          </div>
         )}
       </div>
+
+      {showPack && (
+        <BuildingPackImport onClose={() => setShowPack(false)} onImported={loadAssets} />
+      )}
 
       {/* Upload panel */}
       {showUpload && (

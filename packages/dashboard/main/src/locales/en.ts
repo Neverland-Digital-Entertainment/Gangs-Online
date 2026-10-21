@@ -729,6 +729,22 @@ export default {
   'map.assets.loadFailed': 'Failed to load building assets',
   'map.assets.invalidFile': 'Please select a .glb file',
   'map.assets.tooLarge': 'File too large (10MB limit on the free plan); use a smaller model.',
+  'map.pack.open': 'Import building pack',
+  'map.pack.title': 'Import building pack',
+  'map.pack.hint':
+    'Each building becomes an asset placed at its real map position; re-importing the same pack only updates buildings that changed.',
+  'map.pack.builtin': 'Built-in building packs',
+  'map.pack.load': 'Load',
+  'map.pack.orPick': 'Or select manifest.json and every .glb yourself:',
+  'map.pack.count': '{count} buildings',
+  'map.pack.missing': 'Missing files',
+  'map.pack.publishAfter': 'Publish snapshot when done (game clients pick it up immediately)',
+  'map.pack.import': 'Import',
+  'map.pack.importing': 'Importing',
+  'map.pack.result': '{created} created, {updated} updated, {moved} moved, {unchanged} unchanged',
+  'map.pack.published': 'Snapshot published ({count} edits)',
+  'map.pack.invalid': 'Not a valid building pack',
+  'map.pack.failed': 'Import failed',
 
   // Auth
   'auth.title': 'Admin Sign In',

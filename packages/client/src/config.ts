@@ -28,6 +28,17 @@ export const modelConfig = {
 };
 
 /**
+ * 角色碰撞（玩家同敵人共用）
+ * 碰撞橢球底部比腳底高 stepHeight：行人路邊（約 0.2m）呢類矮級唔會擋住，
+ * 高度由每幀貼地處理；大廈碰撞方塊由地底開始，照樣擋得住。
+ */
+export const characterCollisionConfig = {
+    radius: 0.5,
+    halfHeight: 1.0,
+    stepHeight: 0.35,
+};
+
+/**
  * 相機配置
  */
 export const cameraConfig = {
