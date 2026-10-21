@@ -137,8 +137,12 @@ def quat_mat(q):
                      [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
 
 
+# 底圖馬路材質：原本 Blender 匯出係 road；tools/ground/restyle_ground.py 改完係 ground_asphalt
+ROAD_MATERIALS = {"road", "ground_asphalt"}
+
+
 def load_roads(terrain_path, frame):
-    """底圖入面材質名 road 嘅三角形 → 本地 u/v 平面上嘅馬路多邊形"""
+    """底圖入面馬路材質嘅三角形 → 本地 u/v 平面上嘅馬路多邊形"""
     j, bin_ = read_glb(terrain_path)
     polys = []
     for node in j["nodes"]:
@@ -149,7 +153,7 @@ def load_roads(terrain_path, frame):
         T = np.array(node.get("translation", [0, 0, 0]))
         for prim in j["meshes"][node["mesh"]]["primitives"]:
             mat = j["materials"][prim["material"]]["name"] if "material" in prim else ""
-            if mat != "road":
+            if mat not in ROAD_MATERIALS:
                 continue
             P = accessor(j, bin_, prim["attributes"]["POSITION"]).astype(np.float64)
             W = (R @ (P * S).T).T + T
