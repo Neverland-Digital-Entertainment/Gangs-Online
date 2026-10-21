@@ -272,18 +272,21 @@ export class EnemyManager {
             const dist = Math.sqrt(dx * dx + dz * dz);
 
             if (dist > 0.1) {
-                // 移動中
-                const velocity = new BABYLON.Vector3(dx, -0.5, dz).normalize().scale(0.15);
+                // 移動中（只做水平移動，高度下面貼地；以前用向下速度當重力，
+                // 碰撞橢球底部離腳底有 stepHeight，NPC 一郁就會陷落地下）
+                const velocity = new BABYLON.Vector3(dx, 0, dz).normalize().scale(0.15);
                 if (dist < 0.15) {
                     velocity.scaleInPlace(dist / 0.15);
                 }
 
-                // 平滑旋轉
+                // 平滑旋轉（行最短的角度）
                 const targetAngle = Math.atan2(dx, dz);
-                mesh.rotation.y = BABYLON.Scalar.Lerp(mesh.rotation.y, targetAngle, 0.2);
+                mesh.rotation.y = BABYLON.Scalar.LerpAngle(mesh.rotation.y, targetAngle, 0.2);
 
                 // 移動
                 mesh.moveWithCollisions(velocity);
+                const groundY = this.getGroundHeight(mesh.position.x, mesh.position.z);
+                mesh.position.y = BABYLON.Scalar.Lerp(mesh.position.y, groundY, 0.3);
 
                 // 播放跑步動畫
                 if (entity.currentAnim !== "run") {

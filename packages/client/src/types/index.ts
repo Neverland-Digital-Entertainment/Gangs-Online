@@ -28,8 +28,15 @@ export interface PlayerUIElements {
  * 玩家目標位置
  */
 export interface PlayerTarget {
+    /** 伺服器記錄的目標 */
     x: number;
     z: number;
+    /** 去目標途中要經過的轉角點；最後一點係實際停低的位置（目標行唔到時係最接近的位置） */
+    waypoints: { x: number; z: number }[];
+    /** 連續幾多幀幾乎郁唔到 */
+    stuckFrames: number;
+    /** 今次目標已經因為卡住重新搵過一次路 */
+    replanned: boolean;
 }
 
 /**

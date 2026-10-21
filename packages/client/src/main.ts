@@ -1016,9 +1016,14 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
                 }
 
                 if (targetPoint) {
+                    // 撳大廈時目標係大廈後面／底下的地形，行唔到；改為最接近而又行得到的位置，
+                    // 伺服器記錄的位置先會同角色實際停低的地方一致
+                    const dest = mySessionId
+                        ? playerManager.resolveDestination(mySessionId, targetPoint.x, targetPoint.z)
+                        : targetPoint;
                     room.send("move", {
-                        x: targetPoint.x,
-                        z: targetPoint.z,
+                        x: dest.x,
+                        z: dest.z,
                     });
                 }
             }
