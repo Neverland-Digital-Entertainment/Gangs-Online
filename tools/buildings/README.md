@@ -50,8 +50,14 @@ python tools/buildings/build_buildings.py tools/buildings/data/11-NW-19D_pilot.j
 ## 放上地圖
 
 1. 後台 →「地圖管理」→「建築資產」→ **匯入大廈包**
-2. 一次過揀 `out/11-NW-19D-pilot/` 入面嘅 `manifest.json` 同全部 `.glb`
+2. 「內建大廈包」入面揀 `11-NW-19D-pilot` → **載入**
+   （後台 build 時 `scripts/copy-maps.mjs` 會將 `tools/buildings/out/` 複製去後台，唔使自己下載檔案；
+   亦可以自己揀 `out/<包名>/` 入面嘅 `manifest.json` 同全部 `.glb`）
 3. 保持剔「完成後發佈快照」→ 開始匯入
+
+> ⚠️ 資產同擺放寫入正式 Firestore，所有遊戲客戶端都會即刻見到。
+> **遊戲客戶端要先部署呢次嘅改動先好匯入**：舊客戶端唔識 `COL_` 碰撞方塊（會畫成灰色方塊），
+> 碰撞方塊亦唔跟旋轉，P01 嘅碰撞範圍會蓋住出生點。
 
 每棟會變成一個資產 + 一筆 `add` 覆蓋（key = `add:<packId>:<id>`）。**重新匯入同一個包唔會重複擺放**：
 GLB 冇變只會更新位置；GLB 有變會上載新資產、刪走冇人用嘅舊資產。擺好之後一樣可以喺地圖編輯器逐棟移動、刪除、替換。

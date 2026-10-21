@@ -730,7 +730,10 @@ export default {
   'map.pack.open': '匯入大廈包',
   'map.pack.title': '匯入大廈包',
   'map.pack.hint':
-    '一次過揀 tools/buildings/out/<包名>/ 入面嘅 manifest.json 同全部 .glb。每棟大廈會建立一個資產，並按實際地圖座標擺放到地圖；重新匯入同一個包只會更新有改動嘅大廈。',
+    '每棟大廈會建立一個資產，並按實際地圖座標擺放到地圖；重新匯入同一個包只會更新有改動嘅大廈。',
+  'map.pack.builtin': '內建大廈包',
+  'map.pack.load': '載入',
+  'map.pack.orPick': '或者自己揀 manifest.json 同全部 .glb：',
   'map.pack.count': '{count} 棟大廈',
   'map.pack.missing': '未揀嘅檔案',
   'map.pack.publishAfter': '完成後發佈快照（遊戲客戶端即時用到）',

@@ -732,7 +732,10 @@ export default {
   'map.pack.open': 'Import building pack',
   'map.pack.title': 'Import building pack',
   'map.pack.hint':
-    'Select manifest.json and every .glb from tools/buildings/out/<pack>/ at once. Each building becomes an asset placed at its real map position; re-importing the same pack only updates buildings that changed.',
+    'Each building becomes an asset placed at its real map position; re-importing the same pack only updates buildings that changed.',
+  'map.pack.builtin': 'Built-in building packs',
+  'map.pack.load': 'Load',
+  'map.pack.orPick': 'Or select manifest.json and every .glb yourself:',
   'map.pack.count': '{count} buildings',
   'map.pack.missing': 'Missing files',
   'map.pack.publishAfter': 'Publish snapshot when done (game clients pick it up immediately)',

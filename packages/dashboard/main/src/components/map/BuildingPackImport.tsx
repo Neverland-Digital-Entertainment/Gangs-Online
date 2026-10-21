@@ -1,12 +1,15 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, Loader2, PackageOpen } from 'lucide-react';
 import { useI18n } from '@/contexts/i18n-context';
 import { useAuth } from '@/contexts/auth-context';
 import {
   importBuildingPack,
+  listBuiltinPacks,
+  loadBuiltinPack,
   parseBuildingPack,
+  type BuiltinPackInfo,
   type PackImportResult,
   type ParsedBuildingPack,
 } from '@/lib/map/building-pack';
@@ -18,8 +21,8 @@ function formatSize(bytes: number): string {
 }
 
 /**
- * 匯入大廈包：揀 tools/buildings/out/<pack>/ 入面嘅 manifest.json 同全部 GLB，
- * 一次過建立資產並擺放到地圖（map_overrides `add`）。
+ * 匯入大廈包：一撳載入隨後台發佈嘅內建大廈包（tools/buildings/out），
+ * 或者自己揀 manifest.json 同全部 GLB，一次過建立資產並擺放到地圖（map_overrides `add`）。
  */
 export default function BuildingPackImport({
   onClose,
@@ -38,6 +41,28 @@ export default function BuildingPackImport({
   const [progress, setProgress] = useState<{ done: number; total: number; label: string } | null>(null);
   const [result, setResult] = useState<PackImportResult | null>(null);
   const [publishNote, setPublishNote] = useState<string | null>(null);
+  const [builtin, setBuiltin] = useState<BuiltinPackInfo[]>([]);
+  const [loadingDir, setLoadingDir] = useState<string | null>(null);
+
+  useEffect(() => {
+    listBuiltinPacks().then(setBuiltin).catch(() => setBuiltin([]));
+  }, []);
+
+  async function pickBuiltin(dir: string) {
+    setPack(null);
+    setResult(null);
+    setParseError(null);
+    setPublishNote(null);
+    try {
+      setLoadingDir(dir);
+      setPack(await loadBuiltinPack(dir, (done, total, label) => setProgress({ done, total, label })));
+    } catch (err) {
+      setParseError(`${t('map.pack.invalid')}（${err instanceof Error ? err.message : String(err)}）`);
+    } finally {
+      setLoadingDir(null);
+      setProgress(null);
+    }
+  }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     setPack(null);
@@ -85,6 +110,30 @@ export default function BuildingPackImport({
           {t('map.pack.title')}
         </h2>
         <p className="text-sm text-[var(--muted-foreground)]">{t('map.pack.hint')}</p>
+
+        {builtin.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-[var(--foreground)]">{t('map.pack.builtin')}</div>
+            {builtin.map((b) => (
+              <div key={b.dir} className="flex items-center gap-3 text-sm">
+                <button
+                  className="btn btn-sm btn-primary"
+                  onClick={() => pickBuiltin(b.dir)}
+                  disabled={running || loadingDir !== null}
+                >
+                  {loadingDir === b.dir ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+                  {loadingDir === b.dir && progress
+                    ? `${progress.done}/${progress.total}`
+                    : t('map.pack.load')}
+                </button>
+                <span className="text-[var(--foreground)]">
+                  {b.packId} · {b.chunkId} · {t('map.pack.count').replace('{count}', String(b.buildings))}
+                </span>
+              </div>
+            ))}
+            <div className="text-xs text-[var(--muted-foreground)]">{t('map.pack.orPick')}</div>
+          </div>
+        )}
 
         <input
           ref={inputRef}

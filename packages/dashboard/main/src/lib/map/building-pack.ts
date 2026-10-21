@@ -75,6 +75,43 @@ export async function parseBuildingPack(selected: File[]): Promise<ParsedBuildin
   return { manifest, files, missing, totalBytes };
 }
 
+/** 隨後台一齊發佈嘅大廈包（scripts/copy-maps.mjs 由 tools/buildings/out 複製） */
+export interface BuiltinPackInfo {
+  dir: string;
+  packId: string;
+  chunkId: string;
+  buildings: number;
+}
+
+const BUILTIN_PACK_BASE = '/building-packs';
+
+export async function listBuiltinPacks(): Promise<BuiltinPackInfo[]> {
+  const res = await fetch(`${BUILTIN_PACK_BASE}/index.json`, { cache: 'no-store' });
+  if (!res.ok) return [];
+  return (await res.json()) as BuiltinPackInfo[];
+}
+
+/** 下載內建大廈包（manifest + 全部 GLB），變成同人手揀檔一樣嘅格式 */
+export async function loadBuiltinPack(
+  dir: string,
+  onProgress?: PackProgress
+): Promise<ParsedBuildingPack> {
+  const base = `${BUILTIN_PACK_BASE}/${encodeURIComponent(dir)}`;
+  const fetchFile = async (name: string, type: string) => {
+    const res = await fetch(`${base}/${encodeURIComponent(name)}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
+    return new File([await res.blob()], name, { type });
+  };
+  const manifestFile = await fetchFile('manifest.json', 'application/json');
+  const manifest = JSON.parse(await manifestFile.text()) as BuildingPackManifest;
+  const files: File[] = [manifestFile];
+  for (let i = 0; i < manifest.buildings.length; i++) {
+    onProgress?.(i, manifest.buildings.length, manifest.buildings[i].id);
+    files.push(await fetchFile(manifest.buildings[i].file, 'model/gltf-binary'));
+  }
+  return parseBuildingPack(files);
+}
+
 async function sha256Short(file: File): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
   return Array.from(new Uint8Array(digest).slice(0, 8))

@@ -364,8 +364,10 @@ Firestore: map_overrides          Firestore: building_assets
   港漫風格 GLB + `manifest.json`（擺放 transform = chunk `__root__` 本地座標，即 glTF 嘅
   `(E, y, -N)`，旋轉 y = 街道網格角度 10°）。
 
-  **2. 後台「匯入大廈包」**（建築資產頁）：一次過揀 manifest + GLB → 建立資產 + `add` 覆蓋，
-  key 固定為 `add:<packId>:<id>`，重新匯入只處理有改動嘅大廈；可選完成後發佈快照。
+  **2. 後台「匯入大廈包」**（建築資產頁）：一撳載入內建大廈包（`copy-maps.mjs` 將
+  `tools/buildings/out` 複製去 `public/building-packs`），或者自己揀 manifest + GLB →
+  建立資產 + `add` 覆蓋，key 固定為 `add:<packId>:<id>`，重新匯入只處理有改動嘅大廈；
+  可選完成後發佈快照。
 
   **3. 客戶端 `MapOverrideSystem`**
   - 碰撞方塊改為跟擺放旋轉（之前用世界 AABB，斜街上嘅資產會擋住行人路）；
