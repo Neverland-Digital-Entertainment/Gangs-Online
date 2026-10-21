@@ -23,7 +23,6 @@ import hashlib
 import json
 import math
 import os
-import struct
 import sys
 
 import numpy as np
@@ -40,6 +39,7 @@ from build_buildings import (  # noqa: E402
     GROUND_FLOOR_H, MAX_TRIS, PARAPET_H, SKIRT, TRIM_W, CANOPY_Y, CANOPY_DEPTH, SIGN, STYLES,
     Atlas, Frame, MeshData, add_box, add_wall, chance, h32, pick, load_roads, read_glb,
 )
+from glbio import Glb, compact  # noqa: E402
 
 SPAWN = (835575.4, 819658.9)
 ROAD_CLEAR = 0.3        # 底圖馬路同真實位置有少少偏差：大廈伸入馬路嘅部分切走（再留 0.3m）
@@ -410,206 +410,15 @@ def build_within_budget(bld, ctx):
 
 # ------------------------------------------------------------------ 寫入底圖 GLB
 
-def pad4(b, fill=b"\x00"):
-    return b + fill * ((4 - len(b) % 4) % 4)
-
-
-def strip_buildings(j, bin_):
-    """拎走舊嘅 B node，然後只保留仲有用嘅 mesh / accessor / 材質…（重新排 buffer）"""
-    keep_nodes = []
-    old_nodes = j["nodes"]
-
-    def keep(i):
-        return not old_nodes[i].get("name", "").upper().startswith("B")
-
-    remap_node = {}
-    for i, n in enumerate(old_nodes):
-        if keep(i):
-            remap_node[i] = len(keep_nodes)
-            keep_nodes.append(dict(n))
-    for n in keep_nodes:
-        if "children" in n:
-            n["children"] = [remap_node[c] for c in n["children"] if c in remap_node]
-            if not n["children"]:
-                del n["children"]
-    scenes = [{**s, "nodes": [remap_node[i] for i in s.get("nodes", []) if i in remap_node]} for s in j["scenes"]]
-
-    used_mesh = sorted({n["mesh"] for n in keep_nodes if "mesh" in n})
-    mesh_map = {m: i for i, m in enumerate(used_mesh)}
-    meshes = [json.loads(json.dumps(j["meshes"][m])) for m in used_mesh]
-    for n in keep_nodes:
-        if "mesh" in n:
-            n["mesh"] = mesh_map[n["mesh"]]
-
-    used_acc, used_mat = set(), set()
-    for m in meshes:
-        for pr in m["primitives"]:
-            used_acc.update(pr["attributes"].values())
-            if "indices" in pr:
-                used_acc.add(pr["indices"])
-            if "material" in pr:
-                used_mat.add(pr["material"])
-            for t in pr.get("targets", []):
-                used_acc.update(t.values())
-    acc_map = {a: i for i, a in enumerate(sorted(used_acc))}
-    mat_map = {m: i for i, m in enumerate(sorted(used_mat))}
-    materials = [json.loads(json.dumps(j["materials"][m])) for m in sorted(used_mat)]
-
-    used_tex = set()
-
-    def walk_tex(o):
-        if isinstance(o, dict):
-            for k, v in o.items():
-                if k.endswith("Texture") and isinstance(v, dict) and "index" in v:
-                    used_tex.add(v["index"])
-                walk_tex(v)
-        elif isinstance(o, list):
-            for v in o:
-                walk_tex(v)
-    walk_tex(materials)
-    tex_map = {t: i for i, t in enumerate(sorted(used_tex))}
-
-    def remap_tex(o):
-        if isinstance(o, dict):
-            for k, v in o.items():
-                if k.endswith("Texture") and isinstance(v, dict) and "index" in v:
-                    v["index"] = tex_map[v["index"]]
-                remap_tex(v)
-        elif isinstance(o, list):
-            for v in o:
-                remap_tex(v)
-    remap_tex(materials)
-    textures = [json.loads(json.dumps(j["textures"][t])) for t in sorted(used_tex)]
-
-    used_img, used_smp = set(), set()
-    for t in textures:
-        if "source" in t:
-            used_img.add(t["source"])
-        for ext in t.get("extensions", {}).values():
-            if "source" in ext:
-                used_img.add(ext["source"])
-        if "sampler" in t:
-            used_smp.add(t["sampler"])
-    img_map = {i: k for k, i in enumerate(sorted(used_img))}
-    smp_map = {s: k for k, s in enumerate(sorted(used_smp))}
-    for t in textures:
-        if "source" in t:
-            t["source"] = img_map[t["source"]]
-        for ext in t.get("extensions", {}).values():
-            if "source" in ext:
-                ext["source"] = img_map[ext["source"]]
-        if "sampler" in t:
-            t["sampler"] = smp_map[t["sampler"]]
-    images = [dict(j["images"][i]) for i in sorted(used_img)]
-    samplers = [dict(j["samplers"][s]) for s in sorted(used_smp)]
-
-    for m in meshes:
-        for pr in m["primitives"]:
-            pr["attributes"] = {k: acc_map[v] for k, v in pr["attributes"].items()}
-            if "indices" in pr:
-                pr["indices"] = acc_map[pr["indices"]]
-            if "material" in pr:
-                pr["material"] = mat_map[pr["material"]]
-            if "targets" in pr:
-                pr["targets"] = [{k: acc_map[v] for k, v in t.items()} for t in pr["targets"]]
-
-    accessors = [dict(j["accessors"][a]) for a in sorted(used_acc)]
-    used_bv = sorted({a["bufferView"] for a in accessors if "bufferView" in a} |
-                     {im["bufferView"] for im in images if "bufferView" in im})
-    blob = bytearray()
-    bv_map, views = {}, []
-    for bvi in used_bv:
-        bv = dict(j["bufferViews"][bvi])
-        data = bin_[bv.get("byteOffset", 0): bv.get("byteOffset", 0) + bv["byteLength"]]
-        while len(blob) % 4:
-            blob.append(0)
-        bv["byteOffset"] = len(blob)
-        bv["buffer"] = 0
-        blob.extend(data)
-        bv_map[bvi] = len(views)
-        views.append(bv)
-    for a in accessors:
-        if "bufferView" in a:
-            a["bufferView"] = bv_map[a["bufferView"]]
-    for im in images:
-        if "bufferView" in im:
-            im["bufferView"] = bv_map[im["bufferView"]]
-
-    out = {k: v for k, v in j.items() if k not in (
-        "nodes", "scenes", "meshes", "accessors", "bufferViews", "materials", "textures", "images",
-        "samplers", "buffers")}
-    out.update(nodes=keep_nodes, scenes=scenes, meshes=meshes, accessors=accessors, bufferViews=views,
-               materials=materials, textures=textures, images=images, samplers=samplers)
-    return out, blob
-
-
 def bake(map_path, buildings, image_bytes, image_name):
+    """清走舊嘅 B node，再加入新大廈（其他 node，例如地形，原封不動）"""
     j, bin_ = read_glb(map_path)
-    g, blob = strip_buildings(j, bin_)
-    for key in ("textures", "images", "samplers", "materials"):
-        g.setdefault(key, [])
-
-    def add_view(data, target=None):
-        while len(blob) % 4:
-            blob.append(0)
-        off = len(blob)
-        blob.extend(data)
-        v = {"buffer": 0, "byteOffset": off, "byteLength": len(data)}
-        if target:
-            v["target"] = target
-        g["bufferViews"].append(v)
-        return len(g["bufferViews"]) - 1
-
-    def add_acc(arr, ctype, typ, target, minmax=False):
-        a = {"bufferView": add_view(arr.tobytes(), target), "componentType": ctype,
-             "count": int(arr.shape[0]), "type": typ}
-        if minmax:
-            a["min"] = [float(x) for x in arr.min(0)]
-            a["max"] = [float(x) for x in arr.max(0)]
-        g["accessors"].append(a)
-        return len(g["accessors"]) - 1
-
-    g["samplers"].append({"magFilter": 9729, "minFilter": 9987, "wrapS": 33071, "wrapT": 33071})
-    g["images"].append({"name": image_name, "mimeType": "image/webp", "bufferView": add_view(image_bytes)})
-    g["textures"].append({"sampler": len(g["samplers"]) - 1,
-                          "extensions": {"EXT_texture_webp": {"source": len(g["images"]) - 1}}})
-    g["materials"].append({
-        "name": "hk_comic_atlas",
-        "pbrMetallicRoughness": {"baseColorTexture": {"index": len(g["textures"]) - 1},
-                                 "metallicFactor": 0.0, "roughnessFactor": 1.0},
-        "extensions": {"KHR_materials_specular": {"specularFactor": 0.0}},
-    })
-    mat = len(g["materials"]) - 1
-    for ext in ("EXT_texture_webp", "KHR_materials_specular"):
-        if ext not in g.setdefault("extensionsUsed", []):
-            g["extensionsUsed"].append(ext)
-
+    g = Glb(*compact(j, bin_, keep_node=lambda n: not n.get("name", "").upper().startswith("B")))
+    mat = g.material("hk_comic_atlas", texture=g.texture(image_bytes, image_name, wrap=33071))
     for name, mesh, (E, N) in buildings:
-        pos = np.array(mesh.pos, np.float32)
-        nrm = np.array(mesh.nrm, np.float32)
-        nrm /= np.maximum(np.linalg.norm(nrm, axis=1, keepdims=True), 1e-9)
-        uv = np.array(mesh.uv, np.float32)
-        idx = np.array(mesh.idx, np.uint16 if len(mesh.pos) < 65536 else np.uint32)
-        prim = {"attributes": {
-            "POSITION": add_acc(pos, 5126, "VEC3", 34962, True),
-            "NORMAL": add_acc(nrm, 5126, "VEC3", 34962),
-            "TEXCOORD_0": add_acc(uv, 5126, "VEC2", 34962),
-        }, "indices": add_acc(idx.reshape(-1, 1), 5123 if idx.dtype == np.uint16 else 5125, "SCALAR", 34963),
-            "material": mat}
-        g["meshes"].append({"name": name, "primitives": [prim]})
-        g["nodes"].append({"name": name, "mesh": len(g["meshes"]) - 1,
-                           "translation": [round(E, 3), 0.0, round(-N, 3)]})
-        g["scenes"][g.get("scene", 0)]["nodes"].append(len(g["nodes"]) - 1)
-
-    g["buffers"] = [{"byteLength": len(blob)}]
-    js = pad4(json.dumps(g, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), b" ")
-    bin_out = pad4(bytes(blob))
-    with open(map_path, "wb") as f:
-        f.write(struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(js) + 8 + len(bin_out)))
-        f.write(struct.pack("<II", len(js), 0x4E4F534A))
-        f.write(js)
-        f.write(struct.pack("<II", len(bin_out), 0x004E4942))
-        f.write(bin_out)
+        prim = g.primitive(mesh.pos, mesh.nrm, mesh.uv, mesh.idx, mat)
+        g.node(name, [prim], translation=(round(E, 3), 0.0, round(-N, 3)))
+    g.save(map_path)
 
 
 # ------------------------------------------------------------------ 平面預覽

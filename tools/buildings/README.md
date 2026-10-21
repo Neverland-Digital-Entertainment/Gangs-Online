@@ -40,6 +40,8 @@ python tools/buildings/bake_gov.py
 
 改完記得 commit `data/11-NW-19D_gov.json`、`packages/client/public/maps/11-NW-19D.glb` 同 `out/11-NW-19D-gov/`。
 後台 build 時 `scripts/copy-maps.mjs` 會自動將底圖複製畀地圖編輯器。
+地板（行人路、馬路）由 `tools/ground` 處理，同呢度互不影響（見 `tools/ground/README.md`）；
+兩邊共用 `glbio.py` 讀寫 GLB。
 
 ### extract_gov.py：真實模型 → 體量
 
