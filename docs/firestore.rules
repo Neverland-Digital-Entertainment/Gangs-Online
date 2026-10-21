@@ -41,6 +41,10 @@ service cloud.firestore {
       return isSuper()
         || (meExists() && meDoc().isActive == true && (p in meDoc().permissions));
     }
+    // 後台已啟用帳號（不論權限）：可檢視遊戲執行期資料（系統資料頁）
+    function isStaff() {
+      return isSuper() || (meExists() && meDoc().isActive == true);
+    }
 
     // ---- 管理員清單（bootstrap）----
     match /admins/{id} {
@@ -88,6 +92,20 @@ service cloud.firestore {
         allow write: if hasPerm('map.edit');
       }
     }
+    // 發佈快照：後台「發佈」時寫入，遊戲啟動時一次讀取（大地圖會分片到 parts）
+    match /map_snapshots/{mapName} {
+      allow read: if true;
+      allow write: if hasPerm('map.edit');
+      match /parts/{partId} {
+        allow read: if true;
+        allow write: if hasPerm('map.edit');
+      }
+    }
+    // 地盤：後台地盤設置寫入；伺服器 admin SDK 讀取並更新歸屬/守衛
+    match /territories/{id} {
+      allow read: if isStaff();
+      allow write: if hasPerm('map.edit');
+    }
 
     // ---- 遊戲內容（後台寫、遊戲讀）----
     match /items/{id}            { allow read: if true; allow write: if hasPerm('item.edit'); }
@@ -96,10 +114,17 @@ service cloud.firestore {
     match /npc_instances/{id}    { allow read: if true; allow write: if hasPerm('npc.edit'); }
     match /quest_blueprints/{id} { allow read: if true; allow write: if hasPerm('quest.edit'); }
 
-    // ---- 玩家 / 公會（遊戲資料；伺服器 admin SDK 會繞過規則）----
-    // 開放已登入者讀寫，避免影響現有遊戲；如有需要可再收緊。
-    match /players/{id} { allow read: if true; allow write: if signedIn(); }
-    match /guilds/{id}  { allow read: if true; allow write: if signedIn(); }
+    // ---- 玩家 / 社團 / 執行期紀錄（只由伺服器 admin SDK 寫入，會繞過規則）----
+    // 遊戲客戶端與後台都不直接寫入這些集合，故一律拒絕客戶端寫入，
+    // 以免玩家用自己的登入憑證改自己或他人的金錢、等級、背包、社團。
+    // 讀取只開放給後台已啟用帳號（系統資料頁）；玩家本人可讀自己的存檔。
+    match /players/{uid} {
+      allow read: if isStaff() || (signedIn() && request.auth.uid == uid);
+      allow write: if false;
+    }
+    match /guilds/{id}              { allow read: if isStaff(); allow write: if false; }
+    match /runtime_parties/{id}     { allow read: if isStaff(); allow write: if false; }
+    match /weapon_enhance_logs/{id} { allow read: if isStaff(); allow write: if false; }
 
     // 其餘集合預設拒絕用戶端寫入（伺服器 admin SDK 不受影響）。
     // 若遊戲客戶端需直接寫入其他集合，請在此補上對應規則。

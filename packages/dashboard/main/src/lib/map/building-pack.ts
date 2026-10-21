@@ -162,6 +162,63 @@ async function deleteIfUnused(asset: BuildingAsset | undefined): Promise<void> {
   buildingAssetService.invalidateGlbCache(asset.id);
 }
 
+/** 大廈包擺放嘅 key：`add:<packId>:<id>`（地圖編輯器手動加嘅係 `add:<uuid>`，冇第二個冒號） */
+function packIdOfKey(key: string): string | null {
+  const parts = key.split(':');
+  return parts.length === 3 && parts[0] === 'add' ? parts[1] : null;
+}
+
+export interface ImportedPackInfo {
+  packId: string;
+  chunkId: string;
+  count: number;
+}
+
+/** 某地圖已經匯入咗嘅大廈包（由 override key 認返出嚟） */
+export async function listImportedPacks(mapName: string): Promise<ImportedPackInfo[]> {
+  const overrides = await mapOverrideService.getAllForMap(mapName);
+  const byPack = new Map<string, ImportedPackInfo>();
+  for (const o of overrides) {
+    const packId = o.action === 'add' ? packIdOfKey(o.targetBuildingKey) : null;
+    if (!packId) continue;
+    const info = byPack.get(packId) ?? { packId, chunkId: o.chunkId, count: 0 };
+    info.count++;
+    byPack.set(packId, info);
+  }
+  return [...byPack.values()].sort((a, b) => a.packId.localeCompare(b.packId));
+}
+
+/**
+ * 移除整個大廈包：刪走佢全部擺放，資產冇其他擺放引用就一齊刪走。
+ * 例如 11-NW-19D 試點包（估計嘅長方形大廈）已經由底圖入面嘅政府真實大廈取代。
+ */
+export async function removeBuildingPack(
+  mapName: string,
+  packId: string,
+  onProgress?: PackProgress
+): Promise<{ removed: number; assetsDeleted: number }> {
+  const [overrides, assets] = await Promise.all([
+    mapOverrideService.getAllForMap(mapName),
+    buildingAssetService.getAll(),
+  ]);
+  const assetById = new Map(assets.map((a) => [a.id, a]));
+  const mine = overrides.filter((o) => o.action === 'add' && packIdOfKey(o.targetBuildingKey) === packId);
+  let assetsDeleted = 0;
+  for (let i = 0; i < mine.length; i++) {
+    const o = mine[i];
+    onProgress?.(i, mine.length, o.targetBuildingKey.split(':')[2]);
+    await mapOverrideService.delete(o.id);
+    const asset = o.assetId ? assetById.get(o.assetId) : undefined;
+    if (asset && (await mapOverrideService.getByAsset(asset.id)).length === 0) {
+      await buildingAssetService.delete(asset);
+      buildingAssetService.invalidateGlbCache(asset.id);
+      assetsDeleted++;
+    }
+  }
+  onProgress?.(mine.length, mine.length, '');
+  return { removed: mine.length, assetsDeleted };
+}
+
 export async function importBuildingPack(
   pack: ParsedBuildingPack,
   onProgress?: PackProgress
