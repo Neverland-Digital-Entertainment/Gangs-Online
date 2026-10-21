@@ -293,9 +293,6 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
             dialogueSystem.show(data.npcId, data.npcName, data.dialogueTree, linkedShopId);
         });
 
-        // 後台「傳送回出生點」：伺服器叫我哋即刻瞬移
-        room.onMessage("teleport", (data: { x: number; z: number }) => teleportLocalPlayer(data.x, data.z));
-
         // === Phase 13: 被踢出（帳號在其他地方登入）===
         room.onMessage("kicked", (data: { reason: string }) => {
             console.log("⚠️ Kicked:", data.reason);

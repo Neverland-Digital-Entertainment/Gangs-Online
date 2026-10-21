@@ -3,7 +3,7 @@
  * 負責玩家資料的儲存和載入
  */
 import { Player, Item, Quest } from "../rooms/schema/GameState";
-import { IQuestDef, WEAPON_ENHANCE_CONFIG, GAME_CONSTANTS } from "@gangs-online/shared";
+import { IQuestDef, WEAPON_ENHANCE_CONFIG } from "@gangs-online/shared";
 import { getFirestore, getFieldValue, isFirebaseInitialized } from "../services/FirebaseService";
 import { guildService } from "../services/GuildService";
 
@@ -109,26 +109,6 @@ export const loadPlayer = async (
             player.hp = saved.maxHp ?? 100; // 登入時恢復滿血
             player.x = saved.x ?? 0;
             player.z = saved.z ?? 0;
-
-            // 後台「傳送回出生點」：後台只寫低請求，等玩家登入先喺呢度套用。
-            // 唔可以由後台直接改 x/z —— 玩家若果當時喺線上，下線時伺服器會用
-            // 記憶體入面嘅位置覆蓋返。savePlayer 用 merge，唔會刪走呢個欄位。
-            const teleportRequest = saved.teleportRequest;
-            if (teleportRequest?.to === "spawn") {
-                player.x = GAME_CONSTANTS.SPAWN_X;
-                player.z = GAME_CONSTANTS.SPAWN_Z;
-                try {
-                    await db.collection("players").doc(firebaseUid).update({
-                        x: player.x,
-                        z: player.z,
-                        teleportRequest: getFieldValue().delete(),
-                    });
-                    console.log(`[Persistence] Teleported ${saved.name} to spawn (requested by ${teleportRequest.requestedBy || "?"})`);
-                } catch (error) {
-                    // 清唔到請求只會令下次登入再傳送一次，唔影響今次
-                    console.error("[Persistence] Failed to clear teleportRequest:", error);
-                }
-            }
 
             // 還原背包
             if (saved.inventory && Array.isArray(saved.inventory)) {

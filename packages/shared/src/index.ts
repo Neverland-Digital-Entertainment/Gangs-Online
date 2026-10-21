@@ -248,7 +248,7 @@ export const GAME_CONSTANTS = {
     ATTACK_INTERVAL: 1000, // Milliseconds between auto-attacks
 
     // 出生點（Phase 15：旺角 11-NW-19D 彌敦道，世界座標 = (-東距, -北距)）
-    // 新玩家、後台「傳送回出生點」、遊戲內「回出生點」掣都用呢度
+    // 新玩家同遊戲內「回出生點」掣都用呢度
     SPAWN_X: -835575.4,
     SPAWN_Z: -819658.9,
 

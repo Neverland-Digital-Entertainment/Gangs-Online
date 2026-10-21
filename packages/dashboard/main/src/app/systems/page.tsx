@@ -8,13 +8,12 @@
  * - 社團資料（guilds + society 擴展欄位）
  * - 地盤狀態（territories：歸屬/守衛/保護期）
  * - 組隊快照（runtime_parties）
- * - 玩家資料（players：金錢/等級/裝備/背包）；可「傳送回出生點」，線上即時瞬移（需 player.edit）
+ * - 玩家資料（players：金錢/等級/裝備/背包）
  */
 import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, getDoc, query, orderBy, limit, doc, updateDoc, serverTimestamp, deleteField } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { getFirebaseServices } from '@/lib/firebase/config';
-import { useAuth } from '@/contexts/auth-context';
-import { RefreshCw, MapPin } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
 type Tab = 'enhance' | 'society' | 'territory' | 'party' | 'player';
 
@@ -25,9 +24,6 @@ const TABS: { key: Tab; label: string }[] = [
     { key: 'party', label: '👥 組隊' },
     { key: 'player', label: '🧍 玩家' },
 ];
-
-/** 寫低傳送請求後等幾耐先睇伺服器有冇處理（線上玩家通常一秒內） */
-const TELEPORT_CHECK_MS = 3000;
 
 const fmtTime = (ts: any): string => {
     if (!ts) return '-';
@@ -40,47 +36,6 @@ export default function SystemsDataPage() {
     const [rows, setRows] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const { user, hasPermission } = useAuth();
-    const canEditPlayers = hasPermission('player.edit');
-    const [playerFilter, setPlayerFilter] = useState('');
-    const [busyId, setBusyId] = useState<string | null>(null);
-
-    /**
-     * 傳送回出生點：寫低請求，由伺服器執行並清走 ——
-     * 玩家喺線上：遊戲伺服器監聽到即刻瞬移（GameRoom.watchTeleportRequests）；
-     * 離線或者坐緊監獄：下次登入時處理（persistence.loadPlayer）。
-     * 唔直接改 x/z：玩家喺線上嘅話，下線時伺服器會用記憶體入面嘅位置覆蓋返。
-     */
-    const setTeleport = async (r: any, request: boolean) => {
-        if (request && !confirm(`將「${r.name}」傳送回出生點？\n喺線上會即刻瞬移；離線就下次登入時生效。`)) return;
-        setBusyId(r.id);
-        setError('');
-        try {
-            const { db } = getFirebaseServices();
-            const ref = doc(db, 'players', r.id);
-            const teleportRequest = request
-                ? { to: 'spawn', requestedAt: serverTimestamp(), requestedBy: user?.email || '' }
-                : deleteField();
-            await updateDoc(ref, { teleportRequest });
-            const patch = (fields: any) => setRows((prev) => prev.map((p) => (p.id === r.id ? { ...p, ...fields } : p)));
-            if (!request) {
-                patch({ teleportRequest: undefined, teleportStatus: undefined });
-                return;
-            }
-            patch({ teleportRequest: { to: 'spawn' }, teleportStatus: 'waiting' });
-            // 等伺服器處理：請求冇咗 = 玩家喺線上、已經瞬移
-            await new Promise((resolve) => setTimeout(resolve, TELEPORT_CHECK_MS));
-            const after = (await getDoc(ref)).data();
-            patch(after?.teleportRequest
-                ? { teleportRequest: after.teleportRequest, teleportStatus: 'offline' }
-                : { teleportRequest: undefined, teleportStatus: 'done' });
-        } catch (e: any) {
-            console.error(e);
-            setError(`更新失敗：${e?.message || e}`);
-        } finally {
-            setBusyId(null);
-        }
-    };
 
     const load = useCallback(async (t: Tab) => {
         setLoading(true);
@@ -248,33 +203,16 @@ export default function SystemsDataPage() {
             {!loading && tab === 'party' && rows.length === 0 && <div className="text-[var(--muted)]">目前沒有進行中的隊伍快照</div>}
 
             {!loading && tab === 'player' && (
-                <input
-                    className="input mb-3 max-w-xs"
-                    placeholder="搜尋角色名稱 / UID"
-                    value={playerFilter}
-                    onChange={(e) => setPlayerFilter(e.target.value)}
-                />
-            )}
-            {!loading && tab === 'player' && (
                 <div className="card overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead><tr className="text-left border-b border-[var(--border)]">
                             <th className="p-2">名稱</th><th className="p-2">等級</th><th className="p-2">金錢</th>
                             <th className="p-2">裝備武器</th><th className="p-2">攻擊加成</th><th className="p-2">背包</th><th className="p-2">最後上線</th>
-                            {canEditPlayers && <th className="p-2">操作</th>}
                         </tr></thead>
                         <tbody>
-                            {rows
-                                .filter((r) => {
-                                    const f = playerFilter.trim().toLowerCase();
-                                    return !f || String(r.name || '').toLowerCase().includes(f) || r.id.toLowerCase().includes(f);
-                                })
-                                .map((r) => (
+                            {rows.map((r) => (
                                 <tr key={r.id} className="border-b border-[var(--border)]">
-                                    <td className="p-2">
-                                        {r.name}
-                                        <div className="font-mono text-[10px] text-[var(--muted)]">{r.id}</div>
-                                    </td>
+                                    <td className="p-2">{r.name}</td>
                                     <td className="p-2">Lv{r.level}</td>
                                     <td className="p-2">${r.money}</td>
                                     <td className="p-2">{r.equippedWeaponName || '-'}</td>
@@ -286,29 +224,6 @@ export default function SystemsDataPage() {
                                         {(r.inventory || []).length > 8 && ` +${(r.inventory || []).length - 8}`}
                                     </td>
                                     <td className="p-2">{fmtTime(r.lastOnline)}</td>
-                                    {canEditPlayers && (
-                                        <td className="p-2 whitespace-nowrap">
-                                            {r.teleportRequest?.to === 'spawn' ? (
-                                                <span className="text-xs">
-                                                    {r.teleportStatus === 'waiting' ? (
-                                                        <span className="text-[var(--muted)]">傳送中…</span>
-                                                    ) : (
-                                                        <span className="text-yellow-500">⏳ 離線中，下次登入回出生點</span>
-                                                    )}
-                                                    {r.teleportStatus !== 'waiting' && (
-                                                        <button className="btn-light px-2 py-0.5 ml-2 text-xs" disabled={busyId === r.id} onClick={() => setTeleport(r, false)}>取消</button>
-                                                    )}
-                                                </span>
-                                            ) : (
-                                                <span className="flex items-center gap-2">
-                                                    <button className="btn-light px-2 py-1 text-xs flex items-center gap-1" disabled={busyId === r.id} onClick={() => setTeleport(r, true)}>
-                                                        <MapPin className="w-3 h-3" /> 傳送回出生點
-                                                    </button>
-                                                    {r.teleportStatus === 'done' && <span className="text-xs text-green-500">✅ 已瞬移</span>}
-                                                </span>
-                                            )}
-                                        </td>
-                                    )}
                                 </tr>
                             ))}
                         </tbody>

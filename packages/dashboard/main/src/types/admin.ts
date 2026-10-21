@@ -21,7 +21,6 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   { key: 'npc', labelKey: 'nav.npc' },
   { key: 'quest', labelKey: 'nav.quest' },
   { key: 'users', labelKey: 'nav.users' },
-  { key: 'player', labelKey: 'nav.players' },
 ];
 
 export function perm(moduleKey: string, action: PermissionAction): string {

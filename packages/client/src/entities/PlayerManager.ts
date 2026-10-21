@@ -4,7 +4,7 @@ import { PlayerData } from "@gangs-online/shared";
 import { PlayerEntity, PlayerTarget } from "../types";
 import { UISystem } from "../systems/UISystem";
 import { WeaponSystem } from "../systems/WeaponSystem";
-import { modelConfig, config } from "../config";
+import { modelConfig, config, characterCollisionConfig } from "../config";
 
 /**
  * 玩家管理器
@@ -88,8 +88,9 @@ export class PlayerManager {
 
         // --- COLLISION SETUP ---
         root.checkCollisions = true;
-        root.ellipsoid = new BABYLON.Vector3(0.5, 1.0, 0.5);
-        root.ellipsoidOffset = new BABYLON.Vector3(0, 1.0, 0);
+        const cc = characterCollisionConfig;
+        root.ellipsoid = new BABYLON.Vector3(cc.radius, cc.halfHeight, cc.radius);
+        root.ellipsoidOffset = new BABYLON.Vector3(0, cc.halfHeight + cc.stepHeight, 0);
 
         // Store SessionId on the mesh for Raycasting (IMPORTANT for attack detection)
         root.metadata = { sessionId };
