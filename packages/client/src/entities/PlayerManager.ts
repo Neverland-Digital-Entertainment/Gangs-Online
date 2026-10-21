@@ -23,6 +23,8 @@ export class PlayerManager {
     private playerTargets: { [sessionId: string]: PlayerTarget } = {};
     /** resolveDestination 搵到的路：伺服器回傳同一個目標時直接用，唔使再搵多次 */
     private resolvedPaths: { [sessionId: string]: { from: NavPoint; path: NavPoint[] } } = {};
+    /** 今幀 moveWithCollisions 撞到的 mesh（Debug：卡住時顯示係乜嘢擋住） */
+    private lastCollision: { [sessionId: string]: BABYLON.AbstractMesh | null } = {};
     private groundMeshes: BABYLON.AbstractMesh[] = []; // Phase 15: 地面偵測用
 
     constructor(scene: BABYLON.Scene, uiSystem: UISystem, weaponSystem: WeaponSystem) {
@@ -106,6 +108,9 @@ export class PlayerManager {
 
         // Store SessionId on the mesh for Raycasting (IMPORTANT for attack detection)
         root.metadata = { sessionId };
+        root.onCollideObservable.add((mesh) => {
+            this.lastCollision[sessionId] = mesh;
+        });
 
         // ATTACH WEAPON
         this.weaponSystem.attachWeapon(root, result.meshes[1], this.scene);
@@ -128,7 +133,9 @@ export class PlayerManager {
         };
 
         this.playerEntities[sessionId] = entity;
-        this.playerTargets[sessionId] = { x: player.x, z: player.z, waypoints: [], stuckFrames: 0, replanned: false };
+        this.playerTargets[sessionId] = {
+            x: player.x, z: player.z, waypoints: [], stuckFrames: 0, replanned: false, blockedBy: null,
+        };
 
         console.log(`✅ Player created successfully: ${sessionId}`);
         console.log(`   Position: (${player.x}, ${player.z})`);
@@ -153,6 +160,7 @@ export class PlayerManager {
             delete this.playerEntities[sessionId];
             delete this.playerTargets[sessionId];
             delete this.resolvedPaths[sessionId];
+            delete this.lastCollision[sessionId];
         }
     }
 
@@ -223,6 +231,7 @@ export class PlayerManager {
                 target.z = z;
                 target.waypoints = [];
                 target.stuckFrames = 0;
+                target.blockedBy = null;
             }
             delete this.resolvedPaths[sessionId];
 
@@ -313,6 +322,7 @@ export class PlayerManager {
                     // Phase 15: 使用 moveWithCollisions 處理碰撞（搵路之外的保險，例如貼住牆角滑過去）
                     const prevX = mesh.position.x;
                     const prevZ = mesh.position.z;
+                    this.lastCollision[sessionId] = null;
                     mesh.moveWithCollisions(velocity);
                     const moved = Math.hypot(mesh.position.x - prevX, mesh.position.z - prevZ);
                     this.checkStuck(sessionId, entity, target, moved, velocity.length());
@@ -355,9 +365,23 @@ export class PlayerManager {
     ): void {
         if (moved >= expected * 0.3) {
             target.stuckFrames = 0;
+            target.blockedBy = null;
             return;
         }
         if (++target.stuckFrames < STUCK_FRAMES) return;
+
+        // Debug：記低係乜嘢擋住（Debug 面板會顯示），換咗另一樣嘢擋住先再印 log
+        const hit = this.lastCollision[sessionId];
+        const blockedBy = hit ? this.describeObstacle(hit) : null;
+        if (blockedBy && blockedBy !== target.blockedBy) {
+            target.blockedBy = blockedBy;
+            const p = entity.mesh.position;
+            console.warn(
+                `🚧 [PlayerManager] ${sessionId} 卡住喺 (${p.x.toFixed(1)}, ${p.y.toFixed(2)}, ${p.z.toFixed(1)})，` +
+                    `擋住佢的係 ${target.blockedBy}`,
+                hit?.metadata ?? {}
+            );
+        }
 
         if (!target.replanned) {
             target.replanned = true;
@@ -366,6 +390,18 @@ export class PlayerManager {
             target.waypoints = [];
             target.stuckFrames = 0;
         }
+    }
+
+    /** 擋路 mesh 的描述：地形多數係行人路邊等高低級，其他係大廈／道具的碰撞方塊 */
+    private describeObstacle(mesh: BABYLON.AbstractMesh): string {
+        const bb = mesh.getBoundingInfo().boundingBox;
+        const kind = this.isGroundMesh(mesh) ? "地形" : mesh.metadata?.isOverrideCollider ? "覆蓋層碰撞方塊" : "mesh";
+        return `${kind} ${mesh.name}（y ${bb.minimumWorld.y.toFixed(2)}～${bb.maximumWorld.y.toFixed(2)}）`;
+    }
+
+    /** 角色而家卡住的話，回傳擋住佢的嘢（Debug 面板用）；冇卡住回傳 null */
+    getBlockedBy(sessionId: string): string | null {
+        return this.playerTargets[sessionId]?.blockedBy ?? null;
     }
 
     /**

@@ -37,6 +37,8 @@ export interface PlayerTarget {
     stuckFrames: number;
     /** 今次目標已經因為卡住重新搵過一次路 */
     replanned: boolean;
+    /** 卡住時擋住角色的嘢（Debug 面板顯示）；行得郁就係 null */
+    blockedBy: string | null;
 }
 
 /**

@@ -1046,6 +1046,7 @@ const createScene = async (loginResult: LoginResult): Promise<BABYLON.Scene> => 
 
                     // Phase 15: 更新 Debug UI 座標
                     debugUI.setPlayerPosition(myEntity.mesh.position);
+                    debugUI.setBlockedBy(playerManager.getBlockedBy(mySessionId));
 
                     // Phase 15: 檢查並更新建築物透明度（當玩家在建築物後面時）
                     sceneManager.updateBuildingOcclusion(myEntity.mesh.position, camera);

@@ -21,6 +21,7 @@ export class DebugUISystem {
     private baseBuildingElement: HTMLElement | null = null;
     private posXElement: HTMLElement | null = null;
     private posZElement: HTMLElement | null = null;
+    private blockedElement: HTMLElement | null = null;
     private isVisible: boolean = true;
     private playerPosition: BABYLON.Vector3 = BABYLON.Vector3.Zero();
 
@@ -266,6 +267,13 @@ export class DebugUISystem {
         this.posZElement.style.color = "#88ccff";
         this.posZElement.textContent = "Z: --";
 
+        // 角色卡住時顯示擋住佢的嘢（平時隱藏）
+        this.blockedElement = document.createElement("div");
+        this.blockedElement.style.marginTop = "4px";
+        this.blockedElement.style.color = "#ff6666";
+        this.blockedElement.style.maxWidth = "320px";
+        this.blockedElement.style.display = "none";
+
         // 後台擺放資產（instancing）狀態 —— 三角形面板數不到 InstancedMesh，
         // 所以擺放的大廈有沒有渲染、有沒有淡出，只能在這裡直接看
         this.assetElement = document.createElement("div");
@@ -286,6 +294,7 @@ export class DebugUISystem {
         this.container.appendChild(this.drawCallsElement);
         this.container.appendChild(this.posXElement);
         this.container.appendChild(this.posZElement);
+        this.container.appendChild(this.blockedElement);
         this.container.appendChild(this.assetElement);
         this.container.appendChild(this.baseBuildingElement);
 
@@ -387,6 +396,13 @@ export class DebugUISystem {
      */
     setPlayerPosition(position: BABYLON.Vector3): void {
         this.playerPosition = position;
+    }
+
+    /** 設定擋住玩家的嘢（null = 冇卡住） */
+    setBlockedBy(text: string | null): void {
+        if (!this.blockedElement) return;
+        this.blockedElement.style.display = text ? "block" : "none";
+        if (text) this.blockedElement.textContent = `卡住: ${text}`;
     }
 
     /**
