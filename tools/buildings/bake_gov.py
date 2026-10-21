@@ -83,7 +83,7 @@ def prepare(doc, roads):
             if g.is_empty:
                 break
             if cut > 2.0 and not tiers:
-                notes.append(f"{b['id']}: 切走伸入馬路／出生點 {cut:.0f} m²")
+                notes.append((cut, b["id"]))
             tiers.append((g, float(t["height"])))
             prev = g
         if tiers:
@@ -618,8 +618,10 @@ def main():
     print(f"三角面：最多 {worst}、平均 {sum(tris) / len(tris):.0f}、合共 {sum(tris)}；"
           f"要減細節：冇墨線 {lods[1]}、簡化輪廓 {lods[2]}、併層 {sum(lods[3:])} 棟")
     print("風格：" + "、".join(f"{k} {v}" for k, v in sorted(styles.items())))
-    for n in notes:
-        print("  -", n)
+    if notes:
+        notes.sort(reverse=True)
+        print(f"{len(notes)} 棟伸入底圖馬路／出生點，切走咗；最多：" +
+              "、".join(f"{bid} {cut:.0f}m²" for cut, bid in notes[:5]))
 
 
 if __name__ == "__main__":
